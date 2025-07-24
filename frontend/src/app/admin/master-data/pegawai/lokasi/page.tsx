@@ -21,38 +21,45 @@ import PegawaiMap from "@/components/PegawaiMap";
 
 interface PegawaiLocation {
   id: number;
-  username?: string;
+  nip?: string;
+  namaLengkap?: string;
+  fullName?: string; // Backend compatibility
   email?: string;
-  fullName?: string;
-  namaLengkap?: string; // Fallback if fullName not available
-  phoneNumber?: string;
-  noTelp?: string; // Fallback if phoneNumber not available
-  jabatan?: string;
-  status?: string;
-  isActive?: boolean; // Fallback if status not available
-  photoUrl?: string;
-  fotoKaryawan?: string; // Fallback if photoUrl not available
+  noTelp?: string;
+  phoneNumber?: string; // Backend compatibility
   alamat?: string;
-  provinsi?: string;
-  provinsiNama?: string;
-  kota?: string;
-  kotaNama?: string;
-  kecamatan?: string;
-  kecamatanNama?: string;
-  kelurahan?: string;
-  kelurahanNama?: string;
-  kodePos?: string;
+  jenisKelamin?: string;
+  tanggalLahir?: string;
+  tempatLahir?: string;
+  pendidikan?: string;
+  tanggalMasuk?: string;
+  role?: string;
+  jabatan?: {
+    id: number;
+    nama: string;
+  };
+  lokasi?: {
+    id: number;
+    namaLokasi: string;
+  };
+  isActive?: boolean;
+  status?: string; // Backend compatibility
+  createdAt?: string;
+  updatedAt?: string;
+  // Location data
   latitude?: number;
   longitude?: number;
-  totalTps?: number;
-  totalPemilihan?: number;
-  createdAt?: string;
-  pemilihanList?: Array<{
-    id: number;
-    judulPemilihan: string;
-    totalLaporan: number;
-    totalJenisLaporan: number;
-  }>;
+  provinsi?: string;
+  provinsiNama?: string; // Backend compatibility
+  kota?: string;
+  kotaNama?: string; // Backend compatibility
+  kecamatan?: string;
+  kecamatanNama?: string; // Backend compatibility
+  kelurahan?: string;
+  kelurahanNama?: string; // Backend compatibility
+  kodePos?: string;
+  photoUrl?: string;
+  fotoKaryawan?: string; // Backend compatibility
 }
 
 export default function PegawaiLokasiPage() {
@@ -85,7 +92,7 @@ export default function PegawaiLokasiPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [pageSize, setPageSize] = useState(25);
-  const [sortBy, setSortBy] = useState('fullName');
+  const [sortBy, setSortBy] = useState('namaLengkap');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const { toast } = useToast();
@@ -94,29 +101,38 @@ export default function PegawaiLokasiPage() {
   // Helper function to normalize pegawai data
   const normalizePegawaiData = (pegawai: any): PegawaiLocation => ({
     id: pegawai.id,
-    username: pegawai.username || '',
-    email: pegawai.email || '',
+    nip: pegawai.nip || '',
+    namaLengkap: pegawai.namaLengkap || pegawai.fullName || 'Nama tidak tersedia',
     fullName: pegawai.fullName || pegawai.namaLengkap || 'Nama tidak tersedia',
+    email: pegawai.email || '',
+    noTelp: pegawai.noTelp || pegawai.phoneNumber || '',
     phoneNumber: pegawai.phoneNumber || pegawai.noTelp || '',
-    jabatan: pegawai.jabatan?.nama || pegawai.jabatan || '',
-    status: pegawai.status || (pegawai.isActive ? 'AKTIF' : 'TIDAK_AKTIF'),
-    photoUrl: pegawai.photoUrl || pegawai.fotoKaryawan,
     alamat: pegawai.alamat || '',
-    provinsi: pegawai.provinsi || '',
-    provinsiNama: pegawai.provinsiNama || '',
-    kota: pegawai.kota || '',
-    kotaNama: pegawai.kotaNama || '',
-    kecamatan: pegawai.kecamatan || '',
-    kecamatanNama: pegawai.kecamatanNama || '',
-    kelurahan: pegawai.kelurahan || '',
-    kelurahanNama: pegawai.kelurahanNama || '',
-    kodePos: pegawai.kodePos || '',
+    jenisKelamin: pegawai.jenisKelamin || '',
+    tanggalLahir: pegawai.tanggalLahir || '',
+    tempatLahir: pegawai.tempatLahir || '',
+    pendidikan: pegawai.pendidikan || '',
+    tanggalMasuk: pegawai.tanggalMasuk || '',
+    role: pegawai.role || '',
+    jabatan: pegawai.jabatan,
+    lokasi: pegawai.lokasi,
+    isActive: pegawai.isActive,
+    status: pegawai.status || (pegawai.isActive ? 'AKTIF' : 'TIDAK_AKTIF'),
+    createdAt: pegawai.createdAt || '',
+    updatedAt: pegawai.updatedAt || '',
     latitude: pegawai.latitude,
     longitude: pegawai.longitude,
-    totalTps: pegawai.totalTps || 0,
-    totalPemilihan: pegawai.totalPemilihan || 0,
-    createdAt: pegawai.createdAt || '',
-    pemilihanList: pegawai.pemilihanList || []
+    provinsi: pegawai.provinsi || '',
+    provinsiNama: pegawai.provinsiNama || pegawai.provinsi || '',
+    kota: pegawai.kota || '',
+    kotaNama: pegawai.kotaNama || pegawai.kota || '',
+    kecamatan: pegawai.kecamatan || '',
+    kecamatanNama: pegawai.kecamatanNama || pegawai.kecamatan || '',
+    kelurahan: pegawai.kelurahan || '',
+    kelurahanNama: pegawai.kelurahanNama || pegawai.kelurahan || '',
+    kodePos: pegawai.kodePos || '',
+    photoUrl: pegawai.photoUrl || pegawai.fotoKaryawan,
+    fotoKaryawan: pegawai.fotoKaryawan || pegawai.photoUrl
   });
 
   // Helper function to get authorization headers
@@ -318,7 +334,7 @@ export default function PegawaiLokasiPage() {
                   <span className="text-sm font-medium text-muted-foreground">Pegawai Aktif</span>
                 </div>
                 <div className="text-2xl font-bold mt-2">
-                  {isLoading ? <Skeleton className="h-8 w-16" /> : allPegawaiLocations.filter(p => p.status === 'AKTIF').length}
+                  {isLoading ? <Skeleton className="h-8 w-16" /> : allPegawaiLocations.filter(p => p.isActive || p.status === 'AKTIF').length}
                 </div>
               </CardContent>
             </Card>
@@ -327,10 +343,10 @@ export default function PegawaiLokasiPage() {
               <CardContent className="p-6">
                 <div className="flex items-center space-x-2">
                   <Building2 className="h-5 w-5 text-purple-500" />
-                  <span className="text-sm font-medium text-muted-foreground">Total TPS</span>
+                  <span className="text-sm font-medium text-muted-foreground">Total Provinsi</span>
                 </div>
                 <div className="text-2xl font-bold mt-2">
-                  {isLoading ? <Skeleton className="h-8 w-16" /> : allPegawaiLocations.reduce((sum, p) => sum + (p.totalTps || 0), 0)}
+                  {isLoading ? <Skeleton className="h-8 w-16" /> : uniqueProvinces}
                 </div>
               </CardContent>
             </Card>
@@ -536,7 +552,7 @@ export default function PegawaiLokasiPage() {
                     <TableRow className="bg-gray-50/50 dark:bg-gray-800/50">
                       <TableHead className="w-[200px]">
                         <SortableHeader
-                          sortKey="fullName"
+                          sortKey="namaLengkap"
                           currentSort={{ sortBy, sortDir }}
                           onSort={handleSort}
                         >
@@ -555,7 +571,7 @@ export default function PegawaiLokasiPage() {
                       <TableHead className="w-[100px]">Status</TableHead>
                       <TableHead className="w-[250px]">
                         <SortableHeader
-                          sortKey="provinsiNama"
+                          sortKey="provinsi"
                           currentSort={{ sortBy, sortDir }}
                           onSort={handleSort}
                         >
@@ -590,53 +606,53 @@ export default function PegawaiLokasiPage() {
                           <TableCell className="py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold border-2 border-gray-200 dark:border-gray-600 shadow-sm">
-                                {pegawai.photoUrl ? (
+                                {(pegawai.photoUrl || pegawai.fotoKaryawan) ? (
                                   <img 
                                     src={
-                                      pegawai.photoUrl.startsWith('http') 
-                                        ? pegawai.photoUrl 
-                                        : `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/upload/photos/${pegawai.photoUrl}`
+                                      (pegawai.photoUrl || pegawai.fotoKaryawan)?.startsWith('http') 
+                                        ? (pegawai.photoUrl || pegawai.fotoKaryawan)
+                                        : `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/upload/photos/${pegawai.photoUrl || pegawai.fotoKaryawan}`
                                     }
-                                    alt={`Foto ${pegawai.fullName}`}
+                                    alt={`Foto ${pegawai.namaLengkap || pegawai.fullName}`}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement;
                                       target.style.display = 'none';
                                       const parent = target.parentElement;
-                                      if (parent && pegawai.fullName) {
-                                        parent.innerHTML = pegawai.fullName.charAt(0).toUpperCase();
+                                      const name = pegawai.namaLengkap || pegawai.fullName || '';
+                                      if (parent && name && name.length > 0) {
+                                        parent.innerHTML = `<span class="text-lg">${name.charAt(0).toUpperCase()}</span>`;
                                       }
                                     }}
                                   />
                                 ) : (
                                   <span className="text-lg">
-                                    {pegawai.fullName ? pegawai.fullName.charAt(0).toUpperCase() : '?'}
+                                    {(pegawai.namaLengkap && pegawai.namaLengkap.length > 0) ? pegawai.namaLengkap.charAt(0).toUpperCase() : 
+                                     (pegawai.fullName && pegawai.fullName.length > 0) ? pegawai.fullName.charAt(0).toUpperCase() : '?'}
                                   </span>
                                 )}
                               </div>
                               <div>
-                                <div className="font-semibold text-gray-900 dark:text-white">{pegawai.fullName}</div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">@{pegawai.username}</div>
+                                <div className="font-semibold text-gray-900 dark:text-white">{pegawai.namaLengkap || pegawai.fullName || 'Nama tidak tersedia'}</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">{pegawai.nip || 'NIP tidak tersedia'}</div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="py-4">
                             <Badge className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 font-medium">
                               <Shield className="h-3 w-3 mr-1" />
-                              {pegawai.jabatan}
+                              {pegawai.jabatan?.nama || 'Tidak ada jabatan'}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-4">
                             <Badge 
                               className={
-                                pegawai.status === 'AKTIF' 
+                                (pegawai.isActive || pegawai.status === 'AKTIF')
                                   ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' 
-                                  : pegawai.status === 'TIDAK_AKTIF'
-                                  ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
-                                  : 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800'
+                                  : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
                               }
                             >
-                              {pegawai.status === 'AKTIF' ? '🟢' : pegawai.status === 'TIDAK_AKTIF' ? '🔴' : '🟡'} {pegawai.status}
+                              {(pegawai.isActive || pegawai.status === 'AKTIF') ? '� AKTIF' : '� TIDAK AKTIF'}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-4">

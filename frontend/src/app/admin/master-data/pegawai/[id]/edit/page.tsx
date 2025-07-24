@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { useParams } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -129,7 +128,7 @@ export default function EditPegawaiPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAddress, setSelectedAddress] = useState('')
   
-  // Form state matching backend Pegawai entity
+  // Form state matching absensi structure
   const [formData, setFormData] = useState({
     // Step 1: Personal & Account Info
     name: '',
@@ -157,27 +156,31 @@ export default function EditPegawaiPage() {
     kodePos: '',
     latitude: '',
     longitude: '',
-    
-    // Step 3: Salary & Benefits (sesuai backend)
+    // Step 3: Salary & Benefits (Penambah)
     gaji_pokok: '',
     makan_transport: '',
     lembur: '',
     kehadiran: '',
     thr: '',
     bonus: '',
+    tunjangan_jabatan: '',
+    tunjangan_keluarga: '',
+    tunjangan_komunikasi: '',
+    tunjangan_transportasi: '',
 
     // Pengurangan
     izin: '',
     terlambat: '',
     mangkir: '',
     saldo_kasbon: '',
+    potongan_bpjs: '',
+    potongan_pajak: '',
 
     // Izin data
     izin_cuti: 0,
     izin_lainnya: 0,
     izin_telat: 0,
     izin_pulang_cepat: 0,
-    id: ''
   })
   
   const { toast } = useToast()
@@ -187,120 +190,17 @@ export default function EditPegawaiPage() {
   }, [])
   
   useEffect(() => {
-    if (mounted) {
-      // Load data in specific order to ensure dependencies are loaded first
-      const loadAllData = async () => {
-        // Load static data first (roles, jabatan, lokasi)
-        await Promise.all([
-          loadJabatanData(),
-          loadLokasiData(),
-          loadRoleData(),
-          loadProvinsiData()
-        ])
-        
-        // Then load pegawai data after static data is loaded
-        await loadPegawaiData()
-      }
-      
-      loadAllData()
+    if (mounted && params.id) {
+      loadJabatanData()
+      loadLokasiData()
+      loadProvinsiData()
+      loadRoleData()
+      loadPegawaiData() // Load existing pegawai data for editing
     }
-  }, [mounted])
-
-  // Debug useEffect untuk roleList
-  useEffect(() => {
-    if (roleList.length > 0 && formData.is_admin && formData.id) {
-      const matchingRole = roleList.find(role => role.roleName === formData.is_admin)
-      if (matchingRole) {
-        setFormData(prevData => ({
-          ...prevData,
-          is_admin: matchingRole.roleName
-        }))
-      }
-    }
-  }, [roleList, formData.is_admin, formData.id])
-
-  const loadPegawaiData = async () => {
-    if (!params.id) {
-      showErrorToast('ID Pegawai tidak valid')
-      return
-    }
-    
-    try {
-      console.log('Loading pegawai data for ID:', params.id)
-      const response = await fetch(getApiUrl(`api/pegawai/${params.id}`), {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        
-        const newFormData = {
-          name: data.namaLengkap || '',
-          nip: data.nip || '',
-          email: data.email || '',
-          telepon: data.noTelp || '',
-          gender: data.jenisKelamin === 'L' ? 'Laki-Laki' : 'Perempuan',
-          tgl_lahir: data.tanggalLahir || '',
-          status_nikah: data.statusNikah || '',
-          tgl_join: data.tanggalMasuk || '',
-          rekening: data.rekening || '',
-          username: data.username || '',
-          password: '',
-          lokasi_id: data.lokasi?.id?.toString() || '',
-          jabatan_id: data.jabatan?.id?.toString() || '',
-          is_admin: data.role || '',
-          foto_karyawan: null,
-          alamat: data.alamat || '',
-          provinsi: data.provinsi || '',
-          kota: data.kota || '',
-          kecamatan: data.kecamatan || '',
-          kelurahan: data.kelurahan || '',
-          kodePos: data.kodePos || '',
-          latitude: data.latitude?.toString() || '',
-          longitude: data.longitude?.toString() || '',
-          gaji_pokok: data.gajiPokok?.toString() || '',
-          makan_transport: data.makanTransport?.toString() || '',
-          lembur: data.lembur?.toString() || '',
-          kehadiran: data.kehadiran?.toString() || '',
-          thr: data.thr?.toString() || '',
-          bonus: data.bonus?.toString() || '',
-          izin: data.izin?.toString() || '',
-          terlambat: data.terlambat?.toString() || '',
-          mangkir: data.mangkir?.toString() || '',
-          saldo_kasbon: data.saldoKasbon?.toString() || '',
-          izin_cuti: data.izinCuti || 0,
-          izin_lainnya: data.izinLainnya || 0,
-          izin_telat: data.izinTelat || 0,
-          izin_pulang_cepat: data.izinPulangCepat || 0,
-          id: data.id?.toString() || ''
-        }
-        
-        setFormData(newFormData)
-        if (data.fotoKaryawan) {
-          setPreviewImage(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/upload/photos/${data.fotoKaryawan}` as string)
-        }
-        // Load wilayah data berdasarkan data pegawai
-        if (data.provinsi) {
-          await loadKotaData(data.provinsi)
-        }
-        if (data.kota) {
-          await loadKecamatanData(data.kota)
-        }
-        if (data.kecamatan) {
-          await loadKelurahanData(data.kecamatan)
-        }
-      } else {
-        console.error('Failed to load pegawai data:', response.status)
-        showErrorToast('Gagal memuat data pegawai')
-      }
-    } catch (error) {
-      console.error('Error loading pegawai data:', error)
-      showErrorToast('Gagal memuat data pegawai')
-    }
-  }
+  }, [mounted, params.id])
 
   const loadJabatanData = async () => {
     try {
-      console.log('Loading jabatan data...')
       const response = await fetch(
         getApiUrl('api/admin/master-data/jabatan?page=0&size=100'),
         {
@@ -312,7 +212,6 @@ export default function EditPegawaiPage() {
       
       if (response.ok) {
         const data = await response.json()
-        console.log('Jabatan data loaded:', data)
         setJabatanList(data.content || [])
       } else {
         console.error('Failed to load jabatan data:', response.status)
@@ -336,6 +235,8 @@ export default function EditPegawaiPage() {
       if (response.ok) {
         const data = await response.json()
         setLokasiList(data.content || [])
+      } else {
+        console.error('Failed to load lokasi data:', response.status)
       }
     } catch (error) {
       console.error('Error loading lokasi data:', error)
@@ -344,7 +245,6 @@ export default function EditPegawaiPage() {
 
   const loadRoleData = async () => {
     try {
-      console.log('Loading role data...')
       const response = await fetch(getApiUrl('api/roles/all'), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -353,13 +253,119 @@ export default function EditPegawaiPage() {
       
       if (response.ok) {
         const data = await response.json()
-        console.log('Role data loaded:', data)
         setRoleList(data || [])
       } else {
         console.error('Failed to load role data:', response.status)
       }
     } catch (error) {
       console.error('Error loading role data:', error)
+    }
+  }
+
+  const loadPegawaiData = async () => {
+    if (!params.id) return
+    
+    try {
+      setLoading(true)
+      const response = await fetch(getApiUrl(`api/pegawai/${params.id}`), {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Loaded pegawai data:', data)
+        
+        // Map backend data to form state
+        setFormData({
+          name: data.namaLengkap || '',
+          nip: data.nip || '',
+          email: data.email || '',
+          telepon: data.noTelp || data.phoneNumber || '',
+          gender: data.jenisKelamin === 'L' ? 'Laki-Laki' : data.jenisKelamin === 'P' ? 'Perempuan' : '',
+          tgl_lahir: data.tanggalLahir || '',
+          status_nikah: data.statusNikah || '',
+          tgl_join: data.tanggalMasuk || '',
+          rekening: data.rekening || '',
+          username: data.username || '',
+          password: '', // Don't load existing password for security
+          lokasi_id: data.lokasi?.id?.toString() || '',
+          jabatan_id: data.jabatan?.id?.toString() || '',
+          is_admin: data.role || '',
+          foto_karyawan: null,
+          alamat: data.alamat || '',
+          provinsi: data.provinsi || '',
+          kota: data.kota || '',
+          kecamatan: data.kecamatan || '',
+          kelurahan: data.kelurahan || '',
+          kodePos: data.kodePos || '',
+          latitude: data.latitude?.toString() || '',
+          longitude: data.longitude?.toString() || '',
+          gaji_pokok: data.gajiPokok?.toString() || '',
+          makan_transport: data.makanTransport?.toString() || '',
+          lembur: data.lembur?.toString() || '',
+          kehadiran: data.kehadiran?.toString() || '',
+          thr: data.thr?.toString() || '',
+          bonus: data.bonus?.toString() || '',
+          tunjangan_jabatan: data.tunjanganJabatan?.toString() || '',
+          tunjangan_keluarga: data.tunjanganKeluarga?.toString() || '',
+          tunjangan_komunikasi: data.tunjanganKomunikasi?.toString() || '',
+          tunjangan_transportasi: data.tunjanganTransportasi?.toString() || '',
+          izin: data.izin?.toString() || '',
+          terlambat: data.terlambat?.toString() || '',
+          mangkir: data.mangkir?.toString() || '',
+          saldo_kasbon: data.saldoKasbon?.toString() || '',
+          potongan_bpjs: data.potonganBpjs?.toString() || '',
+          potongan_pajak: data.potonganPajak?.toString() || '',
+          izin_cuti: data.izinCuti || 0,
+          izin_lainnya: data.izinLainnya || 0,
+          izin_telat: data.izinTelat || 0,
+          izin_pulang_cepat: data.izinPulangCepat || 0,
+        })
+
+        console.log('Form data set:', {
+          lokasi_id: data.lokasi?.id?.toString() || '',
+          jabatan_id: data.jabatan?.id?.toString() || '',
+          is_admin: data.role || ''
+        })
+
+        // Set preview image if exists
+        if (data.fotoKaryawan || data.photoUrl) {
+          const photoField = data.photoUrl || data.fotoKaryawan
+          let imageUrl
+          
+          if (photoField.startsWith('http')) {
+            imageUrl = photoField
+          } else {
+            // Construct URL for uploaded photos
+            imageUrl = getApiUrl(`api/upload/photos/${photoField}`)
+          }
+          
+          setPreviewImage(imageUrl)
+        }
+
+        // Load related data based on address
+        if (data.provinsi) {
+          await loadKotaData(data.provinsi)
+        }
+        if (data.kota) {
+          await loadKecamatanData(data.kota)
+        }
+        if (data.kecamatan) {
+          await loadKelurahanData(data.kecamatan)
+        }
+        
+      } else {
+        showErrorToast('Gagal memuat data pegawai')
+        router.push('/admin/master-data/pegawai')
+      }
+    } catch (error) {
+      console.error('Error loading pegawai data:', error)
+      showErrorToast('Gagal memuat data pegawai')
+      router.push('/admin/master-data/pegawai')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -370,7 +376,6 @@ export default function EditPegawaiPage() {
       const response = await fetch(getApiUrl('api/wilayah/provinsi'))
       if (response.ok) {
         const data = await response.json()
-        console.log('Provinsi data loaded:', data?.length, 'items')
         setProvinsiList(data || [])
       } else {
         console.error('Failed to load provinsi data:', response.status)
@@ -391,7 +396,6 @@ export default function EditPegawaiPage() {
       )
       if (response.ok) {
         const data = await response.json()
-        console.log('Kota data loaded:', data?.length, 'items')
         setKotaList(data || [])
         setKecamatanList([])
         setKelurahanList([])
@@ -768,113 +772,118 @@ export default function EditPegawaiPage() {
   }
 
   const validateStep = async (step: number): Promise<boolean> => {
+    console.log('validateStep called with step:', step)
+    console.log('Current formData:', formData)
     
     switch (step) {
       case 0: // Personal & Account Info
+        console.log('Validating step 0 - Personal & Account Info')
         
         if (!formData.name?.trim()) {
+          console.log('Name validation failed:', formData.name)
           showErrorToast('Nama lengkap harus diisi')
           return false
         }
         if (!formData.nip?.trim()) {
+          console.log('NIP validation failed:', formData.nip)
           showErrorToast('NIP harus diisi')
           return false
         }
         if (!formData.email?.trim()) {
+          console.log('Email validation failed:', formData.email)
           showErrorToast('Email harus diisi')
           return false
         }
         if (!formData.telepon?.trim()) {
+          console.log('Phone validation failed:', formData.telepon)
           showErrorToast('Nomor telepon harus diisi')
           return false
         }
         if (!formData.username?.trim()) {
+          console.log('Username validation failed:', formData.username)
           showErrorToast('Username harus diisi')
           return false
         }
-        // Password tidak wajib untuk edit
+        // Password is optional for edit mode
+        if (!formData.password?.trim()) {
+          console.log('Warning: Password not provided for edit mode - will keep existing password')
+        }
         if (!formData.gender) {
+          console.log('Gender validation failed:', formData.gender)
           showErrorToast('Jenis kelamin harus dipilih')
           return false
         }
         if (!formData.jabatan_id) {
+          console.log('Jabatan validation failed:', formData.jabatan_id)
           showErrorToast('Jabatan harus dipilih')
           return false
         }
+        
+        // Check if jabatan exists in loaded list
+        const selectedJabatan = jabatanList.find(j => j.id.toString() === formData.jabatan_id)
+        if (!selectedJabatan) {
+          console.log('Jabatan not found in list:', formData.jabatan_id, 'Available:', jabatanList)
+          showErrorToast('Jabatan yang dipilih tidak valid. Silakan pilih jabatan yang tersedia.')
+          return false
+        }
+        
         if (!formData.lokasi_id) {
+          console.log('Lokasi validation failed:', formData.lokasi_id)
           showErrorToast('Lokasi kantor harus dipilih')
           return false
         }
+        
+        // Check if lokasi exists in loaded list
+        const selectedLokasi = lokasiList.find(l => l.id.toString() === formData.lokasi_id)
+        if (!selectedLokasi) {
+          console.log('Lokasi not found in list:', formData.lokasi_id, 'Available:', lokasiList)
+          showErrorToast('Lokasi kantor yang dipilih tidak valid. Silakan pilih lokasi yang tersedia.')
+          return false
+        }
         if (!formData.is_admin) {
+          console.log('Level user validation failed:', formData.is_admin)
           showErrorToast('Level user harus dipilih')
           return false
         }
         
-        // Check for duplicates (excluding current user) only if fields are changed
+        console.log('Basic validation passed, checking duplicates...')
+        
+        // Check for duplicates (exclude current pegawai)
         try {
-          // Get original data to compare
-          const originalDataResponse = await fetch(getApiUrl(`api/pegawai/${formData.id}`), {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+          const duplicateResponse = await fetch(getApiUrl('api/pegawai/check-duplicate'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            },
+            body: JSON.stringify({
+              username: formData.username,
+              email: formData.email,
+              phoneNumber: formData.telepon,
+              nip: formData.nip,
+              excludeId: parseInt(params.id as string) // Exclude current pegawai from duplicate check
+            })
           })
           
-          if (originalDataResponse.ok) {
-            const originalData = await originalDataResponse.json()
+          if (duplicateResponse.ok) {
+            const duplicateData = await duplicateResponse.json()
+            console.log('Duplicate check result:', duplicateData)
             
-            // Only check fields that have actually changed
-            const duplicateCheckData: any = {}
-            let hasChanges = false
-            
-            if (formData.username !== originalData.username) {
-              duplicateCheckData.username = formData.username
-              hasChanges = true
+            if (duplicateData.usernameExists) {
+              showErrorToast('Username sudah digunakan')
+              return false
             }
-            if (formData.email !== originalData.email) {
-              duplicateCheckData.email = formData.email
-              hasChanges = true
+            if (duplicateData.emailExists) {
+              showErrorToast('Email sudah digunakan')
+              return false
             }
-            if (formData.telepon !== originalData.noTelp) {
-              duplicateCheckData.phoneNumber = formData.telepon
-              hasChanges = true
+            if (duplicateData.phoneExists) {
+              showErrorToast('Nomor telepon sudah digunakan')
+              return false
             }
-            if (formData.nip !== originalData.nip) {
-              duplicateCheckData.nip = formData.nip
-              hasChanges = true
-            }
-            
-            // Only perform duplicate check if there are actual changes
-            if (hasChanges) {
-              duplicateCheckData.excludeId = parseInt(formData.id)
-              
-              const duplicateResponse = await fetch(getApiUrl('api/pegawai/check-duplicate'), {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                },
-                body: JSON.stringify(duplicateCheckData)
-              })
-              
-              if (duplicateResponse.ok) {
-                const duplicateData = await duplicateResponse.json()
-                console.log('Duplicate check result:', duplicateData)
-                
-                if (duplicateData.usernameExists) {
-                  showErrorToast('Username sudah digunakan oleh pegawai lain')
-                  return false
-                }
-                if (duplicateData.emailExists) {
-                  showErrorToast('Email sudah digunakan oleh pegawai lain')
-                  return false
-                }
-                if (duplicateData.phoneExists) {
-                  showErrorToast('Nomor telepon sudah digunakan oleh pegawai lain')
-                  return false
-                }
-                if (duplicateData.nipExists) {
-                  showErrorToast('NIP sudah digunakan oleh pegawai lain')
-                  return false
-                }
-              }
+            if (duplicateData.nipExists) {
+              showErrorToast('NIP sudah digunakan')
+              return false
             }
           }
         } catch (error) {
@@ -928,6 +937,7 @@ export default function EditPegawaiPage() {
       email: formData.email,
       telepon: formData.telepon,
       username: formData.username,
+      password: formData.password,
       gender: formData.gender,
       jabatan_id: formData.jabatan_id,
       lokasi_id: formData.lokasi_id,
@@ -971,23 +981,55 @@ export default function EditPegawaiPage() {
     try {
       setLoading(true)
       
-      // Map frontend field names to backend field names (UpdatePegawaiRequest)
+      let photoUrl = null
+      
+      // Upload photo first if there's a new one
+      if (formData.foto_karyawan !== null) {
+        try {
+          const photoFormData = new FormData()
+          photoFormData.append('file', formData.foto_karyawan as File)
+          
+          const photoResponse = await fetch(getApiUrl('api/upload/photo'), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            },
+            body: photoFormData
+          })
+          
+          if (photoResponse.ok) {
+            const photoData = await photoResponse.json()
+            photoUrl = photoData.filename
+            console.log('Photo uploaded successfully:', photoData)
+          } else {
+            const photoError = await photoResponse.json()
+            console.error('Photo upload failed:', photoError)
+            showErrorToast('Gagal mengupload foto: ' + photoError.message)
+            return
+          }
+        } catch (photoError) {
+          console.error('Photo upload error:', photoError)
+          showErrorToast('Gagal mengupload foto')
+          return
+        }
+      }
+      
+      // Map frontend field names to backend field names for UpdatePegawaiRequest
       const selectedJabatan = jabatanList.find(j => j.id.toString() === formData.jabatan_id)
       if (!selectedJabatan) {
-        showErrorToast('Jabatan tidak valid')
+        showErrorToast('Jabatan yang dipilih tidak valid')
         return
       }
       
       const mappedData = {
-        username: formData.username,
-        password: formData.password || undefined, // Optional untuk edit
         namaLengkap: formData.name,
+        nip: formData.nip,
         email: formData.email,
         noTelp: formData.telepon,
-        nip: formData.nip,
+        username: formData.username,
+        password: formData.password || undefined, // Only include password if provided
         role: formData.is_admin,
-        jabatan: selectedJabatan.nama, // Send jabatan name, not ID
-        isActive: true,
+        jabatan: selectedJabatan.nama, // Use jabatan name, not ID
         alamat: formData.alamat,
         provinsi: formData.provinsi,
         kota: formData.kota,
@@ -996,50 +1038,45 @@ export default function EditPegawaiPage() {
         kodePos: formData.kodePos,
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
-        photoUrl: formData.foto_karyawan ? undefined : undefined // Will be handled separately if file is provided
+        isActive: true,
+        photoUrl: photoUrl // Include new photo URL if uploaded
       }
       
-      // Check if we have file upload or not
-      const hasFile = formData.foto_karyawan !== null
-      
-      let requestBody: any
-      let headers: any = {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      // Remove password from mapped data if not provided
+      if (!formData.password?.trim()) {
+        delete mappedData.password
       }
       
-      if (hasFile) {
-        // Use FormData with multipart/form-data for file upload
-        const submitData = new FormData()
-        
-        submitData.append('data', JSON.stringify(mappedData))
-        submitData.append('foto_karyawan', formData.foto_karyawan as File)
-        
-        requestBody = submitData
-        // Don't set Content-Type for FormData, let browser set it
-      } else {
-        // Use JSON if no file
-        requestBody = JSON.stringify(mappedData)
-        headers['Content-Type'] = 'application/json'
+      // Remove photoUrl if no new photo was uploaded
+      if (!photoUrl) {
+        delete mappedData.photoUrl
       }
-
-      console.log('Sending update request:', hasFile ? 'with file' : 'JSON only', mappedData)
-
-      const response = await fetch(getApiUrl(`api/pegawai/${formData.id}`), {
+      
+      console.log('Sending update data:', mappedData)
+      
+      // Update pegawai data
+      const response = await fetch(getApiUrl(`api/pegawai/${params.id}`), {
         method: 'PUT',
-        headers: headers,
-        body: requestBody
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify(mappedData)
       })
+      
+      console.log('Response status:', response.status)
       
       if (response.ok) {
         showSuccessToast('Pegawai berhasil diperbarui')
         router.push('/admin/master-data/pegawai')
       } else {
         const errorData = await response.json()
+        console.error('Update error:', errorData)
         showErrorToast(errorData.message || 'Gagal memperbarui pegawai')
       }
     } catch (error) {
-      console.error('Error updating pegawai:', error)
-      showErrorToast('Gagal memperbarui pegawai')
+      console.error('Error creating pegawai:', error)
+      showErrorToast('Gagal menambahkan pegawai')
     } finally {
       setLoading(false)
     }
@@ -1047,22 +1084,6 @@ export default function EditPegawaiPage() {
 
   const handleBack = () => {
     router.push('/admin/master-data/pegawai')
-  }
-
-  // Early return if no ID
-  if (!params.id) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="text-red-500 text-xl mb-2">❌</div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">ID Pegawai Tidak Valid</h2>
-            <p className="text-gray-600 mb-4">ID pegawai tidak ditemukan dalam URL</p>
-            <Button onClick={handleBack}>Kembali ke Daftar Pegawai</Button>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   const formatCurrency = (value: string) => {
@@ -1080,13 +1101,15 @@ export default function EditPegawaiPage() {
     }
   }
 
-  if (!mounted) {
+  if (!mounted || loading) {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex flex-col items-center gap-2">
             <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-            <span className="text-muted-foreground">Memuat halaman...</span>
+            <span className="text-muted-foreground">
+              {loading ? 'Memuat data pegawai...' : 'Memuat halaman...'}
+            </span>
           </div>
         </div>
       </div>
@@ -1097,7 +1120,7 @@ export default function EditPegawaiPage() {
     <div className="min-h-screen bg-background">
       <AdminPageHeader
         title="Edit Pegawai"
-        description="Edit data pegawai dengan langkah-langkah terstruktur"
+        description="Edit data pegawai dalam sistem"
         icon={getStepIcon(currentStep)}
         primaryAction={{
           label: "Kembali",
@@ -1114,7 +1137,7 @@ export default function EditPegawaiPage() {
           </CardContent>
         </Card>
 
-        {/* Form Content - Sama seperti tambah tapi dengan data pre-filled */}
+        {/* Form Content */}
         <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
           {/* Step 1: Personal & Account Information */}
           {currentStep === 0 && (
@@ -1298,13 +1321,13 @@ export default function EditPegawaiPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password">Password (Kosongkan jika tidak ingin mengubah)</Label>
+                      <Label htmlFor="password">Password</Label>
                       <Input
                         id="password"
                         type="password"
                         value={formData.password}
                         onChange={(e) => handleInputChange('password', e.target.value)}
-                        placeholder="Masukkan password baru"
+                        placeholder="Masukkan password"
                       />
                     </div>
                   </div>
@@ -1312,31 +1335,47 @@ export default function EditPegawaiPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="lokasi_id">Lokasi Kantor *</Label>
-                      <Select value={formData.lokasi_id} onValueChange={(value) => handleInputChange('lokasi_id', value)}>
+                      <Select 
+                        value={formData.lokasi_id} 
+                        onValueChange={(value) => handleInputChange('lokasi_id', value)}
+                        disabled={lokasiList.length === 0}
+                      >
                         <SelectTrigger>
-                          <SelectValue placeholder="Pilih Lokasi Kantor" />
+                          <SelectValue placeholder={lokasiList.length === 0 ? "Memuat data lokasi..." : "Pilih Lokasi Kantor"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {lokasiList.map((lokasi) => (
-                            <SelectItem key={lokasi.id} value={lokasi.id.toString()}>
-                              {lokasi.namaLokasi}
-                            </SelectItem>
-                          ))}
+                          {lokasiList.length === 0 ? (
+                            <SelectItem value="loading" disabled>Memuat data lokasi...</SelectItem>
+                          ) : (
+                            lokasiList.map((lokasi) => (
+                              <SelectItem key={lokasi.id} value={lokasi.id.toString()}>
+                                {lokasi.namaLokasi}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="jabatan_id">Jabatan *</Label>
-                      <Select value={formData.jabatan_id} onValueChange={(value) => handleInputChange('jabatan_id', value)}>
+                      <Select 
+                        value={formData.jabatan_id} 
+                        onValueChange={(value) => handleInputChange('jabatan_id', value)}
+                        disabled={jabatanList.length === 0}
+                      >
                         <SelectTrigger>
-                          <SelectValue placeholder="Pilih Jabatan" />
+                          <SelectValue placeholder={jabatanList.length === 0 ? "Memuat data jabatan..." : "Pilih Jabatan"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {jabatanList.map((jabatan) => (
-                            <SelectItem key={jabatan.id} value={jabatan.id.toString()}>
-                              {jabatan.nama}
-                            </SelectItem>
-                          ))}
+                          {jabatanList.length === 0 ? (
+                            <SelectItem value="loading" disabled>Memuat data jabatan...</SelectItem>
+                          ) : (
+                            jabatanList.map((jabatan) => (
+                              <SelectItem key={jabatan.id} value={jabatan.id.toString()}>
+                                {jabatan.nama}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1346,19 +1385,23 @@ export default function EditPegawaiPage() {
                     <div className="space-y-2">
                       <Label htmlFor="is_admin">Level User *</Label>
                       <Select 
-                        key={`level-user-${formData.is_admin}-${roleList.length}`}
-                        value={formData.is_admin || ''} 
+                        value={formData.is_admin} 
                         onValueChange={(value) => handleInputChange('is_admin', value)}
+                        disabled={roleList.length === 0}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Pilih Level User" />
+                          <SelectValue placeholder={roleList.length === 0 ? "Memuat data role..." : "Pilih Level User"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {roleList.map((role) => (
-                            <SelectItem key={role.roleId} value={role.roleName}>
-                              {role.roleName}
-                            </SelectItem>
-                          ))}
+                          {roleList.length === 0 ? (
+                            <SelectItem value="loading" disabled>Memuat data role...</SelectItem>
+                          ) : (
+                            roleList.map((role) => (
+                              <SelectItem key={role.roleId} value={role.roleName}>
+                                {role.roleName}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1375,8 +1418,11 @@ export default function EditPegawaiPage() {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     <MapPin className="h-5 w-5" />
-                    Informasi Alamat
+                    Alamat Detail
                   </CardTitle>
+                  <CardDescription>
+                    Informasi alamat lengkap menggunakan data resmi dari wilayah.id
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -1385,7 +1431,7 @@ export default function EditPegawaiPage() {
                       id="alamat"
                       value={formData.alamat}
                       onChange={(e) => handleInputChange('alamat', e.target.value)}
-                      placeholder="Masukkan alamat lengkap"
+                      placeholder="Masukkan alamat lengkap (jalan, nomor rumah, dll)"
                       rows={3}
                       required
                     />
@@ -1393,93 +1439,108 @@ export default function EditPegawaiPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Provinsi *</Label>
+                      <Label htmlFor="provinsi">Provinsi *</Label>
                       <Popover open={provinsiOpen} onOpenChange={setProvinsiOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
                             aria-expanded={provinsiOpen}
-                            className="w-full justify-between"
+                            className="justify-between w-full"
                             disabled={loadingProvinsi}
                           >
-                            {formData.provinsi ? 
-                              provinsiList.find((provinsi) => provinsi.kode === formData.provinsi)?.nama || formData.provinsi
-                              : "Pilih Provinsi..."
-                            }
+                            {formData.provinsi
+                              ? provinsiList.find((provinsi) => provinsi.kode === formData.provinsi)?.nama
+                              : loadingProvinsi 
+                                ? "Memuat provinsi..." 
+                                : "Pilih Provinsi"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
                             <CommandInput placeholder="Cari provinsi..." />
-                            <CommandEmpty>Provinsi tidak ditemukan.</CommandEmpty>
-                            <CommandGroup className="max-h-64 overflow-y-auto">
-                              {provinsiList.map((provinsi) => (
-                                <CommandItem
-                                  key={provinsi.kode}
-                                  value={provinsi.nama.toLowerCase()}
-                                  onSelect={() => {
-                                    handleInputChange('provinsi', provinsi.kode)
-                                    setProvinsiOpen(false)
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      formData.provinsi === provinsi.kode ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {provinsi.nama}
-                                </CommandItem>
-                              ))}
+                            <CommandEmpty>Tidak ada provinsi ditemukan.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {loadingProvinsi ? (
+                                <CommandItem disabled>Memuat data provinsi...</CommandItem>
+                              ) : provinsiList.length === 0 ? (
+                                <CommandItem disabled>Tidak ada data provinsi</CommandItem>
+                              ) : (
+                                provinsiList.map((provinsi) => (
+                                  <CommandItem
+                                    key={provinsi.kode}
+                                    value={provinsi.nama}
+                                    onSelect={() => {
+                                      handleInputChange('provinsi', provinsi.kode)
+                                      setProvinsiOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        formData.provinsi === provinsi.kode ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {provinsi.nama}
+                                  </CommandItem>
+                                ))
+                              )}
                             </CommandGroup>
                           </Command>
                         </PopoverContent>
                       </Popover>
                     </div>
-
                     <div className="space-y-2">
-                      <Label>Kota/Kabupaten *</Label>
+                      <Label htmlFor="kota">Kota/Kabupaten *</Label>
                       <Popover open={kotaOpen} onOpenChange={setKotaOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
                             aria-expanded={kotaOpen}
-                            className="w-full justify-between"
+                            className="justify-between w-full"
                             disabled={!formData.provinsi || loadingKota}
                           >
-                            {formData.kota ? 
-                              kotaList.find((kota) => kota.kode === formData.kota)?.nama || formData.kota
-                              : "Pilih Kota/Kabupaten..."
-                            }
+                            {formData.kota
+                              ? kotaList.find((kota) => kota.kode === formData.kota)?.nama
+                              : !formData.provinsi 
+                                ? "Pilih provinsi terlebih dahulu"
+                                : loadingKota 
+                                  ? "Memuat kota..." 
+                                  : "Pilih Kota/Kabupaten"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
                             <CommandInput placeholder="Cari kota/kabupaten..." />
-                            <CommandEmpty>Kota/Kabupaten tidak ditemukan.</CommandEmpty>
-                            <CommandGroup className="max-h-64 overflow-y-auto">
-                              {kotaList.map((kota) => (
-                                <CommandItem
-                                  key={kota.kode}
-                                  value={kota.nama.toLowerCase()}
-                                  onSelect={() => {
-                                    handleInputChange('kota', kota.kode)
-                                    setKotaOpen(false)
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      formData.kota === kota.kode ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {kota.nama}
-                                </CommandItem>
-                              ))}
+                            <CommandEmpty>Tidak ada kota/kabupaten ditemukan.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {loadingKota ? (
+                                <CommandItem disabled>Memuat data kota...</CommandItem>
+                              ) : kotaList.length === 0 ? (
+                                <CommandItem disabled>Tidak ada data kota</CommandItem>
+                              ) : (
+                                kotaList.map((kota) => (
+                                  <CommandItem
+                                    key={kota.kode}
+                                    value={kota.nama}
+                                    onSelect={() => {
+                                      handleInputChange('kota', kota.kode)
+                                      setKotaOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        formData.kota === kota.kode ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {kota.nama}
+                                  </CommandItem>
+                                ))
+                              )}
                             </CommandGroup>
                           </Command>
                         </PopoverContent>
@@ -1489,93 +1550,102 @@ export default function EditPegawaiPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Kecamatan</Label>
+                      <Label htmlFor="kecamatan">Kecamatan *</Label>
                       <Popover open={kecamatanOpen} onOpenChange={setKecamatanOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
                             aria-expanded={kecamatanOpen}
-                            className="w-full justify-between"
+                            className="justify-between w-full"
                             disabled={!formData.kota}
                           >
-                            {formData.kecamatan ? 
-                              kecamatanList.find((kecamatan) => kecamatan.kode === formData.kecamatan)?.nama || formData.kecamatan
-                              : "Pilih Kecamatan..."
-                            }
+                            {formData.kecamatan
+                              ? kecamatanList.find((kecamatan) => kecamatan.kode === formData.kecamatan)?.nama
+                              : !formData.kota 
+                                ? "Pilih kota terlebih dahulu"
+                                : "Pilih Kecamatan"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
                             <CommandInput placeholder="Cari kecamatan..." />
-                            <CommandEmpty>Kecamatan tidak ditemukan.</CommandEmpty>
-                            <CommandGroup className="max-h-64 overflow-y-auto">
-                              {kecamatanList.map((kecamatan) => (
-                                <CommandItem
-                                  key={kecamatan.kode}
-                                  value={kecamatan.nama.toLowerCase()}
-                                  onSelect={() => {
-                                    handleInputChange('kecamatan', kecamatan.kode)
-                                    setKecamatanOpen(false)
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      formData.kecamatan === kecamatan.kode ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {kecamatan.nama}
-                                </CommandItem>
-                              ))}
+                            <CommandEmpty>Tidak ada kecamatan ditemukan.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {kecamatanList.length === 0 ? (
+                                <CommandItem disabled>Tidak ada data kecamatan</CommandItem>
+                              ) : (
+                                kecamatanList.map((kecamatan) => (
+                                  <CommandItem
+                                    key={kecamatan.kode}
+                                    value={kecamatan.nama}
+                                    onSelect={() => {
+                                      handleInputChange('kecamatan', kecamatan.kode)
+                                      setKecamatanOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        formData.kecamatan === kecamatan.kode ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {kecamatan.nama}
+                                  </CommandItem>
+                                ))
+                              )}
                             </CommandGroup>
                           </Command>
                         </PopoverContent>
                       </Popover>
                     </div>
-
                     <div className="space-y-2">
-                      <Label>Kelurahan/Desa</Label>
+                      <Label htmlFor="kelurahan">Kelurahan/Desa *</Label>
                       <Popover open={kelurahanOpen} onOpenChange={setKelurahanOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
                             aria-expanded={kelurahanOpen}
-                            className="w-full justify-between"
+                            className="justify-between w-full"
                             disabled={!formData.kecamatan}
                           >
-                            {formData.kelurahan ? 
-                              kelurahanList.find((kelurahan) => kelurahan.kode === formData.kelurahan)?.nama || formData.kelurahan
-                              : "Pilih Kelurahan/Desa..."
-                            }
+                            {formData.kelurahan
+                              ? kelurahanList.find((kelurahan) => kelurahan.kode === formData.kelurahan)?.nama
+                              : !formData.kecamatan 
+                                ? "Pilih kecamatan terlebih dahulu"
+                                : "Pilih Kelurahan/Desa"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
                             <CommandInput placeholder="Cari kelurahan/desa..." />
-                            <CommandEmpty>Kelurahan/Desa tidak ditemukan.</CommandEmpty>
-                            <CommandGroup className="max-h-64 overflow-y-auto">
-                              {kelurahanList.map((kelurahan) => (
-                                <CommandItem
-                                  key={kelurahan.kode}
-                                  value={kelurahan.nama.toLowerCase()}
-                                  onSelect={() => {
-                                    handleInputChange('kelurahan', kelurahan.kode)
-                                    setKelurahanOpen(false)
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      formData.kelurahan === kelurahan.kode ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {kelurahan.nama}
-                                </CommandItem>
-                              ))}
+                            <CommandEmpty>Tidak ada kelurahan/desa ditemukan.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {kelurahanList.length === 0 ? (
+                                <CommandItem disabled>Tidak ada data kelurahan/desa</CommandItem>
+                              ) : (
+                                kelurahanList.map((kelurahan) => (
+                                  <CommandItem
+                                    key={kelurahan.kode}
+                                    value={kelurahan.nama}
+                                    onSelect={() => {
+                                      handleInputChange('kelurahan', kelurahan.kode)
+                                      setKelurahanOpen(false)
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        formData.kelurahan === kelurahan.kode ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {kelurahan.nama}
+                                  </CommandItem>
+                                ))
+                              )}
                             </CommandGroup>
                           </Command>
                         </PopoverContent>
@@ -1583,280 +1653,445 @@ export default function EditPegawaiPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="kodePos">Kode Pos</Label>
-                      <Input
-                        id="kodePos"
-                        value={formData.kodePos}
-                        onChange={(e) => handleInputChange('kodePos', e.target.value)}
-                        placeholder="Masukkan kode pos"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="kodePos">Kode Pos *</Label>
+                    <Input
+                      id="kodePos"
+                      value={formData.kodePos}
+                      onChange={(e) => handleInputChange('kodePos', e.target.value)}
+                      placeholder="12345"
+                      maxLength={5}
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Kode pos akan terisi otomatis setelah memilih kelurahan/desa
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* Location Picker */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Lokasi GPS (Opsional)
-                  </CardTitle>
-                  <CardDescription>
-                    Pilih lokasi untuk menandai alamat pegawai pada peta
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Search and Current Location */}
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="flex-1 flex gap-2">
-                      <Input
-                        placeholder="Cari lokasi..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
+                  {/* Map Location Selector */}
+                  <div className="space-y-4 border-t pt-4">
+                    <div>
+                      <Label className="text-base font-medium">Koordinat Lokasi Indonesia</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Pilih lokasi tepat pada peta Indonesia untuk koordinat GPS (Opsional)
+                      </p>
+                    </div>
+                    
+                    {/* Embedded Map Display */}
+                    <div className="w-full h-96 bg-gray-100 rounded-lg border relative overflow-hidden">
+                      <div 
+                        ref={mapRef}
+                        className="w-full h-full"
+                        style={{ minHeight: '384px' }}
                       />
-                      <Button type="button" variant="outline" onClick={searchLocation}>
+                      {!mapLoaded && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                          <div className="text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                            <p className="text-sm text-gray-600">Memuat peta Indonesia...</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Location Search */}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Cari alamat di Indonesia..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && searchLocation()}
+                        />
+                      </div>
+                      <Button 
+                        type="button"
+                        onClick={searchLocation} 
+                        disabled={!searchQuery.trim()}
+                        className="flex items-center gap-2"
+                      >
                         <Search className="h-4 w-4" />
+                        Cari
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        onClick={getCurrentLocation}
+                        className="flex items-center gap-2"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        Lokasi Saya
                       </Button>
                     </div>
-                    <Button type="button" variant="outline" onClick={getCurrentLocation}>
-                      Lokasi Saat Ini
-                    </Button>
-                  </div>
-
-                  {/* Selected Address Display */}
-                  {selectedAddress && (
-                    <div className="p-3 bg-muted rounded-lg">
-                      <p className="text-sm font-medium">Lokasi Terpilih:</p>
-                      <p className="text-sm text-muted-foreground">{selectedAddress}</p>
-                    </div>
-                  )}
-
-                  {/* Map Container */}
-                  <div className="relative">
-                    <div 
-                      ref={mapRef}
-                      className="w-full h-64 bg-muted rounded-lg"
-                      style={{ minHeight: '300px' }}
-                    />
-                    {!mapLoaded && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-muted rounded-lg">
-                        <div className="text-center">
-                          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">Memuat peta...</p>
+                    
+                    {(formData.latitude && formData.longitude) && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <MapPin className="h-4 w-4" />
+                          <span className="font-medium">Lokasi Terpilih</span>
                         </div>
+                        <div className="text-sm text-green-600 mt-1">
+                          {selectedAddress || `${formData.latitude}, ${formData.longitude}`}
+                        </div>
+                        <div className="text-xs text-green-600 mt-1">
+                          Koordinat: {formData.latitude}, {formData.longitude}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              latitude: '',
+                              longitude: ''
+                            }))
+                            setSelectedAddress('')
+                            if (markerRef.current && mapInstanceRef.current) {
+                              mapInstanceRef.current.removeLayer(markerRef.current)
+                              markerRef.current = null
+                            }
+                          }}
+                          className="mt-2 text-red-600 hover:text-red-700 hover:bg-red-50 h-auto p-1"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Hapus Koordinat
+                        </Button>
                       </div>
                     )}
                   </div>
-
-                  {/* Coordinate Display */}
-                  {(formData.latitude || formData.longitude) && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Latitude</Label>
-                        <Input
-                          value={formData.latitude}
-                          onChange={(e) => handleInputChange('latitude', e.target.value)}
-                          placeholder="0.000000"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-sm font-medium">Longitude</Label>
-                        <Input
-                          value={formData.longitude}
-                          onChange={(e) => handleInputChange('longitude', e.target.value)}
-                          placeholder="0.000000"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>
           )}
 
+          {/* Step 2: Address Details - Remove duplicate */}
+
           {/* Step 3: Salary & Benefits */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              {/* Penambahan (Income) */}
+              {/* Tunjangan (Penambah) */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-green-700">Komponen Penambah Gaji</CardTitle>
-                  <CardDescription>Komponen-komponen yang menambah total gaji pegawai</CardDescription>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-green-600" />
+                    Komponen Penambah Gaji
+                  </CardTitle>
+                  <CardDescription>
+                    Komponen yang menambah total gaji pegawai
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="gaji_pokok">Gaji Pokok</Label>
-                      <Input
-                        id="gaji_pokok"
-                        value={formData.gaji_pokok}
-                        onChange={(e) => handleInputChange('gaji_pokok', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="gaji_pokok"
+                          value={formData.gaji_pokok}
+                          onChange={(e) => handleInputChange('gaji_pokok', e.target.value)}
+                          placeholder="5000000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="tunjangan_jabatan">Tunjangan Jabatan</Label>
+                      <div className="relative">
+                        <Input
+                          id="tunjangan_jabatan"
+                          value={formData.tunjangan_jabatan}
+                          onChange={(e) => handleInputChange('tunjangan_jabatan', e.target.value)}
+                          placeholder="1000000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="tunjangan_keluarga">Tunjangan Keluarga</Label>
+                      <div className="relative">
+                        <Input
+                          id="tunjangan_keluarga"
+                          value={formData.tunjangan_keluarga}
+                          onChange={(e) => handleInputChange('tunjangan_keluarga', e.target.value)}
+                          placeholder="500000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="makan_transport">Makan & Transport</Label>
-                      <Input
-                        id="makan_transport"
-                        value={formData.makan_transport}
-                        onChange={(e) => handleInputChange('makan_transport', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="makan_transport"
+                          value={formData.makan_transport}
+                          onChange={(e) => handleInputChange('makan_transport', e.target.value)}
+                          placeholder="750000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="tunjangan_komunikasi">Tunjangan Komunikasi</Label>
+                      <div className="relative">
+                        <Input
+                          id="tunjangan_komunikasi"
+                          value={formData.tunjangan_komunikasi}
+                          onChange={(e) => handleInputChange('tunjangan_komunikasi', e.target.value)}
+                          placeholder="200000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="kehadiran">Tunjangan Kehadiran (100%)</Label>
+                      <div className="relative">
+                        <Input
+                          id="kehadiran"
+                          value={formData.kehadiran}
+                          onChange={(e) => handleInputChange('kehadiran', e.target.value)}
+                          placeholder="300000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="lembur">Lembur</Label>
-                      <Input
-                        id="lembur"
-                        value={formData.lembur}
-                        onChange={(e) => handleInputChange('lembur', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="lembur"
+                          value={formData.lembur}
+                          onChange={(e) => handleInputChange('lembur', e.target.value)}
+                          placeholder="25000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Jam
+                        </span>
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="kehadiran">Bonus Kehadiran</Label>
-                      <Input
-                        id="kehadiran"
-                        value={formData.kehadiran}
-                        onChange={(e) => handleInputChange('kehadiran', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <Label htmlFor="bonus">Bonus</Label>
+                      <div className="relative">
+                        <Input
+                          id="bonus"
+                          value={formData.bonus}
+                          onChange={(e) => handleInputChange('bonus', e.target.value)}
+                          placeholder="500000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="thr">THR</Label>
-                      <Input
-                        id="thr"
-                        value={formData.thr}
-                        onChange={(e) => handleInputChange('thr', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bonus">Bonus</Label>
-                      <Input
-                        id="bonus"
-                        value={formData.bonus}
-                        onChange={(e) => handleInputChange('bonus', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="thr"
+                          value={formData.thr}
+                          onChange={(e) => handleInputChange('thr', e.target.value)}
+                          placeholder="5000000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Tahun
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Pengurangan (Deductions) */}
+              {/* Potongan (Pengurang) */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-red-700">Komponen Pengurangan Gaji</CardTitle>
-                  <CardDescription>Komponen-komponen yang mengurangi total gaji pegawai</CardDescription>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-red-600" />
+                    Komponen Pengurang Gaji
+                  </CardTitle>
+                  <CardDescription>
+                    Komponen yang mengurangi total gaji pegawai
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
+                      <Label htmlFor="potongan_bpjs">Potongan BPJS</Label>
+                      <div className="relative">
+                        <Input
+                          id="potongan_bpjs"
+                          value={formData.potongan_bpjs}
+                          onChange={(e) => handleInputChange('potongan_bpjs', e.target.value)}
+                          placeholder="150000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="potongan_pajak">Potongan Pajak</Label>
+                      <div className="relative">
+                        <Input
+                          id="potongan_pajak"
+                          value={formData.potongan_pajak}
+                          onChange={(e) => handleInputChange('potongan_pajak', e.target.value)}
+                          placeholder="250000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
                       <Label htmlFor="izin">Potongan Izin</Label>
-                      <Input
-                        id="izin"
-                        value={formData.izin}
-                        onChange={(e) => handleInputChange('izin', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="izin"
+                          value={formData.izin}
+                          onChange={(e) => handleInputChange('izin', e.target.value)}
+                          placeholder="50000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Hari
+                        </span>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="terlambat">Potongan Terlambat</Label>
-                      <Input
-                        id="terlambat"
-                        value={formData.terlambat}
-                        onChange={(e) => handleInputChange('terlambat', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="terlambat"
+                          value={formData.terlambat}
+                          onChange={(e) => handleInputChange('terlambat', e.target.value)}
+                          placeholder="25000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Hari
+                        </span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="mangkir">Potongan Mangkir</Label>
-                      <Input
-                        id="mangkir"
-                        value={formData.mangkir}
-                        onChange={(e) => handleInputChange('mangkir', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="mangkir"
+                          value={formData.mangkir}
+                          onChange={(e) => handleInputChange('mangkir', e.target.value)}
+                          placeholder="100000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Hari
+                        </span>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="saldo_kasbon">Saldo Kasbon</Label>
-                      <Input
-                        id="saldo_kasbon"
-                        value={formData.saldo_kasbon}
-                        onChange={(e) => handleInputChange('saldo_kasbon', formatCurrency(e.target.value))}
-                        placeholder="0"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="saldo_kasbon"
+                          value={formData.saldo_kasbon}
+                          onChange={(e) => handleInputChange('saldo_kasbon', e.target.value)}
+                          placeholder="500000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Izin Settings */}
+              {/* Jatah Izin */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-blue-700">Pengaturan Izin</CardTitle>
-                  <CardDescription>Batas maksimal izin yang dapat digunakan pegawai</CardDescription>
+                  <CardTitle className="text-lg font-semibold">Jatah Izin Tahunan</CardTitle>
+                  <CardDescription>
+                    Pengaturan jatah izin dan cuti pegawai per tahun
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="izin_cuti">Izin Cuti (hari/bulan)</Label>
+                      <Label htmlFor="izin_cuti">Cuti Tahunan (Hari)</Label>
                       <Input
                         id="izin_cuti"
                         type="number"
                         min="0"
+                        max="365"
                         value={formData.izin_cuti}
                         onChange={(e) => handleInputChange('izin_cuti', parseInt(e.target.value) || 0)}
-                        placeholder="0"
+                        placeholder="12"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="izin_lainnya">Izin Lainnya (hari/bulan)</Label>
+                      <Label htmlFor="izin_lainnya">Izin Lainnya (Hari)</Label>
                       <Input
                         id="izin_lainnya"
                         type="number"
                         min="0"
+                        max="365"
                         value={formData.izin_lainnya}
                         onChange={(e) => handleInputChange('izin_lainnya', parseInt(e.target.value) || 0)}
-                        placeholder="0"
+                        placeholder="6"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="izin_telat">Izin Terlambat (menit/bulan)</Label>
+                      <Label htmlFor="izin_telat">Toleransi Keterlambatan (Kali)</Label>
                       <Input
                         id="izin_telat"
                         type="number"
                         min="0"
+                        max="100"
                         value={formData.izin_telat}
                         onChange={(e) => handleInputChange('izin_telat', parseInt(e.target.value) || 0)}
-                        placeholder="0"
+                        placeholder="3"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="izin_pulang_cepat">Izin Pulang Cepat (menit/bulan)</Label>
+                      <Label htmlFor="izin_pulang_cepat">Izin Pulang Cepat (Kali)</Label>
                       <Input
                         id="izin_pulang_cepat"
                         type="number"
                         min="0"
+                        max="100"
                         value={formData.izin_pulang_cepat}
                         onChange={(e) => handleInputChange('izin_pulang_cepat', parseInt(e.target.value) || 0)}
-                        placeholder="0"
+                        placeholder="2"
                       />
                     </div>
                   </div>
@@ -1875,7 +2110,7 @@ export default function EditPegawaiPage() {
                     Preview Data Pegawai
                   </CardTitle>
                   <CardDescription>
-                    Periksa kembali semua data sebelum menyimpan perubahan
+                    Periksa kembali data sebelum menyimpan. Pastikan semua informasi sudah benar.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1892,147 +2127,88 @@ export default function EditPegawaiPage() {
                     </div>
                   )}
 
-                  {/* Personal Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Informasi Personal</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Nama Lengkap</Label>
-                        <p className="font-medium">{formData.name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">NIP</Label>
-                        <p className="font-medium">{formData.nip}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Email</Label>
-                        <p className="font-medium">{formData.email}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Telepon</Label>
-                        <p className="font-medium">{formData.telepon}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Jenis Kelamin</Label>
-                        <p className="font-medium">{formData.gender}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Status Pernikahan</Label>
-                        <p className="font-medium">{formData.status_nikah}</p>
+                  {/* Personal Information Preview */}
+                  <div>
+                    <h4 className="font-semibold text-lg mb-3">Informasi Personal</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div><span className="font-medium">Nama:</span> {formData.name || '-'}</div>
+                      <div><span className="font-medium">NIP:</span> {formData.nip || '-'}</div>
+                      <div><span className="font-medium">Email:</span> {formData.email || '-'}</div>
+                      <div><span className="font-medium">Telepon:</span> {formData.telepon || '-'}</div>
+                      <div><span className="font-medium">Jenis Kelamin:</span> {formData.gender || '-'}</div>
+                      <div><span className="font-medium">Tanggal Lahir:</span> {formData.tgl_lahir || '-'}</div>
+                      <div><span className="font-medium">Status Pernikahan:</span> {formData.status_nikah || '-'}</div>
+                      <div><span className="font-medium">Tanggal Masuk:</span> {formData.tgl_join || '-'}</div>
+                      <div><span className="font-medium">No. Rekening:</span> {formData.rekening || '-'}</div>
+                    </div>
+                  </div>
+
+                  {/* Address Preview */}
+                  <div>
+                    <h4 className="font-semibold text-lg mb-3">Alamat</h4>
+                    <div className="text-sm space-y-2">
+                      <div><span className="font-medium">Alamat Lengkap:</span> {formData.alamat || '-'}</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><span className="font-medium">Provinsi:</span> {provinsiList.find(p => p.kode === formData.provinsi)?.nama || '-'}</div>
+                        <div><span className="font-medium">Kota:</span> {kotaList.find(k => k.kode === formData.kota)?.nama || '-'}</div>
+                        <div><span className="font-medium">Kecamatan:</span> {kecamatanList.find(k => k.kode === formData.kecamatan)?.nama || '-'}</div>
+                        <div><span className="font-medium">Kelurahan:</span> {kelurahanList.find(k => k.kode === formData.kelurahan)?.nama || '-'}</div>
+                        <div><span className="font-medium">Kode Pos:</span> {formData.kodePos || '-'}</div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Account Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Informasi Akun & Jabatan</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Username</Label>
-                        <p className="font-medium">{formData.username}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Lokasi Kantor</Label>
-                        <p className="font-medium">
-                          {lokasiList.find(l => l.id.toString() === formData.lokasi_id)?.namaLokasi || '-'}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Jabatan</Label>
-                        <p className="font-medium">
-                          {jabatanList.find(j => j.id.toString() === formData.jabatan_id)?.nama || '-'}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Level User</Label>
-                        <p className="font-medium">{formData.is_admin}</p>
-                      </div>
+                  {/* Job Information Preview */}
+                  <div>
+                    <h4 className="font-semibold text-lg mb-3">Informasi Jabatan</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div><span className="font-medium">Jabatan:</span> {jabatanList.find(j => j.id.toString() === formData.jabatan_id)?.nama || '-'}</div>
+                      <div><span className="font-medium">Lokasi Kantor:</span> {lokasiList.find(l => l.id.toString() === formData.lokasi_id)?.namaLokasi || '-'}</div>
+                      <div><span className="font-medium">Username:</span> {formData.username || '-'}</div>
+                      <div><span className="font-medium">Level User:</span> {formData.is_admin || '-'}</div>
                     </div>
                   </div>
 
-                  {/* Address Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Informasi Alamat</h3>
-                    <div className="space-y-2">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Alamat Lengkap</Label>
-                        <p className="font-medium">{formData.alamat}</p>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Provinsi</Label>
-                          <p className="font-medium">
-                            {provinsiList.find(p => p.kode === formData.provinsi)?.nama || formData.provinsi || '-'}
-                          </p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Kota</Label>
-                          <p className="font-medium">
-                            {kotaList.find(k => k.kode === formData.kota)?.nama || formData.kota || '-'}
-                          </p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Kecamatan</Label>
-                          <p className="font-medium">
-                            {kecamatanList.find(kec => kec.kode === formData.kecamatan)?.nama || formData.kecamatan || '-'}
-                          </p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Kelurahan</Label>
-                          <p className="font-medium">
-                            {kelurahanList.find(kel => kel.kode === formData.kelurahan)?.nama || formData.kelurahan || '-'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Salary Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Informasi Gaji & Tunjangan</h3>
+                  {/* Salary Information Preview */}
+                  <div>
+                    <h4 className="font-semibold text-lg mb-3">Informasi Gaji</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <h4 className="font-medium text-green-700 mb-2">Penambahan</h4>
+                        <h5 className="font-medium text-green-600 mb-2">Komponen Penambah</h5>
                         <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span>Gaji Pokok:</span>
-                            <span>Rp {formData.gaji_pokok || '0'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Makan & Transport:</span>
-                            <span>Rp {formData.makan_transport || '0'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Lembur:</span>
-                            <span>Rp {formData.lembur || '0'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Bonus Kehadiran:</span>
-                            <span>Rp {formData.kehadiran || '0'}</span>
-                          </div>
+                          {formData.gaji_pokok && <div>Gaji Pokok: Rp {formatCurrency(formData.gaji_pokok)}</div>}
+                          {formData.tunjangan_jabatan && <div>Tunjangan Jabatan: Rp {formatCurrency(formData.tunjangan_jabatan)}</div>}
+                          {formData.tunjangan_keluarga && <div>Tunjangan Keluarga: Rp {formatCurrency(formData.tunjangan_keluarga)}</div>}
+                          {formData.makan_transport && <div>Makan & Transport: Rp {formatCurrency(formData.makan_transport)}</div>}
+                          {formData.tunjangan_komunikasi && <div>Tunjangan Komunikasi: Rp {formatCurrency(formData.tunjangan_komunikasi)}</div>}
+                          {formData.kehadiran && <div>Tunjangan Kehadiran: Rp {formatCurrency(formData.kehadiran)}</div>}
+                          {formData.lembur && <div>Lembur: Rp {formatCurrency(formData.lembur)}/jam</div>}
+                          {formData.bonus && <div>Bonus: Rp {formatCurrency(formData.bonus)}</div>}
+                          {formData.thr && <div>THR: Rp {formatCurrency(formData.thr)}</div>}
                         </div>
                       </div>
                       <div>
-                        <h4 className="font-medium text-red-700 mb-2">Pengurangan</h4>
+                        <h5 className="font-medium text-red-600 mb-2">Komponen Pengurang</h5>
                         <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span>Potongan Izin:</span>
-                            <span>Rp {formData.izin || '0'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Potongan Terlambat:</span>
-                            <span>Rp {formData.terlambat || '0'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Potongan Mangkir:</span>
-                            <span>Rp {formData.mangkir || '0'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Saldo Kasbon:</span>
-                            <span>Rp {formData.saldo_kasbon || '0'}</span>
-                          </div>
+                          {formData.potongan_bpjs && <div>Potongan BPJS: Rp {formatCurrency(formData.potongan_bpjs)}</div>}
+                          {formData.potongan_pajak && <div>Potongan Pajak: Rp {formatCurrency(formData.potongan_pajak)}</div>}
+                          {formData.izin && <div>Potongan Izin: Rp {formatCurrency(formData.izin)}/hari</div>}
+                          {formData.terlambat && <div>Potongan Terlambat: Rp {formatCurrency(formData.terlambat)}/hari</div>}
+                          {formData.mangkir && <div>Potongan Mangkir: Rp {formatCurrency(formData.mangkir)}/hari</div>}
+                          {formData.saldo_kasbon && <div>Saldo Kasbon: Rp {formatCurrency(formData.saldo_kasbon)}</div>}
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Allowance Information Preview */}
+                  <div>
+                    <h4 className="font-semibold text-lg mb-3">Jatah Izin Tahunan</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div><span className="font-medium">Cuti Tahunan:</span> {formData.izin_cuti} hari</div>
+                      <div><span className="font-medium">Izin Lainnya:</span> {formData.izin_lainnya} hari</div>
+                      <div><span className="font-medium">Toleransi Keterlambatan:</span> {formData.izin_telat} kali</div>
+                      <div><span className="font-medium">Izin Pulang Cepat:</span> {formData.izin_pulang_cepat} kali</div>
                     </div>
                   </div>
                 </CardContent>
@@ -2041,27 +2217,60 @@ export default function EditPegawaiPage() {
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handlePrevious} 
-              disabled={currentStep === 0}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Sebelumnya
-            </Button>
-            {currentStep < steps.length - 1 ? (
-              <Button type="button" onClick={handleNext}>
-                Selanjutnya
-                <ChevronRight className="h-4 w-4 ml-2" />
+          <div className="flex justify-between items-center pt-6">
+            <div>
+              {currentStep > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrevious}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Sebelumnya
+                </Button>
+              )}
+            </div>
+
+            <div className="flex gap-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleBack}
+              >
+                Batal
               </Button>
-            ) : (
-              <Button type="button" onClick={handleSubmit} disabled={loading}>
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
-              </Button>
-            )}
+              
+              {currentStep < steps.length - 1 ? (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  className="flex items-center gap-2"
+                >
+                  Selanjutnya
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button 
+                  type="button" 
+                  disabled={loading}
+                  onClick={handleSubmit}
+                  className="flex items-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Simpan Data Pegawai
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </div>

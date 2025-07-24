@@ -185,6 +185,11 @@ const AppSidebar = () => {
       icon: Building,
     },
     {
+      title: "Lokasi Pegawai",
+      url: "/admin/master-data/pegawai/lokasi",
+      icon: MapPin,
+    },
+    {
       title: "Kategori File",
       url: "/admin/master-data/file-kategori",
       icon: FolderOpen,
