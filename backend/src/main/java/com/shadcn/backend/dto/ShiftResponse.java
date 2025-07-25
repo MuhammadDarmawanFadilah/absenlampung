@@ -1,6 +1,6 @@
 package com.shadcn.backend.dto;
 
-import com.shadcn.backend.model.Shift;
+import com.shadcn.backend.entity.Shift;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -19,8 +19,7 @@ public class ShiftResponse {
     private String jamMasuk;
     private String jamKeluar;
     private String deskripsi;
-    private Shift.LockLokasi lockLokasi;
-    private String lockLokasiDisplayName;
+    private String lockLokasi;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -33,7 +32,6 @@ public class ShiftResponse {
         this.jamKeluar = shift.getJamKeluar();
         this.deskripsi = shift.getDeskripsi();
         this.lockLokasi = shift.getLockLokasi();
-        this.lockLokasiDisplayName = shift.getLockLokasi() != null ? shift.getLockLokasi().getDisplayName() : null;
         this.isActive = shift.getIsActive();
         this.createdAt = shift.getCreatedAt();
         this.updatedAt = shift.getUpdatedAt();

@@ -55,6 +55,11 @@ public class AuthService {
         // If not found in users table, try pegawai table
         Optional<Pegawai> pegawaiOpt = pegawaiRepository.findByUsername(username);
         
+        // If not found by username, try finding by NIP
+        if (!pegawaiOpt.isPresent()) {
+            pegawaiOpt = pegawaiRepository.findByNip(username);
+        }
+        
         if (pegawaiOpt.isPresent()) {
             Pegawai pegawai = pegawaiOpt.get();
             

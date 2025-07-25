@@ -25,7 +25,10 @@ interface PegawaiLocation {
   email: string;
   fullName: string;
   phoneNumber: string;
-  jabatan: string;
+  jabatan: {
+    id: number;
+    nama: string;
+  };
   status: string;
   photoUrl?: string;
   alamat: string;
@@ -587,7 +590,7 @@ export default function PegawaiLokasiPage() {
                           <TableCell className="py-4">
                             <Badge className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 font-medium">
                               <Shield className="h-3 w-3 mr-1" />
-                              {pegawai.jabatan}
+                              {pegawai.jabatan?.nama || '-'}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-4">

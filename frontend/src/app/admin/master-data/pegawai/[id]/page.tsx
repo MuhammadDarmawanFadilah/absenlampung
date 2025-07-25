@@ -6,8 +6,10 @@ import { useParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { showErrorToast } from "@/components/ui/toast-utils"
-import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, Building2, Edit, Shield, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, Building2, Edit, Shield, Eye, CheckCircle, XCircle, History, Clock, Camera, Timer, Zap, AlertCircle } from 'lucide-react'
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { useToast } from "@/hooks/use-toast"
 import { getApiUrl } from "@/lib/config"
@@ -49,31 +51,45 @@ interface PegawaiDetail {
   latitude?: number;
   longitude?: number;
   provinsi?: string;
-  provinsiNama?: string;
   kota?: string;
-  kotaNama?: string;
   kecamatan?: string;
-  kecamatanNama?: string;
   kelurahan?: string;
-  kelurahanNama?: string;
   kodePos?: string;
-  fotoKaryawan?: string;
+  // Display names for location
+  provinsiNama?: string;
+  kotaNama?: string;
+  kecamatanNama?: string;
+  kelurahanNama?: string;
+  // Photo URL
   photoUrl?: string;
-  // Salary & Benefits
+  // Financial data
   gajiPokok?: number;
   makanTransport?: number;
   lembur?: number;
-  kehadiran?: number;
   thr?: number;
   bonus?: number;
-  izin?: number;
-  terlambat?: number;
-  mangkir?: number;
   saldoKasbon?: number;
+  // Permission data
   izinCuti?: number;
   izinLainnya?: number;
   izinTelat?: number;
   izinPulangCepat?: number;
+}
+
+interface AbsensiHistory {
+  id: number;
+  tanggal: string;
+  waktu: string;
+  type: 'masuk' | 'pulang';
+  shift: string;
+  lokasi: string;
+  jarak: number;
+  photoUrl?: string;
+  status: 'hadir' | 'terlambat' | 'pulang_cepat' | 'alpha';
+  keterangan?: string;
+  latitude: number;
+  longitude: number;
+  createdAt: string;
 }
 
 export default function DetailPegawaiPage() {
@@ -81,6 +97,9 @@ export default function DetailPegawaiPage() {
   const params = useParams()
   const [loading, setLoading] = useState(true)
   const [pegawaiData, setPegawaiData] = useState<PegawaiDetail | null>(null)
+  const [absensiHistory, setAbsensiHistory] = useState<AbsensiHistory[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [activeTab, setActiveTab] = useState('detail')
   const { toast } = useToast()
 
   useEffect(() => {
@@ -88,6 +107,37 @@ export default function DetailPegawaiPage() {
       loadPegawaiData()
     }
   }, [params.id])
+
+  useEffect(() => {
+    if (activeTab === 'absensi' && pegawaiData) {
+      loadAbsensiHistory()
+    }
+  }, [activeTab, pegawaiData])
+
+  const loadAbsensiHistory = async () => {
+    try {
+      setLoadingHistory(true)
+      const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM format
+      
+      const response = await fetch(getApiUrl(`api/absensi/pegawai/${pegawaiData?.id}/history?month=${currentMonth}`), {
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setAbsensiHistory(data || [])
+      } else {
+        console.error('Failed to load absensi history')
+      }
+    } catch (error) {
+      console.error('Error loading absensi history:', error)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
 
   const loadPegawaiData = async () => {
     try {
@@ -126,7 +176,7 @@ export default function DetailPegawaiPage() {
 
   const getProfileImage = () => {
     if (!pegawaiData) return null
-    const photoUrl = pegawaiData.photoUrl || pegawaiData.fotoKaryawan
+    const photoUrl = pegawaiData.photoUrl
     if (!photoUrl) return null
     
     if (photoUrl.startsWith('http')) {
@@ -156,6 +206,59 @@ export default function DetailPegawaiPage() {
     } catch {
       return dateString
     }
+  }
+
+  const formatTime = (timeString: string) => {
+    return timeString.substring(0, 5)
+  }
+
+  const formatAbsensiDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short'
+    })
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'hadir':
+        return <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Hadir
+        </Badge>
+      case 'terlambat':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+          <AlertCircle className="w-3 h-3 mr-1" />
+          Terlambat
+        </Badge>
+      case 'pulang_cepat':
+        return <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
+          <Timer className="w-3 h-3 mr-1" />
+          Pulang Cepat
+        </Badge>
+      case 'alpha':
+        return <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
+          <XCircle className="w-3 h-3 mr-1" />
+          Alpha
+        </Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const getTypeBadge = (type: string) => {
+    return type === 'masuk' ? (
+      <Badge variant="default" className="bg-blue-100 text-blue-800 border-blue-200">
+        <Zap className="w-3 h-3 mr-1" />
+        Masuk
+      </Badge>
+    ) : (
+      <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+        <Timer className="w-3 h-3 mr-1" />
+        Pulang
+      </Badge>
+    )
   }
 
   if (loading) {
@@ -243,8 +346,21 @@ export default function DetailPegawaiPage() {
         }]}
       />
 
-      <div className="container mx-auto p-6 max-w-4xl space-y-6">
-        {/* Profile Card */}
+      <div className="container mx-auto p-6 max-w-6xl space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="detail" className="flex items-center">
+              <User className="w-4 h-4 mr-2" />
+              Detail Pegawai
+            </TabsTrigger>
+            <TabsTrigger value="absensi" className="flex items-center">
+              <History className="w-4 h-4 mr-2" />
+              Histori Absensi
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="detail" className="space-y-6">
+            {/* Profile Card */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-1">
             <CardContent className="p-6">
@@ -494,6 +610,116 @@ export default function DetailPegawaiPage() {
             Edit Pegawai
           </Button>
         </div>
+          </TabsContent>
+
+          <TabsContent value="absensi" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <History className="w-5 h-5 mr-2" />
+                  Histori Absensi Bulan Ini
+                </CardTitle>
+                <CardDescription>
+                  Riwayat kehadiran pegawai untuk bulan {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingHistory ? (
+                  <div className="text-center py-8">
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Memuat data absensi...</span>
+                    </div>
+                  </div>
+                ) : absensiHistory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Belum Ada Data Absensi</h3>
+                    <p className="text-muted-foreground">Pegawai belum melakukan absensi bulan ini.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tanggal</TableHead>
+                          <TableHead>Waktu</TableHead>
+                          <TableHead>Jenis</TableHead>
+                          <TableHead>Shift</TableHead>
+                          <TableHead>Lokasi</TableHead>
+                          <TableHead>Jarak</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Foto</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {absensiHistory.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">
+                                  {formatAbsensiDate(item.tanggal)}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {new Date(item.tanggal).toLocaleDateString('id-ID', { 
+                                    day: '2-digit', 
+                                    month: 'short' 
+                                  })}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 mr-2 text-gray-400" />
+                                <span className="font-mono">{formatTime(item.waktu)}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {getTypeBadge(item.type)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {item.shift}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+                                <span className="text-sm">{item.lokasi}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm font-mono">
+                                {Math.round(item.jarak)} m
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(item.status)}
+                            </TableCell>
+                            <TableCell>
+                              {item.photoUrl ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(item.photoUrl, '_blank')}
+                                >
+                                  <Camera className="w-4 h-4 mr-1" />
+                                  Lihat
+                                </Button>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

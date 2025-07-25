@@ -2,7 +2,7 @@ package com.shadcn.backend.service;
 
 import com.shadcn.backend.dto.ShiftRequest;
 import com.shadcn.backend.dto.ShiftResponse;
-import com.shadcn.backend.model.Shift;
+import com.shadcn.backend.entity.Shift;
 import com.shadcn.backend.repository.ShiftRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

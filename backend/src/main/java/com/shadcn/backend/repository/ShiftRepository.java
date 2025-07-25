@@ -1,6 +1,6 @@
 package com.shadcn.backend.repository;
 
-import com.shadcn.backend.model.Shift;
+import com.shadcn.backend.entity.Shift;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -5,6 +5,8 @@ import com.shadcn.backend.dto.PegawaiResponse;
 import com.shadcn.backend.dto.UpdatePegawaiRequest;
 import com.shadcn.backend.model.Pegawai;
 import com.shadcn.backend.service.PegawaiService;
+import com.shadcn.backend.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ import java.util.Optional;
 public class PegawaiController {
 
     private final PegawaiService pegawaiService;
+    private final AuthService authService;
 
     @PostMapping("/check-duplicate")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
@@ -110,6 +113,54 @@ public class PegawaiController {
             }
         } catch (Exception e) {
             log.error("Error getting pegawai by id: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/current")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
+    public ResponseEntity<PegawaiResponse> getCurrentPegawai(HttpServletRequest request) {
+        try {
+            String token = request.getHeader("Authorization");
+            if (token != null && token.startsWith("Bearer ")) {
+                String actualToken = token.substring(7);
+                Pegawai pegawai = authService.getCurrentPegawai(actualToken);
+                if (pegawai != null) {
+                    Optional<PegawaiResponse> pegawaiResponseOpt = pegawaiService.getPegawaiById(pegawai.getId());
+                    if (pegawaiResponseOpt.isPresent()) {
+                        return ResponseEntity.ok(pegawaiResponseOpt.get());
+                    }
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Error getting current pegawai: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('USER') and #userId == authentication.principal.id)")
+    public ResponseEntity<PegawaiResponse> getPegawaiByUserId(@PathVariable Long userId, HttpServletRequest request) {
+        try {
+            String token = request.getHeader("Authorization");
+            if (token != null && token.startsWith("Bearer ")) {
+                String actualToken = token.substring(7);
+                
+                // Check if this is a pegawai token
+                if (authService.isPegawaiToken(actualToken)) {
+                    Pegawai pegawai = authService.getCurrentPegawai(actualToken);
+                    if (pegawai != null && pegawai.getId().equals(userId)) {
+                        Optional<PegawaiResponse> pegawaiResponseOpt = pegawaiService.getPegawaiById(pegawai.getId());
+                        if (pegawaiResponseOpt.isPresent()) {
+                            return ResponseEntity.ok(pegawaiResponseOpt.get());
+                        }
+                    }
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Error getting pegawai by user id: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

@@ -3,7 +3,7 @@ package com.shadcn.backend.service;
 import com.shadcn.backend.model.Pegawai;
 import com.shadcn.backend.model.Pemilihan;
 import com.shadcn.backend.model.Jabatan;
-import com.shadcn.backend.model.Shift;
+import com.shadcn.backend.entity.Shift;
 import com.shadcn.backend.model.Lokasi;
 import com.shadcn.backend.dto.PegawaiRequest;
 import com.shadcn.backend.dto.UpdatePegawaiRequest;

@@ -1,6 +1,5 @@
 package com.shadcn.backend.dto;
 
-import com.shadcn.backend.model.Shift;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -24,7 +23,7 @@ public class ShiftRequest {
     private String deskripsi;
     
     @NotNull(message = "Lock lokasi tidak boleh kosong")
-    private Shift.LockLokasi lockLokasi;
+    private String lockLokasi;
     
     private Boolean isActive = true;
 }

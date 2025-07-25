@@ -18,6 +18,8 @@ public interface PegawaiRepository extends JpaRepository<Pegawai, Long> {
     
     Optional<Pegawai> findByEmail(String email);
     
+    Optional<Pegawai> findByNip(String nip);
+    
     boolean existsByUsername(String username);
     
     boolean existsByEmail(String email);

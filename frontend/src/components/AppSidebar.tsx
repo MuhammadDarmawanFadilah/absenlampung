@@ -27,6 +27,8 @@ import {
   MapPin,
   Building,
   Vote, // Added for Pemilihan
+  CalendarClock, // Added for Absensi
+  History, // Added for Histori Absensi
 } from "lucide-react";
 import {
   Sidebar,
@@ -168,6 +170,12 @@ const AppSidebar = () => {
       title: "Data Pegawai",
       url: "/admin/master-data/pegawai",
       icon: Users,
+    },
+    {
+      title: "Histori Absensi",
+      url: "/admin/master-data/histori-absensi",
+      icon: History,
+      badge: "New",
     },
     {
       title: "Jabatan",
@@ -363,6 +371,32 @@ const AppSidebar = () => {
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild className="w-full">
                         <Link 
+                          href="/pegawai/absensi"
+                          onClick={handleMenuClick}
+                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md group"
+                        >
+                          <CalendarClock className="h-4 w-4 flex-shrink-0" />
+                          <span className="hidden md:inline truncate">Absensi</span>
+                          <span className="md:hidden text-xs truncate">Absensi</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild className="w-full">
+                        <Link 
+                          href="/pegawai/histori-absensi"
+                          onClick={handleMenuClick}
+                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md group"
+                        >
+                          <History className="h-4 w-4 flex-shrink-0" />
+                          <span className="hidden md:inline truncate">Histori Absensi</span>
+                          <span className="md:hidden text-xs truncate">Histori</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild className="w-full">
+                        <Link 
                           href="/reset-password" 
                           target="_blank"
                           onClick={handleMenuClick}
@@ -465,6 +499,9 @@ const AppSidebar = () => {
                             <span>{item.title}</span>
                           </Link>
                         </SidebarMenuButton>
+                        {(item as any).badge && (
+                          <SidebarMenuBadge>{(item as any).badge}</SidebarMenuBadge>
+                        )}
                       </SidebarMenuItem>
                     ))}
                   </SidebarMenu>
