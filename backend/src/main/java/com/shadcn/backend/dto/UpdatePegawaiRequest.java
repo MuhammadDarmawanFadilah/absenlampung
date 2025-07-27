@@ -49,6 +49,45 @@ public class UpdatePegawaiRequest {
     
     private Boolean isActive = true;
     
+    // Salary and benefit fields
+    private Integer gajiPokok;
+    private Integer makanTransport;
+    private Integer lembur;
+    private Integer kehadiran;
+    private Integer thr;
+    private Integer bonus;
+    private Integer tunjanganJabatan;
+    private Integer tunjanganKeluarga;
+    private Integer tunjanganKomunikasi;
+    private Integer tunjanganTransportasi;
+    private Integer izin;
+    private Integer terlambat;
+    private Integer mangkir;
+    private Integer saldoKasbon;
+    private Integer potonganBpjs;
+    private Integer potonganPajak;
+    
+    // Date fields
+    private String tanggalLahir;
+    private String tanggalMasuk;
+    private String statusNikah;
+    private String jenisKelamin;
+    private String tempatLahir;
+    private String rekening;
+    
+    // Photo fields
+    private String fotoKaryawan;
+    private String fotoFaceRecognition;
+    
+    // Admin flag
+    private Boolean isAdmin;
+    
+    // Allowance fields
+    private Integer izinCuti;
+    private Integer izinLainnya;
+    private Integer izinTelat;
+    private Integer izinPulangCepat;
+    
     // Location fields (optional)
     @Size(max = 500, message = "Alamat maksimal 500 karakter")
     private String alamat;

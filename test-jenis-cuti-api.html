@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Jenis Cuti API</title>
+</head>
+<body>
+    <h1>Test Jenis Cuti API</h1>
+    <button onclick="testAPI()">Test API</button>
+    <button onclick="addTestData()">Add Test Data</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:8080/api/jenis-cuti/active');
+                const data = await response.json();
+                document.getElementById('result').innerHTML = `
+                    <h3>API Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        async function addTestData() {
+            try {
+                // Try to seed test data via the new endpoint
+                const response = await fetch('http://localhost:8080/api/jenis-cuti/seed-test-data', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const result = await response.text();
+                    document.getElementById('result').innerHTML = `
+                        <h3>Seed Results:</h3>
+                        <div>✅ ${result}</div>
+                        <button onclick="testAPI()">Test API Now</button>
+                    `;
+                } else {
+                    const error = await response.text();
+                    document.getElementById('result').innerHTML = `❌ Error seeding data: ${error}`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

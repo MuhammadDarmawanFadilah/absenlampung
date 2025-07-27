@@ -191,6 +191,25 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Hide scrollbar for mobile slideshow */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+/* Snap scrolling for mobile cards */
+.snap-x {
+  scroll-snap-type: x mandatory;
+}
+
+.snap-center {
+  scroll-snap-align: center;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

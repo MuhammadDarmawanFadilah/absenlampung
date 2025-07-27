@@ -40,6 +40,15 @@
 - No hardcoded strings, numbers, or paths in business logic
 - All constants must be externalized to configuration files
 
+**Logging Configuration:**
+- Comprehensive debug logging enabled in `application-local.properties`
+- All application modules logged at DEBUG level for troubleshooting
+- Special focus on Cuti, Pegawai, and service layer logging
+- HTTP requests/responses logged for API debugging
+- Database queries logged with parameter binding
+- Log files stored in `logs/application.log` with rolling policy
+- Pusher integration logging enabled for real-time features
+
 **File Handling:**
 - For corrupted files: delete and recreate instead of attempting repair
 - Maintain file functionality when splitting large files

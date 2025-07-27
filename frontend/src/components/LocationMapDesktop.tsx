@@ -70,9 +70,9 @@ export default function LocationMapDesktop({
   return (
     <Dialog open={showLocationMap} onOpenChange={setShowLocationMap}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-xs hidden">
+        <Button variant="outline" size="sm" className="text-xs">
           <Eye className="w-3 h-3 mr-1" />
-          Lihat Peta
+          Lihat Lokasi
         </Button>
       </DialogTrigger>
       <DialogContent 

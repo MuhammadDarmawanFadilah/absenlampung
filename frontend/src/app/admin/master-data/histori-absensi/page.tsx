@@ -469,7 +469,6 @@ export default function MasterDataHistoriAbsensi() {
             </div>
           </>
         )}
-        )}
 
         {/* Filters */}
         <Card className="mb-4 md:mb-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-lg">

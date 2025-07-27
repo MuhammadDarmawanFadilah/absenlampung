@@ -29,6 +29,7 @@ import {
   Vote, // Added for Pemilihan
   CalendarClock, // Added for Absensi
   History, // Added for Histori Absensi
+  Calendar, // Added for Cuti
 } from "lucide-react";
 import {
   Sidebar,
@@ -175,6 +176,18 @@ const AppSidebar = () => {
       title: "Histori Absensi",
       url: "/admin/master-data/histori-absensi",
       icon: History,
+      badge: "New",
+    },
+    {
+      title: "Pengajuan Cuti",
+      url: "/admin/master-data/cuti",
+      icon: Calendar,
+      badge: "New",
+    },
+    {
+      title: "Daftar Cuti",
+      url: "/admin/master-data/daftar-cuti",
+      icon: FileText,
       badge: "New",
     },
     {
@@ -391,6 +404,19 @@ const AppSidebar = () => {
                           <History className="h-4 w-4 flex-shrink-0" />
                           <span className="hidden md:inline truncate">Histori Absensi</span>
                           <span className="md:hidden text-xs truncate">Histori</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild className="w-full">
+                        <Link 
+                          href="/pegawai/cuti"
+                          onClick={handleMenuClick}
+                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md group"
+                        >
+                          <Calendar className="h-4 w-4 flex-shrink-0" />
+                          <span className="hidden md:inline truncate">Pengajuan Cuti</span>
+                          <span className="md:hidden text-xs truncate">Cuti</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

@@ -3,7 +3,6 @@ package com.shadcn.backend.service;
 import com.shadcn.backend.model.Pegawai;
 import com.shadcn.backend.model.Pemilihan;
 import com.shadcn.backend.model.Jabatan;
-import com.shadcn.backend.entity.Shift;
 import com.shadcn.backend.model.Lokasi;
 import com.shadcn.backend.dto.PegawaiRequest;
 import com.shadcn.backend.dto.UpdatePegawaiRequest;
@@ -11,7 +10,6 @@ import com.shadcn.backend.dto.PegawaiResponse;
 import com.shadcn.backend.repository.PegawaiRepository;
 import com.shadcn.backend.repository.PemilihanRepository;
 import com.shadcn.backend.repository.JabatanRepository;
-import com.shadcn.backend.repository.ShiftRepository;
 import com.shadcn.backend.repository.LokasiRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +38,6 @@ public class PegawaiService {
     private final PegawaiRepository pegawaiRepository;
     private final PemilihanRepository pemilihanRepository;
     private final JabatanRepository jabatanRepository;
-    private final ShiftRepository shiftRepository;
     private final LokasiRepository lokasiRepository;
     private final PasswordEncoder passwordEncoder;
     private final WilayahCacheService wilayahCacheService;
@@ -288,6 +285,87 @@ public class PegawaiService {
         }
         if (request.getPhotoUrl() != null) {
             pegawai.setPhotoUrl(request.getPhotoUrl());
+        }
+
+        // Update salary and benefit fields
+        if (request.getGajiPokok() != null) {
+            pegawai.setGajiPokok(request.getGajiPokok());
+        }
+        if (request.getMakanTransport() != null) {
+            pegawai.setMakanTransport(request.getMakanTransport());
+        }
+        if (request.getLembur() != null) {
+            pegawai.setLembur(request.getLembur());
+        }
+        if (request.getKehadiran() != null) {
+            pegawai.setKehadiran(request.getKehadiran());
+        }
+        if (request.getThr() != null) {
+            pegawai.setThr(request.getThr());
+        }
+        if (request.getBonus() != null) {
+            pegawai.setBonus(request.getBonus());
+        }
+        if (request.getIzin() != null) {
+            pegawai.setIzin(request.getIzin());
+        }
+        if (request.getTerlambat() != null) {
+            pegawai.setTerlambat(request.getTerlambat());
+        }
+        if (request.getMangkir() != null) {
+            pegawai.setMangkir(request.getMangkir());
+        }
+        if (request.getSaldoKasbon() != null) {
+            pegawai.setSaldoKasbon(request.getSaldoKasbon());
+        }
+        if (request.getPotonganBpjs() != null) {
+            pegawai.setPotonganBpjs(request.getPotonganBpjs());
+        }
+        if (request.getPotonganPajak() != null) {
+            pegawai.setPotonganPajak(request.getPotonganPajak());
+        }
+
+        // Update cuti fields
+        if (request.getIzinCuti() != null) {
+            pegawai.setIzinCuti(request.getIzinCuti());
+        }
+        if (request.getIzinLainnya() != null) {
+            pegawai.setIzinLainnya(request.getIzinLainnya());
+        }
+        if (request.getIzinTelat() != null) {
+            pegawai.setIzinTelat(request.getIzinTelat());
+        }
+        if (request.getIzinPulangCepat() != null) {
+            pegawai.setIzinPulangCepat(request.getIzinPulangCepat());
+        }
+
+        // Update personal fields
+        if (request.getTanggalLahir() != null) {
+            pegawai.setTanggalLahir(request.getTanggalLahir());
+        }
+        if (request.getJenisKelamin() != null) {
+            pegawai.setJenisKelamin(request.getJenisKelamin());
+        }
+        if (request.getStatusNikah() != null) {
+            pegawai.setStatusNikah(request.getStatusNikah());
+        }
+        if (request.getTempatLahir() != null) {
+            pegawai.setTempatLahir(request.getTempatLahir());
+        }
+        if (request.getTanggalMasuk() != null) {
+            pegawai.setTanggalMasuk(request.getTanggalMasuk());
+        }
+        if (request.getRekening() != null) {
+            pegawai.setRekening(request.getRekening());
+        }
+        if (request.getFotoKaryawan() != null) {
+            pegawai.setFotoKaryawan(request.getFotoKaryawan());
+        }
+        if (request.getFotoFaceRecognition() != null) {
+            pegawai.setFotoFaceRecognition(request.getFotoFaceRecognition());
+        }
+        if (request.getIsAdmin() != null) {
+            pegawai.setIsAdmin(request.getIsAdmin() ? "1" : "0");
         }
 
         // Update password if provided

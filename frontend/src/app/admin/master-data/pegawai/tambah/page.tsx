@@ -28,13 +28,14 @@ import {
 } from "@/components/ui/popover"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast-utils"
-import { ArrowLeft, Save, Camera, X, ChevronRight, ChevronLeft, User, MapPin, Calculator, Eye, Check, ChevronsUpDown, Search } from 'lucide-react'
+import { ArrowLeft, Save, Camera, X, ChevronRight, ChevronLeft, User, MapPin, Calculator, Eye, Check, ChevronsUpDown, Search, Calendar } from 'lucide-react'
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { useToast } from "@/hooks/use-toast"
 import { getApiUrl } from "@/lib/config"
 import { cn } from "@/lib/utils"
 import { Stepper } from "@/components/ui/stepper"
 import { MapSelector } from "@/components/MapSelector"
+import PegawaiCutiInlineForm from "@/components/pegawai/PegawaiCutiInlineForm"
 
 interface JabatanResponse {
   id: number
@@ -180,6 +181,9 @@ export default function TambahPegawaiPage() {
     izin_lainnya: 0,
     izin_telat: 0,
     izin_pulang_cepat: 0,
+    
+    // Cuti data  
+    cutiList: [] as any[]
   })
   
   const { toast } = useToast()
@@ -922,6 +926,36 @@ export default function TambahPegawaiPage() {
       })
       
       if (response.ok) {
+        const pegawaiData = await response.json()
+        const pegawaiId = pegawaiData.id
+        
+        // Save cuti data if exists
+        if (formData.cutiList.length > 0) {
+          try {
+            const cutiRequestData = formData.cutiList.map(item => ({
+              pegawaiId: pegawaiId,
+              jenisCutiId: item.jenisCutiId,
+              tahun: item.tahun,
+              jatahHari: item.jumlahHari
+            }));
+
+            const cutiResponse = await fetch(getApiUrl(`api/pegawai-cuti/pegawai/${pegawaiId}/batch`), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              },
+              body: JSON.stringify(cutiRequestData)
+            });
+
+            if (!cutiResponse.ok) {
+              console.error('Failed to save cuti data, but pegawai created successfully');
+            }
+          } catch (cutiError) {
+            console.error('Error saving cuti data:', cutiError);
+          }
+        }
+        
         showSuccessToast('Pegawai berhasil ditambahkan')
         router.push('/admin/master-data/pegawai')
       } else {
@@ -1861,68 +1895,24 @@ export default function TambahPegawaiPage() {
                 </CardContent>
               </Card>
 
-              {/* Jatah Izin */}
+              {/* Daftar Cuti Pegawai */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Jatah Izin Tahunan</CardTitle>
+                  <CardTitle className="text-lg font-semibold">Daftar Cuti Pegawai</CardTitle>
                   <CardDescription>
-                    Pengaturan jatah izin dan cuti pegawai per tahun
+                    Pengaturan jenis cuti dan kuota per tahun untuk pegawai
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_cuti">Cuti Tahunan (Hari)</Label>
-                      <Input
-                        id="izin_cuti"
-                        type="number"
-                        min="0"
-                        max="365"
-                        value={formData.izin_cuti}
-                        onChange={(e) => handleInputChange('izin_cuti', parseInt(e.target.value) || 0)}
-                        placeholder="12"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_lainnya">Izin Lainnya (Hari)</Label>
-                      <Input
-                        id="izin_lainnya"
-                        type="number"
-                        min="0"
-                        max="365"
-                        value={formData.izin_lainnya}
-                        onChange={(e) => handleInputChange('izin_lainnya', parseInt(e.target.value) || 0)}
-                        placeholder="6"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_telat">Toleransi Keterlambatan (Kali)</Label>
-                      <Input
-                        id="izin_telat"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={formData.izin_telat}
-                        onChange={(e) => handleInputChange('izin_telat', parseInt(e.target.value) || 0)}
-                        placeholder="3"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_pulang_cepat">Izin Pulang Cepat (Kali)</Label>
-                      <Input
-                        id="izin_pulang_cepat"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={formData.izin_pulang_cepat}
-                        onChange={(e) => handleInputChange('izin_pulang_cepat', parseInt(e.target.value) || 0)}
-                        placeholder="2"
-                      />
-                    </div>
-                  </div>
+                <CardContent>
+                  <PegawaiCutiInlineForm
+                    cutiList={formData.cutiList}
+                    onChange={(updatedCutiList) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        cutiList: updatedCutiList
+                      }));
+                    }}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -2031,12 +2021,11 @@ export default function TambahPegawaiPage() {
 
                   {/* Allowance Information Preview */}
                   <div>
-                    <h4 className="font-semibold text-lg mb-3">Jatah Izin Tahunan</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div><span className="font-medium">Cuti Tahunan:</span> {formData.izin_cuti} hari</div>
-                      <div><span className="font-medium">Izin Lainnya:</span> {formData.izin_lainnya} hari</div>
-                      <div><span className="font-medium">Toleransi Keterlambatan:</span> {formData.izin_telat} kali</div>
-                      <div><span className="font-medium">Izin Pulang Cepat:</span> {formData.izin_pulang_cepat} kali</div>
+                    <h4 className="font-semibold text-lg mb-3">Daftar Cuti Pegawai</h4>
+                    <div className="text-sm">
+                      <p className="text-gray-500">
+                        Daftar cuti pegawai akan dapat dikelola setelah data pegawai berhasil disimpan
+                      </p>
                     </div>
                   </div>
                 </CardContent>

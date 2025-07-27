@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Cuti API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; margin-bottom: 5px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Cuti API</h1>
+        
+        <div class="form-group">
+            <h3>1. Get Jenis Cuti</h3>
+            <button onclick="getJenisCuti()">Load Jenis Cuti</button>
+            <div id="jenisCutiResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="form-group">
+            <h3>2. Submit Pengajuan Cuti</h3>
+            <form id="cutiForm">
+                <div class="form-group">
+                    <label>Pegawai ID:</label>
+                    <input type="number" id="pegawaiId" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Tanggal Dari:</label>
+                    <input type="date" id="tanggalDari" value="2025-01-20" required>
+                </div>
+                <div class="form-group">
+                    <label>Tanggal Ke:</label>
+                    <input type="date" id="tanggalKe" value="2025-01-21" required>
+                </div>
+                <div class="form-group">
+                    <label>Jenis Cuti:</label>
+                    <select id="jenisCuti" required>
+                        <option value="">Pilih Jenis Cuti</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Alasan Cuti:</label>
+                    <textarea id="alasanCuti" rows="3" placeholder="Masukkan alasan cuti..." required>Keperluan keluarga mendesak</textarea>
+                </div>
+                <button type="submit">Submit Pengajuan Cuti</button>
+            </form>
+            <div id="submitResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="form-group">
+            <h3>3. Get All Cuti</h3>
+            <button onclick="getAllCuti()">Load All Cuti</button>
+            <div id="allCutiResult" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+
+        async function getJenisCuti() {
+            try {
+                const response = await fetch(`${API_BASE}/api/jenis-cuti/active`);
+                const data = await response.json();
+                
+                const resultDiv = document.getElementById('jenisCutiResult');
+                resultDiv.style.display = 'block';
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<h4>Success!</h4><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+                    // Populate select options
+                    const select = document.getElementById('jenisCuti');
+                    select.innerHTML = '<option value="">Pilih Jenis Cuti</option>';
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.namaCuti;
+                        select.appendChild(option);
+                    });
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<h4>Error!</h4><p>${data.message || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                const resultDiv = document.getElementById('jenisCutiResult');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<h4>Error!</h4><p>${error.message}</p>`;
+            }
+        }
+
+        async function submitCuti() {
+            try {
+                const formData = new FormData();
+                formData.append('pegawaiId', document.getElementById('pegawaiId').value);
+                formData.append('tanggalDari', document.getElementById('tanggalDari').value);
+                formData.append('tanggalKe', document.getElementById('tanggalKe').value);
+                formData.append('jenisCuti', document.getElementById('jenisCuti').value);
+                formData.append('alasanCuti', document.getElementById('alasanCuti').value);
+
+                const response = await fetch(`${API_BASE}/api/cuti/ajukan`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const resultDiv = document.getElementById('submitResult');
+                resultDiv.style.display = 'block';
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<h4>Success!</h4><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<h4>Error!</h4><p>${errorText}</p>`;
+                }
+            } catch (error) {
+                const resultDiv = document.getElementById('submitResult');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<h4>Error!</h4><p>${error.message}</p>`;
+            }
+        }
+
+        async function getAllCuti() {
+            try {
+                const response = await fetch(`${API_BASE}/api/cuti?size=10`);
+                const data = await response.json();
+                
+                const resultDiv = document.getElementById('allCutiResult');
+                resultDiv.style.display = 'block';
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<h4>Success!</h4><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<h4>Error!</h4><p>${data.message || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                const resultDiv = document.getElementById('allCutiResult');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<h4>Error!</h4><p>${error.message}</p>`;
+            }
+        }
+
+        // Form submit handler
+        document.getElementById('cutiForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitCuti();
+        });
+
+        // Auto-load jenis cuti on page load
+        window.onload = function() {
+            getJenisCuti();
+        };
+    </script>
+</body>
+</html>

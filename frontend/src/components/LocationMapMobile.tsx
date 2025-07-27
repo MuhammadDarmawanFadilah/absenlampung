@@ -72,9 +72,9 @@ export default function LocationMapMobile({
 
   if (!showLocationMap) {
     return (
-      <Button variant="outline" size="sm" className="text-xs hidden" onClick={() => setShowLocationMap(true)}>
+      <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowLocationMap(true)}>
         <Eye className="w-3 h-3 mr-1" />
-        Lihat Peta
+        Lihat Lokasi
       </Button>
     )
   }

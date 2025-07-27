@@ -47,6 +47,8 @@ public class PegawaiResponse {
     private Integer terlambat;
     private Integer mangkir;
     private Integer saldoKasbon;
+    private Integer potonganBpjs;
+    private Integer potonganPajak;
     private String nip;
     private String pendidikan;
     private String tempatLahir;
@@ -132,6 +134,8 @@ public class PegawaiResponse {
         this.terlambat = pegawai.getTerlambat();
         this.mangkir = pegawai.getMangkir();
         this.saldoKasbon = pegawai.getSaldoKasbon();
+        this.potonganBpjs = pegawai.getPotonganBpjs();
+        this.potonganPajak = pegawai.getPotonganPajak();
         this.nip = pegawai.getNip();
         this.pendidikan = pegawai.getPendidikan();
         this.tempatLahir = pegawai.getTempatLahir();

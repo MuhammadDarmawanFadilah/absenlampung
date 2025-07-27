@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,13 +28,14 @@ import {
 } from "@/components/ui/popover"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { showErrorToast, showSuccessToast } from "@/components/ui/toast-utils"
-import { ArrowLeft, Save, Camera, X, ChevronRight, ChevronLeft, User, MapPin, Calculator, Eye, Check, ChevronsUpDown, Search } from 'lucide-react'
+import { ArrowLeft, Save, Camera, X, ChevronRight, ChevronLeft, User, MapPin, Calculator, Eye, Check, ChevronsUpDown, Search, Calendar } from 'lucide-react'
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { useToast } from "@/hooks/use-toast"
 import { getApiUrl } from "@/lib/config"
 import { cn } from "@/lib/utils"
 import { Stepper } from "@/components/ui/stepper"
 import { MapSelector } from "@/components/MapSelector"
+import PegawaiCutiInlineForm from "@/components/pegawai/PegawaiCutiInlineForm"
 
 interface JabatanResponse {
   id: number
@@ -85,6 +86,11 @@ const steps = [
   },
   {
     id: 4,
+    title: "Daftar Cuti Pegawai",
+    description: "Konfigurasi jenis cuti dan jatah"
+  },
+  {
+    id: 5,
     title: "Preview",
     description: "Review data sebelum simpan"
   }
@@ -93,6 +99,7 @@ const steps = [
 export default function EditPegawaiPage() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -181,13 +188,36 @@ export default function EditPegawaiPage() {
     izin_lainnya: 0,
     izin_telat: 0,
     izin_pulang_cepat: 0,
+    
+    // Cuti data
+    cutiList: [] as any[]
   })
   
   const { toast } = useToast()
 
+  // Memoized handler for cuti list changes to prevent infinite re-renders
+  const handleCutiListChange = useCallback((updatedCutiList: any[]) => {
+    console.log('Cuti list updated:', updatedCutiList);
+    setFormData(prev => ({
+      ...prev,
+      cutiList: updatedCutiList
+    }));
+  }, []);
+
   useEffect(() => {
     setMounted(true)
   }, [])
+  
+  useEffect(() => {
+    // Set initial step based on query parameter
+    const stepParam = searchParams?.get('step')
+    if (stepParam && mounted) {
+      const stepNumber = parseInt(stepParam)
+      if (stepNumber >= 0 && stepNumber < steps.length) {
+        setCurrentStep(stepNumber)
+      }
+    }
+  }, [mounted, searchParams])
   
   useEffect(() => {
     if (mounted && params.id) {
@@ -262,6 +292,34 @@ export default function EditPegawaiPage() {
     }
   }
 
+  const loadPegawaiCutiData = async (pegawaiId: number) => {
+    try {
+      const response = await fetch(getApiUrl(`api/pegawai-cuti/pegawai/${pegawaiId}`), {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Loaded cuti data:', data)
+        // Map the response to match the expected format
+        return data.map((item: any) => ({
+          jenisCutiId: item.jenisCutiId,
+          jenisCutiNama: item.namaCuti, // Add nama cuti for preview
+          tahun: item.tahun,
+          jumlahHari: item.jatahHari
+        }))
+      } else {
+        console.error('Failed to load pegawai cuti data:', response.status)
+        return []
+      }
+    } catch (error) {
+      console.error('Error loading pegawai cuti data:', error)
+      return []
+    }
+  }
+
   const loadPegawaiData = async () => {
     if (!params.id) return
     
@@ -276,6 +334,9 @@ export default function EditPegawaiPage() {
       if (response.ok) {
         const data = await response.json()
         console.log('Loaded pegawai data:', data)
+        
+        // Load existing cuti data for this pegawai
+        const cutiData = await loadPegawaiCutiData(parseInt(params.id as string))
         
         // Map backend data to form state
         setFormData({
@@ -322,6 +383,7 @@ export default function EditPegawaiPage() {
           izin_lainnya: data.izinLainnya || 0,
           izin_telat: data.izinTelat || 0,
           izin_pulang_cepat: data.izinPulangCepat || 0,
+          cutiList: cutiData
         })
 
         console.log('Form data set:', {
@@ -439,19 +501,26 @@ export default function EditPegawaiPage() {
   }
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-
-    // Auto-fill username from NIP
+    console.log('Input change:', field, '=', value);
+    
+    // Auto-fill username from NIP - handle this case specially
     if (field === 'nip' && value) {
       setFormData(prev => ({
         ...prev,
         nip: value,
         username: value // Auto-fill username with NIP value
       }))
+      return
     }
+
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      console.log('Form data updated:', newData);
+      return newData;
+    })
 
     // Handle wilayah dependencies
     if (field === 'provinsi' && value) {
@@ -963,8 +1032,8 @@ export default function EditPegawaiPage() {
   }
 
   const handleSubmit = async () => {
-    // Only allow submit on final step (step 3 - Preview)
-    if (currentStep !== 3) {
+    // Only allow submit on final step (step 4 - Preview)
+    if (currentStep !== 4) {
       showErrorToast('Silakan selesaikan semua langkah terlebih dahulu')
       return
     }
@@ -1039,7 +1108,38 @@ export default function EditPegawaiPage() {
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
         isActive: true,
-        photoUrl: photoUrl // Include new photo URL if uploaded
+        photoUrl: photoUrl, // Include new photo URL if uploaded
+        
+        // Add salary and benefit fields
+        gajiPokok: formData.gaji_pokok ? parseInt(formData.gaji_pokok.replace(/\D/g, '')) : null,
+        makanTransport: formData.makan_transport ? parseInt(formData.makan_transport.replace(/\D/g, '')) : null,
+        lembur: formData.lembur ? parseInt(formData.lembur.replace(/\D/g, '')) : null,
+        kehadiran: formData.kehadiran ? parseInt(formData.kehadiran.replace(/\D/g, '')) : null,
+        thr: formData.thr ? parseInt(formData.thr.replace(/\D/g, '')) : null,
+        bonus: formData.bonus ? parseInt(formData.bonus.replace(/\D/g, '')) : null,
+        tunjanganJabatan: formData.tunjangan_jabatan ? parseInt(formData.tunjangan_jabatan.replace(/\D/g, '')) : null,
+        tunjanganKeluarga: formData.tunjangan_keluarga ? parseInt(formData.tunjangan_keluarga.replace(/\D/g, '')) : null,
+        tunjanganKomunikasi: formData.tunjangan_komunikasi ? parseInt(formData.tunjangan_komunikasi.replace(/\D/g, '')) : null,
+        tunjanganTransportasi: formData.tunjangan_transportasi ? parseInt(formData.tunjangan_transportasi.replace(/\D/g, '')) : null,
+        izin: formData.izin ? parseInt(formData.izin.replace(/\D/g, '')) : null,
+        terlambat: formData.terlambat ? parseInt(formData.terlambat.replace(/\D/g, '')) : null,
+        mangkir: formData.mangkir ? parseInt(formData.mangkir.replace(/\D/g, '')) : null,
+        saldoKasbon: formData.saldo_kasbon ? parseInt(formData.saldo_kasbon.replace(/\D/g, '')) : null,
+        potonganBpjs: formData.potongan_bpjs ? parseInt(formData.potongan_bpjs.replace(/\D/g, '')) : null,
+        potonganPajak: formData.potongan_pajak ? parseInt(formData.potongan_pajak.replace(/\D/g, '')) : null,
+        
+        // Add personal data fields
+        tanggalLahir: formData.tgl_lahir,
+        tanggalMasuk: formData.tgl_join,
+        statusNikah: formData.status_nikah,
+        jenisKelamin: formData.gender === 'Laki-Laki' ? 'L' : formData.gender === 'Perempuan' ? 'P' : null,
+        rekening: formData.rekening,
+        
+        // Add allowance fields
+        izinCuti: formData.izin_cuti || 0,
+        izinLainnya: formData.izin_lainnya || 0,
+        izinTelat: formData.izin_telat || 0,
+        izinPulangCepat: formData.izin_pulang_cepat || 0
       }
       
       // Remove password from mapped data if not provided
@@ -1067,6 +1167,33 @@ export default function EditPegawaiPage() {
       console.log('Response status:', response.status)
       
       if (response.ok) {
+        // Save cuti data if exists
+        if (formData.cutiList.length > 0) {
+          try {
+            const cutiRequestData = formData.cutiList.map(item => ({
+              pegawaiId: parseInt(params.id as string),
+              jenisCutiId: item.jenisCutiId,
+              tahun: item.tahun,
+              jatahHari: item.jumlahHari
+            }));
+
+            const cutiResponse = await fetch(getApiUrl(`api/pegawai-cuti/pegawai/${params.id}/batch`), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              },
+              body: JSON.stringify(cutiRequestData)
+            });
+
+            if (!cutiResponse.ok) {
+              console.error('Failed to save cuti data, but pegawai updated successfully');
+            }
+          } catch (cutiError) {
+            console.error('Error saving cuti data:', cutiError);
+          }
+        }
+        
         showSuccessToast('Pegawai berhasil diperbarui')
         router.push('/admin/master-data/pegawai')
       } else {
@@ -2032,76 +2159,32 @@ export default function EditPegawaiPage() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
 
-              {/* Jatah Izin */}
+          {/* Step 4: Daftar Cuti Pegawai */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              {/* Daftar Cuti Pegawai */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Jatah Izin Tahunan</CardTitle>
+                  <CardTitle className="text-lg font-semibold">Daftar Cuti Pegawai</CardTitle>
                   <CardDescription>
-                    Pengaturan jatah izin dan cuti pegawai per tahun
+                    Pengaturan jenis cuti dan kuota per tahun untuk pegawai
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_cuti">Cuti Tahunan (Hari)</Label>
-                      <Input
-                        id="izin_cuti"
-                        type="number"
-                        min="0"
-                        max="365"
-                        value={formData.izin_cuti}
-                        onChange={(e) => handleInputChange('izin_cuti', parseInt(e.target.value) || 0)}
-                        placeholder="12"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_lainnya">Izin Lainnya (Hari)</Label>
-                      <Input
-                        id="izin_lainnya"
-                        type="number"
-                        min="0"
-                        max="365"
-                        value={formData.izin_lainnya}
-                        onChange={(e) => handleInputChange('izin_lainnya', parseInt(e.target.value) || 0)}
-                        placeholder="6"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_telat">Toleransi Keterlambatan (Kali)</Label>
-                      <Input
-                        id="izin_telat"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={formData.izin_telat}
-                        onChange={(e) => handleInputChange('izin_telat', parseInt(e.target.value) || 0)}
-                        placeholder="3"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="izin_pulang_cepat">Izin Pulang Cepat (Kali)</Label>
-                      <Input
-                        id="izin_pulang_cepat"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={formData.izin_pulang_cepat}
-                        onChange={(e) => handleInputChange('izin_pulang_cepat', parseInt(e.target.value) || 0)}
-                        placeholder="2"
-                      />
-                    </div>
-                  </div>
+                <CardContent>
+                  <PegawaiCutiInlineForm
+                    cutiList={formData.cutiList}
+                    onChange={handleCutiListChange}
+                  />
                 </CardContent>
               </Card>
             </div>
           )}
 
-          {/* Step 4: Preview */}
-          {currentStep === 3 && (
+          {/* Step 5: Preview */}
+          {currentStep === 4 && (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -2203,12 +2286,21 @@ export default function EditPegawaiPage() {
 
                   {/* Allowance Information Preview */}
                   <div>
-                    <h4 className="font-semibold text-lg mb-3">Jatah Izin Tahunan</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div><span className="font-medium">Cuti Tahunan:</span> {formData.izin_cuti} hari</div>
-                      <div><span className="font-medium">Izin Lainnya:</span> {formData.izin_lainnya} hari</div>
-                      <div><span className="font-medium">Toleransi Keterlambatan:</span> {formData.izin_telat} kali</div>
-                      <div><span className="font-medium">Izin Pulang Cepat:</span> {formData.izin_pulang_cepat} kali</div>
+                    <h4 className="font-semibold text-lg mb-3">Jatah Cuti Pegawai</h4>
+                    <div className="text-sm">
+                      {formData.cutiList && formData.cutiList.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {formData.cutiList.map((cuti: any, index: number) => (
+                            <div key={index} className="p-3 border rounded-lg">
+                              <div><span className="font-medium">Jenis:</span> {cuti.jenisCutiNama}</div>
+                              <div><span className="font-medium">Tahun:</span> {cuti.tahun}</div>
+                              <div><span className="font-medium">Jumlah Hari:</span> {cuti.jumlahHari}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500">Belum ada data cuti yang ditetapkan</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>

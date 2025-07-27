@@ -46,7 +46,7 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast-utils"
 import { SortableHeader } from '@/components/ui/sortable-header'
 import { ServerPagination } from '@/components/ServerPagination'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
-import { Search, Plus, MoreHorizontal, Edit, Trash2, Users, AlertTriangle, Eye, Filter, X, Check, ChevronsUpDown, MapPin } from 'lucide-react'
+import { Search, Plus, MoreHorizontal, Edit, Trash2, Users, AlertTriangle, Eye, Filter, X, Check, ChevronsUpDown, MapPin, Calendar } from 'lucide-react'
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import AdminFilters from "@/components/AdminFilters"
 import { useToast } from "@/hooks/use-toast"
@@ -297,6 +297,11 @@ export default function PegawaiMasterDataPage() {
   
   const handleEdit = (pegawai: PegawaiResponse) => {
     router.push(`/admin/master-data/pegawai/${pegawai.id}/edit`)
+  }
+  
+  const handleEditCuti = (pegawai: PegawaiResponse) => {
+    // Redirect to edit page with step 4 (Daftar Cuti) focused
+    router.push(`/admin/master-data/pegawai/${pegawai.id}/edit?step=3`)
   }
   
   const handleDelete = (pegawai: PegawaiResponse) => {
@@ -731,6 +736,10 @@ export default function PegawaiMasterDataPage() {
                               <DropdownMenuItem onClick={() => handleEdit(pegawai)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditCuti(pegawai)}>
+                                <Calendar className="h-4 w-4 mr-2" />
+                                Kelola Cuti
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleDelete(pegawai)}

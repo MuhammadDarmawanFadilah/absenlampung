@@ -66,21 +66,24 @@ public class Pegawai implements UserDetails {
     private String alamat;
     
     @Column(name = "izin_cuti")
-    private Integer izinCuti = 0;
+    @Builder.Default
+    private Integer izinCuti = 12;
     
     @Column(name = "izin_lainnya")
+    @Builder.Default
     private Integer izinLainnya = 0;
-    
+
     @Column(name = "izin_telat")
+    @Builder.Default
     private Integer izinTelat = 0;
-    
+
     @Column(name = "izin_pulang_cepat")
+    @Builder.Default
     private Integer izinPulangCepat = 0;
-    
+
     @Column(name = "is_admin")
-    private String isAdmin = "0";
-    
-    @Column(name = "rekening")
+    @Builder.Default
+    private String isAdmin = "0";    @Column(name = "rekening")
     private String rekening;
     
     @Column(name = "gaji_pokok")
@@ -112,6 +115,13 @@ public class Pegawai implements UserDetails {
     
     @Column(name = "saldo_kasbon")
     private Integer saldoKasbon;
+    
+    // BPJS and Tax deductions
+    @Column(name = "potongan_bpjs")
+    private Integer potonganBpjs;
+    
+    @Column(name = "potongan_pajak")
+    private Integer potonganPajak;
     
     // NIP is additional field for employee identification
     @Column(name = "nip", unique = true)
@@ -159,6 +169,7 @@ public class Pegawai implements UserDetails {
     }
     
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
     
     // Location fields - remove as alamat is already defined above

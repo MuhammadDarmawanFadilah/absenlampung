@@ -102,6 +102,13 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
+        
+        <!-- Pusher for real-time notifications -->
+        <dependency>
+            <groupId>com.pusher</groupId>
+            <artifactId>pusher-http-java</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies><build>
         <finalName>backend</finalName>
         <plugins>
@@ -116,7 +123,9 @@
                         </exclude>
                     </excludes>
                 </configuration>
-            </plugin>            <plugin>
+            </plugin>
+            
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
