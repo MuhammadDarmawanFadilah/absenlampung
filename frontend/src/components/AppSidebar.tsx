@@ -30,6 +30,7 @@ import {
   CalendarClock, // Added for Absensi
   History, // Added for Histori Absensi
   Calendar, // Added for Cuti
+  Calculator, // Added for Pemotongan
 } from "lucide-react";
 import {
   Sidebar,
@@ -104,68 +105,11 @@ const AppSidebar = () => {
   ];
 
   // User items (accessible when logged in)
-  const userItems = [
-    {
-      title: "Laporan Pengawas",
-      url: "/laporan-pengawas",
-      icon: Vote,
-      badge: "New",
-    },
-    {
-      title: "Laporan Saya",
-      url: "/laporan-saya",
-      icon: FileText,
-    },
-    {
-      title: "File Manager",
-      url: "/file-manager",
-      icon: FolderOpen,
-      badge: "New",
-    },
-  ];  // Admin Pegawai items (accessible to admin/moderator)
-  const adminPegawaiItems = [
-    {
-      title: "Pegawai",
-      url: "/admin/pegawai",
-      icon: Users,
-      badge: "New",
-    },
-    {
-      title: "Roles",
-      url: "/roles",
-      icon: Shield,
-    },
-    {
-      title: "File Pegawai",
-      url: "/admin/file-pegawai",
-      icon: FileText,
-    },
-  ];
+  const userItems: any[] = [];  // Admin Pegawai items (accessible to admin/moderator)
+  const adminPegawaiItems: any[] = [];
 
   // Admin Pemilihan items (accessible to admin/moderator)
-  const adminPemilihanItems = [
-    {
-      title: "Pemilihan",
-      url: "/admin/pemilihan",
-      icon: Vote,
-      badge: "New",
-    },
-    {
-      title: "Laporan",
-      url: "/admin/laporan",
-      icon: FolderOpen,
-    },
-    {
-      title: "Jenis Laporan",
-      url: "/admin/jenis-laporan",
-      icon: FileText,
-    },
-    {
-      title: "Lokasi Pemilihan",
-      url: "/admin/pemilihan/lokasi",
-      icon: MapPin,
-    },
-  ];// Master Data items (accessible to admin/moderator)
+  const adminPemilihanItems: any[] = [];// Master Data items (accessible to admin/moderator)
   const masterDataItems = [
     {
       title: "Data Pegawai",
@@ -182,6 +126,24 @@ const AppSidebar = () => {
       title: "Pengajuan Cuti",
       url: "/admin/master-data/cuti",
       icon: Calendar,
+      badge: "New",
+    },
+    {
+      title: "Hari Libur",
+      url: "/admin/master-data/hari-libur",
+      icon: Calendar,
+      badge: "New",
+    },
+    {
+      title: "Pemotongan",
+      url: "/admin/master-data/pemotongan",
+      icon: Calculator,
+      badge: "New",
+    },
+    {
+      title: "Pemotongan Absen",
+      url: "/admin/master-data/pemotongan-absen",
+      icon: Calculator,
       badge: "New",
     },
     {

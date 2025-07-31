@@ -9,7 +9,7 @@ import com.shadcn.backend.model.Pegawai;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @Data
 @NoArgsConstructor
@@ -158,25 +158,8 @@ public class PegawaiResponse {
         this.totalTps = pegawai.getTotalTps();
         this.totalPemilihan = pegawai.getTotalPemilihan();
         
-        // Convert pemilihan set to list of summaries
-        if (pegawai.getPemilihanList() != null) {
-            this.pemilihanList = pegawai.getPemilihanList().stream()
-                .map(pemilihan -> PemilihanSummary.builder()
-                    .id(pemilihan.getPemilihanId())
-                    .judulPemilihan(pemilihan.getNamaPemilihan())
-                    .deskripsi(pemilihan.getDeskripsiPemilihan())
-                    .status(pemilihan.getStatus().name())
-                    .tingkatPemilihan(pemilihan.getTingkatPemilihan().name())
-                    .totalLaporan(pemilihan.getDetailPemilihanList() != null ? pemilihan.getDetailPemilihanList().size() : 0)
-                    .totalJenisLaporan(pemilihan.getDetailPemilihanList() != null ? pemilihan.getDetailPemilihanList().size() : 0)
-                    .provinsiNama(pemilihan.getProvinsiNama())
-                    .kotaNama(pemilihan.getKotaNama())
-                    .kecamatanNama(pemilihan.getKecamatanNama())
-                    .kelurahanNama(pemilihan.getKelurahanNama())
-                    .createdAt(pemilihan.getCreatedAt())
-                    .build())
-                .collect(Collectors.toList());
-        }
+        // Pemilihan functionality removed - set empty list
+        this.pemilihanList = new ArrayList<>();
         
         this.createdAt = pegawai.getCreatedAt();
         this.updatedAt = pegawai.getUpdatedAt();

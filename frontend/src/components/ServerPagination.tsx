@@ -179,3 +179,5 @@ export function ServerPagination({
     </div>
   )
 }
+
+export default ServerPagination

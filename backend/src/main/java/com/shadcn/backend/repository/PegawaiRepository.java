@@ -62,18 +62,7 @@ public interface PegawaiRepository extends JpaRepository<Pegawai, Long> {
     List<Pegawai> findByProvinsiAndKotaAndKecamatanAndKelurahan(
             String provinsi, String kota, String kecamatan, String kelurahan);
     
-    // Query for pegawai with pemilihan
-    @Query("SELECT DISTINCT p FROM Pegawai p LEFT JOIN FETCH p.pemilihanList")
-    List<Pegawai> findAllWithPemilihan();
-    
-    @Query("SELECT DISTINCT p FROM Pegawai p LEFT JOIN FETCH p.pemilihanList WHERE p.id = :id")
-    Optional<Pegawai> findByIdWithPemilihan(@Param("id") Long id);
-    
-    @Query("SELECT p FROM Pegawai p JOIN p.pemilihanList pm WHERE pm.pemilihanId = :pemilihanId")
-    List<Pegawai> findByPemilihanId(@Param("pemilihanId") Long pemilihanId);
-    
-    @Query("SELECT COUNT(p) FROM Pegawai p JOIN p.pemilihanList pm WHERE pm.pemilihanId = :pemilihanId")
-    long countByPemilihanId(@Param("pemilihanId") Long pemilihanId);
+
     
     // Advanced filtering query
     @Query("SELECT p FROM Pegawai p WHERE " +

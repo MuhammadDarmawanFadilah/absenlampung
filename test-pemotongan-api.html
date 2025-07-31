@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Pemotongan API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; white-space: pre-wrap; }
+        .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+        input, select, textarea { padding: 8px; margin: 5px; width: 200px; border: 1px solid #ddd; border-radius: 3px; }
+        label { display: inline-block; width: 150px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Pemotongan API</h1>
+        
+        <div class="section">
+            <h3>🔐 Login & Get Token</h3>
+            <button onclick="login()">Login as Admin</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>👥 Get Pegawai List</h3>
+            <button onclick="getPegawai()">Get All Pegawai</button>
+            <div id="pegawaiResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>💰 Get Pemotongan List</h3>
+            <button onclick="getPemotongan()">Get All Pemotongan</button>
+            <button onclick="getPemotonganWithFilter()">Get Pemotongan (July 2025)</button>
+            <div id="pemotonganResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>➕ Create Test Pemotongan</h3>
+            <div>
+                <label>Pegawai ID:</label>
+                <select id="pegawaiSelect">
+                    <option value="">Select Pegawai...</option>
+                </select>
+            </div>
+            <div>
+                <label>Bulan:</label>
+                <select id="bulan">
+                    <option value="7">Juli</option>
+                    <option value="8">Agustus</option>
+                </select>
+            </div>
+            <div>
+                <label>Tahun:</label>
+                <input type="number" id="tahun" value="2025">
+            </div>
+            <div>
+                <label>Persentase (%):</label>
+                <input type="number" id="persentase" value="10" step="0.01" min="0.01" max="100">
+            </div>
+            <div>
+                <label>Alasan:</label>
+                <textarea id="alasan" placeholder="Masukkan alasan pemotongan...">Keterlambatan berulang</textarea>
+            </div>
+            <div>
+                <label>Gaji Pokok:</label>
+                <input type="number" id="gajiPokok" value="5000000" step="1000">
+            </div>
+            <br>
+            <button onclick="createPemotongan()">Create Pemotongan</button>
+            <div id="createResult" class="result"></div>
+        </div>
+
+    </div>
+
+    <script>
+        let authToken = '';
+        const API_BASE = 'http://localhost:8080/api';
+        
+        async function login() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    authToken = data.token;
+                    document.getElementById('loginResult').className = 'result success';
+                    document.getElementById('loginResult').textContent = 'Login successful! Token: ' + authToken;
+                } else {
+                    throw new Error(data.message || 'Login failed');
+                }
+            } catch (error) {
+                document.getElementById('loginResult').className = 'result error';
+                document.getElementById('loginResult').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getPegawai() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/pegawai?size=100`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('pegawaiResult').className = 'result success';
+                    document.getElementById('pegawaiResult').textContent = JSON.stringify(data, null, 2);
+                    
+                    // Populate pegawai dropdown
+                    const select = document.getElementById('pegawaiSelect');
+                    select.innerHTML = '<option value="">Select Pegawai...</option>';
+                    if (data.pegawai) {
+                        data.pegawai.forEach(p => {
+                            const option = document.createElement('option');
+                            option.value = p.id;
+                            option.textContent = `${p.namaLengkap} (${p.nip}) - Gaji: ${p.gajiPokok || 'N/A'}`;
+                            select.appendChild(option);
+                        });
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to get pegawai');
+                }
+            } catch (error) {
+                document.getElementById('pegawaiResult').className = 'result error';
+                document.getElementById('pegawaiResult').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getPemotongan() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/pemotongan?page=0&size=10`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('pemotonganResult').className = 'result success';
+                    document.getElementById('pemotonganResult').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    throw new Error(data.message || 'Failed to get pemotongan');
+                }
+            } catch (error) {
+                document.getElementById('pemotonganResult').className = 'result error';
+                document.getElementById('pemotonganResult').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getPemotonganWithFilter() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/pemotongan?page=0&size=10&bulan=7&tahun=2025`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('pemotonganResult').className = 'result success';
+                    document.getElementById('pemotonganResult').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    throw new Error(data.message || 'Failed to get pemotongan');
+                }
+            } catch (error) {
+                document.getElementById('pemotonganResult').className = 'result error';
+                document.getElementById('pemotonganResult').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function createPemotongan() {
+            if (!authToken) {
+                alert('Please login first');
+                return;
+            }
+            
+            const pegawaiId = document.getElementById('pegawaiSelect').value;
+            const bulan = document.getElementById('bulan').value;
+            const tahun = document.getElementById('tahun').value;
+            const persentase = document.getElementById('persentase').value;
+            const alasan = document.getElementById('alasan').value;
+            const gajiPokok = document.getElementById('gajiPokok').value;
+            
+            if (!pegawaiId || !alasan) {
+                alert('Please fill all required fields');
+                return;
+            }
+            
+            try {
+                const requestBody = {
+                    pegawaiId: parseInt(pegawaiId),
+                    bulanPemotongan: parseInt(bulan),
+                    tahunPemotongan: parseInt(tahun),
+                    persentasePemotongan: parseFloat(persentase),
+                    alasanPemotongan: alasan,
+                    gajiPokok: gajiPokok ? parseFloat(gajiPokok) : null
+                };
+                
+                const response = await fetch(`${API_BASE}/pemotongan`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('createResult').className = 'result success';
+                    document.getElementById('createResult').textContent = 'Pemotongan created successfully!\n' + JSON.stringify(data, null, 2);
+                    // Refresh pemotongan list
+                    getPemotongan();
+                } else {
+                    throw new Error(data.message || 'Failed to create pemotongan');
+                }
+            } catch (error) {
+                document.getElementById('createResult').className = 'result error';
+                document.getElementById('createResult').textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

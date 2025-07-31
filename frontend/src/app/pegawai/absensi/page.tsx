@@ -155,6 +155,7 @@ export default function AbsensiPage() {
   const [todayAbsensi, setTodayAbsensi] = useState<TodayAbsensi | null>(null)
   const [loadingTodayAbsensi, setLoadingTodayAbsensi] = useState(true)
   const [showAbsensiDetailModal, setShowAbsensiDetailModal] = useState(false)
+  const [hariLiburInfo, setHariLiburInfo] = useState<{ isHariLibur: boolean; namaLibur?: string; isNasional?: boolean } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
@@ -174,6 +175,7 @@ export default function AbsensiPage() {
       loadShiftData()
       loadPegawaiData()
       loadTodayAbsensi()
+      checkHariLibur()
     }
   }, [user])
 
@@ -197,6 +199,50 @@ export default function AbsensiPage() {
       return () => clearTimeout(timer)
     }
   }, [currentStep, capturedPhoto, cameraStream])
+
+  const checkHariLibur = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
+      const response = await fetch(getApiUrl(`hari-libur/check/${today}`), {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.isHariLibur) {
+          // Get holiday details
+          const holidayResponse = await fetch(getApiUrl(`hari-libur?tanggalLibur=${today}`), {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            }
+          })
+          
+          if (holidayResponse.ok) {
+            const holidayData = await holidayResponse.json()
+            if (holidayData.data && holidayData.data.length > 0) {
+              const holiday = holidayData.data[0]
+              setHariLiburInfo({
+                isHariLibur: true,
+                namaLibur: holiday.namaLibur,
+                isNasional: holiday.isNasional
+              })
+            } else {
+              setHariLiburInfo({ isHariLibur: true })
+            }
+          } else {
+            setHariLiburInfo({ isHariLibur: true })
+          }
+        } else {
+          setHariLiburInfo({ isHariLibur: false })
+        }
+      }
+    } catch (error) {
+      console.error('Error checking hari libur:', error)
+      setHariLiburInfo({ isHariLibur: false })
+    }
+  }
 
   const loadTodayAbsensi = async () => {
     if (!user?.id) return
@@ -601,6 +647,28 @@ export default function AbsensiPage() {
             <ThemeToggle />
           </div>
         </div>
+
+        {/* Holiday Information Alert */}
+        {hariLiburInfo?.isHariLibur && (
+          <Alert className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+            <CalendarClock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <strong>Hari Libur:</strong> {hariLiburInfo.namaLibur || 'Hari Libur'}
+                  {hariLiburInfo.isNasional && (
+                    <Badge variant="secondary" className="ml-2 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                      Nasional
+                    </Badge>
+                  )}
+                  <p className="mt-1 text-sm">
+                    Hari ini adalah hari libur, namun Anda tetap dapat melakukan absensi jika diperlukan.
+                  </p>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Tampilan Khusus untuk Absensi Lengkap */}
         {todayAbsensi?.isComplete ? (

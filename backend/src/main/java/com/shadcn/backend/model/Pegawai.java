@@ -13,8 +13,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.HashSet;
 
 @Entity
 @Table(name = "pegawai")
@@ -83,7 +81,9 @@ public class Pegawai implements UserDetails {
 
     @Column(name = "is_admin")
     @Builder.Default
-    private String isAdmin = "0";    @Column(name = "rekening")
+    private String isAdmin = "0";
+    
+    @Column(name = "rekening")
     private String rekening;
     
     @Column(name = "gaji_pokok")
@@ -103,6 +103,19 @@ public class Pegawai implements UserDetails {
     
     @Column(name = "bonus")
     private Integer bonus;
+    
+    // Tunjangan fields
+    @Column(name = "tunjangan_jabatan")
+    private Integer tunjanganJabatan;
+    
+    @Column(name = "tunjangan_keluarga")
+    private Integer tunjanganKeluarga;
+    
+    @Column(name = "tunjangan_komunikasi")
+    private Integer tunjanganKomunikasi;
+    
+    @Column(name = "tunjangan_transportasi")
+    private Integer tunjanganTransportasi;
     
     @Column(name = "izin")
     private Integer izin;
@@ -188,18 +201,9 @@ public class Pegawai implements UserDetails {
     @Column(name = "photo_url")
     private String photoUrl;
     
-    // TPS and Pemilihan related fields
+    // TPS related fields
     @Column(name = "total_tps")
     private Integer totalTps;
-    
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "pegawai_pemilihan",
-        joinColumns = @JoinColumn(name = "pegawai_id"),
-        inverseJoinColumns = @JoinColumn(name = "pemilihan_id")
-    )
-    @Builder.Default
-    private Set<Pemilihan> pemilihanList = new HashSet<>();
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -260,45 +264,10 @@ public class Pegawai implements UserDetails {
     
     // Helper methods
     public Integer getTotalPemilihan() {
-        return pemilihanList != null ? pemilihanList.size() : 0;
-    }
-    
-    public void addPemilihan(Pemilihan pemilihan) {
-        if (pemilihanList == null) {
-            pemilihanList = new HashSet<>();
-        }
-        pemilihanList.add(pemilihan);
-        // Sync bidirectional relationship
-        if (pemilihan.getPegawaiList() != null) {
-            pemilihan.getPegawaiList().add(this);
-        }
-        // Automatically update totalTps
-        this.totalTps = pemilihanList.size();
-    }
-    
-    public void removePemilihan(Pemilihan pemilihan) {
-        if (pemilihanList != null) {
-            pemilihanList.remove(pemilihan);
-            // Sync bidirectional relationship
-            if (pemilihan.getPegawaiList() != null) {
-                pemilihan.getPegawaiList().remove(this);
-            }
-            // Automatically update totalTps
-            this.totalTps = pemilihanList.size();
-        }
+        return totalTps != null ? totalTps : 0;
     }
     
     public void clearPemilihan() {
-        if (pemilihanList != null) {
-            pemilihanList.clear();
-            // Automatically update totalTps
-            this.totalTps = 0;
-        }
-    }
-    
-    public void setPemilihanList(Set<Pemilihan> pemilihanList) {
-        this.pemilihanList = pemilihanList;
-        // Automatically update totalTps when pemilihanList is set
-        this.totalTps = pemilihanList != null ? pemilihanList.size() : 0;
+        this.totalTps = 0;
     }
 }

@@ -1,0 +1,13 @@
+-- Create table pemotongan_absen
+CREATE TABLE IF NOT EXISTS pemotongan_absen (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    kode VARCHAR(10) NOT NULL UNIQUE,
+    nama VARCHAR(100) NOT NULL,
+    deskripsi VARCHAR(200) NOT NULL,
+    persentase DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_kode (kode),
+    INDEX idx_is_active (is_active)
+);

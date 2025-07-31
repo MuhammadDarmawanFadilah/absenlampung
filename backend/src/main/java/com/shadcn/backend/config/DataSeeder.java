@@ -3,6 +3,7 @@ package com.shadcn.backend.config;
 import com.shadcn.backend.model.*;
 import com.shadcn.backend.repository.*;
 import com.shadcn.backend.entity.WilayahKodepos;
+import com.shadcn.backend.entity.PemotonganAbsen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,8 @@ public class DataSeeder implements CommandLineRunner {
     private AppProperties appProperties;
     @Autowired
     private WilayahKodeposRepository wilayahKodeposRepository;
+    @Autowired
+    private PemotonganAbsenRepository pemotonganAbsenRepository;
     
     @Override
     public void run(String... args) throws Exception {
@@ -101,6 +104,14 @@ public class DataSeeder implements CommandLineRunner {
             if (existingKodeposCount < 83000) {
                 logger.warn("Expected around 83,724 postal codes but found only {}. Consider clearing and reseeding.", existingKodeposCount);
             }
+        }
+        
+        // Seed pemotongan absen
+        if (pemotonganAbsenRepository.count() == 0) {
+            logger.info("No pemotongan absen found, seeding pemotongan absen...");
+            seedPemotonganAbsen();
+        } else {
+            logger.info("Pemotongan absen already exist, skipping seeding. Count: {}", pemotonganAbsenRepository.count());
         }
         
         logger.info("Data seeding process completed.");
@@ -588,5 +599,91 @@ public class DataSeeder implements CommandLineRunner {
         
         wilayahKodeposRepository.saveAll(fallbackList);
         logger.info("Successfully seeded {} fallback postal codes", fallbackList.size());
+    }
+    
+    private void seedPemotonganAbsen() {
+        logger.info("Starting pemotongan absen seeding...");
+        
+        List<PemotonganAbsen> pemotonganAbsenList = Arrays.asList(
+            PemotonganAbsen.builder()
+                .kode("TL0")
+                .nama("Terlambat Masuk 0")
+                .deskripsi("Terlambat Masuk 1 - 30 menit")
+                .persentase(new BigDecimal("0.00"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("TL1")
+                .nama("Terlambat Masuk 1")
+                .deskripsi("Terlambat Masuk 31 - 60 menit")
+                .persentase(new BigDecimal("0.50"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("TL2")
+                .nama("Terlambat Masuk 2")
+                .deskripsi("Terlambat Masuk 61 - 90 menit")
+                .persentase(new BigDecimal("1.25"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("TL3")
+                .nama("Terlambat Masuk 3")
+                .deskripsi("Terlambat Masuk lebih dari 90 menit")
+                .persentase(new BigDecimal("2.50"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("PSW1")
+                .nama("Pulang Cepat 1")
+                .deskripsi("Pulang Cepat 1 - 30 menit")
+                .persentase(new BigDecimal("0.50"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("PSW2")
+                .nama("Pulang Cepat 2")
+                .deskripsi("Pulang Cepat 31 - 60 menit")
+                .persentase(new BigDecimal("1.25"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("PSW3")
+                .nama("Pulang Cepat 3")
+                .deskripsi("Pulang Cepat lebih dari 61 menit")
+                .persentase(new BigDecimal("2.50"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("LAM")
+                .nama("Lupa Absen Masuk")
+                .deskripsi("Lupa Absen Masuk")
+                .persentase(new BigDecimal("2.50"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("LAP")
+                .nama("Lupa Absen Pulang")
+                .deskripsi("Lupa Absen Pulang")
+                .persentase(new BigDecimal("2.50"))
+                .isActive(true)
+                .build(),
+            PemotonganAbsen.builder()
+                .kode("TA")
+                .nama("Tidak Absen")
+                .deskripsi("Tidak Absen")
+                .persentase(new BigDecimal("5.00"))
+                .isActive(true)
+                .build()
+        );
+        
+        pemotonganAbsenRepository.saveAll(pemotonganAbsenList);
+        logger.info("Successfully seeded {} pemotongan absen entries", pemotonganAbsenList.size());
+        
+        // Log each entry for verification
+        for (PemotonganAbsen entry : pemotonganAbsenList) {
+            logger.debug("Seeded pemotongan absen: kode={}, nama={}, persentase={}%", 
+                entry.getKode(), entry.getNama(), entry.getPersentase());
+        }
     }
 }

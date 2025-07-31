@@ -47,6 +47,10 @@ public class UpdatePegawaiRequest {
     @Size(max = 100, message = "Jabatan maksimal 100 karakter")
     private String jabatan;
     
+    // Lokasi ID for assignment
+    private Long lokasiId;
+    
+    @Builder.Default
     private Boolean isActive = true;
     
     // Salary and benefit fields

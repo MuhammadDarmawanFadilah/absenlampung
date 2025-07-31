@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Pegawai Lokasi & Tunjangan</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
+        .success { border-color: #28a745; background: #d4edda; }
+        .error { border-color: #dc3545; background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Pegawai Lokasi & Tunjangan Kinerja</h1>
+        
+        <div class="form-group">
+            <label>Test Action:</label>
+            <select id="testAction">
+                <option value="create">Create New Pegawai</option>
+                <option value="update">Update Existing Pegawai</option>
+                <option value="get">Get Pegawai Data</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Pegawai ID (for update/get):</label>
+            <input type="number" id="pegawaiId" placeholder="Enter pegawai ID">
+        </div>
+
+        <!-- Create/Update Form -->
+        <div id="formSection">
+            <h3>Pegawai Data</h3>
+            
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="email" value="test@example.com">
+            </div>
+            
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" value="password123">
+            </div>
+            
+            <div class="form-group">
+                <label>Nama Lengkap:</label>
+                <input type="text" id="namaLengkap" value="Test Pegawai">
+            </div>
+            
+            <div class="form-group">
+                <label>No Telp:</label>
+                <input type="text" id="noTelp" value="08123456789">
+            </div>
+            
+            <div class="form-group">
+                <label>Jabatan:</label>
+                <input type="text" id="jabatan" value="Staff">
+            </div>
+            
+            <div class="form-group">
+                <label>Lokasi ID:</label>
+                <input type="number" id="lokasiId" value="1" placeholder="Enter lokasi ID (e.g., 1)">
+            </div>
+            
+            <div class="form-group">
+                <label>Gaji Pokok:</label>
+                <input type="number" id="gajiPokok" value="5000000">
+            </div>
+            
+            <div class="form-group">
+                <label>Tunjangan Kinerja:</label>
+                <input type="number" id="tunjanganKomunikasi" value="500000">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <button onclick="executeTest()">Execute Test</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+
+        function showResult(message, isSuccess = true) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = `result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `<pre>${message}</pre>`;
+        }
+
+        function clearResults() {
+            document.getElementById('result').style.display = 'none';
+        }
+
+        async function executeTest() {
+            const action = document.getElementById('testAction').value;
+            
+            try {
+                let result;
+                
+                if (action === 'create') {
+                    result = await createPegawai();
+                } else if (action === 'update') {
+                    result = await updatePegawai();
+                } else if (action === 'get') {
+                    result = await getPegawai();
+                }
+                
+                showResult(`SUCCESS:\n${JSON.stringify(result, null, 2)}`, true);
+            } catch (error) {
+                showResult(`ERROR:\n${error.message}\n\nDetails:\n${JSON.stringify(error, null, 2)}`, false);
+            }
+        }
+
+        async function createPegawai() {
+            const payload = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                namaLengkap: document.getElementById('namaLengkap').value,
+                noTelp: document.getElementById('noTelp').value,
+                jabatan: document.getElementById('jabatan').value,
+                lokasiId: parseInt(document.getElementById('lokasiId').value) || null,
+                gajiPokok: parseFloat(document.getElementById('gajiPokok').value) || 0,
+                tunjanganKomunikasi: parseFloat(document.getElementById('tunjanganKomunikasi').value) || 0,
+                role: "PEGAWAI",
+                isActive: true
+            };
+
+            console.log('Creating pegawai with payload:', payload);
+
+            const response = await fetch(`${API_BASE}/pegawai`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            return await response.json();
+        }
+
+        async function updatePegawai() {
+            const pegawaiId = document.getElementById('pegawaiId').value;
+            if (!pegawaiId) {
+                throw new Error('Pegawai ID is required for update');
+            }
+
+            const payload = {
+                email: document.getElementById('email').value,
+                namaLengkap: document.getElementById('namaLengkap').value,
+                noTelp: document.getElementById('noTelp').value,
+                jabatan: document.getElementById('jabatan').value,
+                lokasiId: parseInt(document.getElementById('lokasiId').value) || null,
+                gajiPokok: parseFloat(document.getElementById('gajiPokok').value) || 0,
+                tunjanganKomunikasi: parseFloat(document.getElementById('tunjanganKomunikasi').value) || 0,
+                isActive: true
+            };
+
+            // Add password only if provided
+            const password = document.getElementById('password').value;
+            if (password) {
+                payload.password = password;
+            }
+
+            console.log('Updating pegawai with payload:', payload);
+
+            const response = await fetch(`${API_BASE}/pegawai/${pegawaiId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            return await response.json();
+        }
+
+        async function getPegawai() {
+            const pegawaiId = document.getElementById('pegawaiId').value;
+            if (!pegawaiId) {
+                throw new Error('Pegawai ID is required for get');
+            }
+
+            console.log('Getting pegawai with ID:', pegawaiId);
+
+            const response = await fetch(`${API_BASE}/pegawai/${pegawaiId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            return await response.json();
+        }
+
+        // Auto-hide form for get action
+        document.getElementById('testAction').addEventListener('change', function() {
+            const formSection = document.getElementById('formSection');
+            if (this.value === 'get') {
+                formSection.style.display = 'none';
+            } else {
+                formSection.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

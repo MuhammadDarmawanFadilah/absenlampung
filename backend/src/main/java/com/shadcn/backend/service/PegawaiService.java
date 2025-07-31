@@ -1,14 +1,12 @@
 package com.shadcn.backend.service;
 
 import com.shadcn.backend.model.Pegawai;
-import com.shadcn.backend.model.Pemilihan;
 import com.shadcn.backend.model.Jabatan;
 import com.shadcn.backend.model.Lokasi;
 import com.shadcn.backend.dto.PegawaiRequest;
 import com.shadcn.backend.dto.UpdatePegawaiRequest;
 import com.shadcn.backend.dto.PegawaiResponse;
 import com.shadcn.backend.repository.PegawaiRepository;
-import com.shadcn.backend.repository.PemilihanRepository;
 import com.shadcn.backend.repository.JabatanRepository;
 import com.shadcn.backend.repository.LokasiRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,7 +33,6 @@ import java.util.stream.Collectors;
 public class PegawaiService {
 
     private final PegawaiRepository pegawaiRepository;
-    private final PemilihanRepository pemilihanRepository;
     private final JabatanRepository jabatanRepository;
     private final LokasiRepository lokasiRepository;
     private final PasswordEncoder passwordEncoder;
@@ -178,6 +174,11 @@ public class PegawaiService {
                 .terlambat(request.getTerlambat())
                 .mangkir(request.getMangkir())
                 .saldoKasbon(request.getSaldoKasbon())
+                .potonganBpjs(request.getPotonganBpjs())
+                .potonganPajak(request.getPotonganPajak())
+                .tunjanganJabatan(request.getTunjanganJabatan())
+                .tunjanganKomunikasi(request.getTunjanganKomunikasi())
+                .tunjanganTransportasi(request.getTunjanganTransportasi())
                 .nip(request.getNip())
                 .pendidikan(request.getPendidikan())
                 .tempatLahir(request.getTempatLahir())
@@ -195,17 +196,8 @@ public class PegawaiService {
                 .photoUrl(request.getPhotoUrl())
                 .build();
 
-        // Add pemilihan if provided - totalTps will be calculated automatically
-        if (request.getSelectedPemilihanIds() != null && !request.getSelectedPemilihanIds().isEmpty()) {
-            Set<Pemilihan> pemilihanSet = request.getSelectedPemilihanIds().stream()
-                    .map(id -> pemilihanRepository.findById(id)
-                            .orElseThrow(() -> new RuntimeException("Pemilihan not found: " + id)))
-                    .collect(Collectors.toSet());
-            pegawai.setPemilihanList(pemilihanSet);
-        } else {
-            // No pemilihan assigned, set totalTps to 0
-            pegawai.setTotalTps(0);
-        }
+        // Pemilihan functionality has been removed - no longer setting pemilihan or totalTps
+        pegawai.setTotalTps(0); // Default to 0 since pemilihan functionality is removed
 
         Pegawai savedPegawai = pegawaiRepository.save(pegawai);
         log.info("Pegawai created successfully with id: {}", savedPegawai.getId());
@@ -306,6 +298,18 @@ public class PegawaiService {
         if (request.getBonus() != null) {
             pegawai.setBonus(request.getBonus());
         }
+        if (request.getTunjanganJabatan() != null) {
+            pegawai.setTunjanganJabatan(request.getTunjanganJabatan());
+        }
+        if (request.getTunjanganKeluarga() != null) {
+            pegawai.setTunjanganKeluarga(request.getTunjanganKeluarga());
+        }
+        if (request.getTunjanganKomunikasi() != null) {
+            pegawai.setTunjanganKomunikasi(request.getTunjanganKomunikasi());
+        }
+        if (request.getTunjanganTransportasi() != null) {
+            pegawai.setTunjanganTransportasi(request.getTunjanganTransportasi());
+        }
         if (request.getIzin() != null) {
             pegawai.setIzin(request.getIzin());
         }
@@ -367,20 +371,20 @@ public class PegawaiService {
         if (request.getIsAdmin() != null) {
             pegawai.setIsAdmin(request.getIsAdmin() ? "1" : "0");
         }
+        
+        // Update lokasi if provided
+        if (request.getLokasiId() != null) {
+            Lokasi lokasiEntity = lokasiRepository.findById(request.getLokasiId())
+                .orElseThrow(() -> new RuntimeException("Lokasi not found with ID: " + request.getLokasiId()));
+            pegawai.setLokasi(lokasiEntity);
+        }
 
         // Update password if provided
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             pegawai.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
-        // Update pemilihan if provided - totalTps will be calculated automatically
-        if (request.getSelectedPemilihanIds() != null) {
-            Set<Pemilihan> pemilihanSet = request.getSelectedPemilihanIds().stream()
-                    .map(pemilihanId -> pemilihanRepository.findById(pemilihanId)
-                            .orElseThrow(() -> new RuntimeException("Pemilihan not found: " + pemilihanId)))
-                    .collect(Collectors.toSet());
-            pegawai.setPemilihanList(pemilihanSet);
-        }
+        // Pemilihan functionality has been removed - no longer updating pemilihan
 
         pegawai.setUpdatedAt(LocalDateTime.now());
         Pegawai updatedPegawai = pegawaiRepository.save(pegawai);
@@ -414,37 +418,13 @@ public class PegawaiService {
     }
 
     public PegawaiResponse assignPemilihanToPegawai(Long pegawaiId, Long pemilihanId) {
-        log.info("Assigning pemilihan {} to pegawai {}", pemilihanId, pegawaiId);
-        
-        Pegawai pegawai = pegawaiRepository.findById(pegawaiId)
-                .orElseThrow(() -> new RuntimeException("Pegawai not found with id: " + pegawaiId));
-        
-        Pemilihan pemilihan = pemilihanRepository.findById(pemilihanId)
-                .orElseThrow(() -> new RuntimeException("Pemilihan not found with id: " + pemilihanId));
-        
-        pegawai.addPemilihan(pemilihan);
-        // totalTps is automatically updated in addPemilihan method
-        Pegawai savedPegawai = pegawaiRepository.save(pegawai);
-        
-        log.info("Pemilihan assigned successfully");
-        return createPegawaiResponseWithLocationNames(savedPegawai);
+        log.info("REMOVED: assignPemilihanToPegawai method - functionality disabled");
+        throw new UnsupportedOperationException("Pemilihan functionality has been removed");
     }
 
     public PegawaiResponse removePemilihanFromPegawai(Long pegawaiId, Long pemilihanId) {
-        log.info("Removing pemilihan {} from pegawai {}", pemilihanId, pegawaiId);
-        
-        Pegawai pegawai = pegawaiRepository.findById(pegawaiId)
-                .orElseThrow(() -> new RuntimeException("Pegawai not found with id: " + pegawaiId));
-        
-        Pemilihan pemilihan = pemilihanRepository.findById(pemilihanId)
-                .orElseThrow(() -> new RuntimeException("Pemilihan not found with id: " + pemilihanId));
-        
-        pegawai.removePemilihan(pemilihan);
-        // totalTps is automatically updated in removePemilihan method
-        Pegawai savedPegawai = pegawaiRepository.save(pegawai);
-        
-        log.info("Pemilihan removed successfully");
-        return createPegawaiResponseWithLocationNames(savedPegawai);
+        log.info("REMOVED: removePemilihanFromPegawai method - functionality disabled");
+        throw new UnsupportedOperationException("Pemilihan functionality has been removed");
     }
 
     public Long getTotalPegawai() {
@@ -457,19 +437,8 @@ public class PegawaiService {
 
     @Transactional
     public void recalculateAllTotalTps() {
-        log.info("Recalculating totalTps for all pegawai");
-        List<Pegawai> allPegawai = pegawaiRepository.findAll();
-        for (Pegawai pegawai : allPegawai) {
-            Integer calculatedTotalTps = pegawai.getPemilihanList() != null ? pegawai.getPemilihanList().size() : 0;
-            Integer currentTotalTps = pegawai.getTotalTps() != null ? pegawai.getTotalTps() : 0;
-            if (!calculatedTotalTps.equals(currentTotalTps)) {
-                log.info("Updating totalTps for pegawai {} from {} to {}", 
-                    pegawai.getId(), currentTotalTps, calculatedTotalTps);
-                pegawai.setTotalTps(calculatedTotalTps);
-                pegawaiRepository.save(pegawai);
-            }
-        }
-        log.info("Completed recalculating totalTps for all pegawai");
+        log.info("REMOVED: recalculateAllTotalTps method - functionality disabled");
+        // Pemilihan functionality has been removed, so totalTps calculation is no longer needed
     }
 
     public boolean existsByUsername(String username) {

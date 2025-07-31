@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils"
 import { Stepper } from "@/components/ui/stepper"
 import { MapSelector } from "@/components/MapSelector"
 import PegawaiCutiInlineForm from "@/components/pegawai/PegawaiCutiInlineForm"
+import { PemotonganAbsenInfo } from "@/components/pegawai/PemotonganAbsenInfo"
 
 interface JabatanResponse {
   id: number
@@ -171,7 +172,6 @@ export default function EditPegawaiPage() {
     thr: '',
     bonus: '',
     tunjangan_jabatan: '',
-    tunjangan_keluarga: '',
     tunjangan_komunikasi: '',
     tunjangan_transportasi: '',
 
@@ -370,7 +370,6 @@ export default function EditPegawaiPage() {
           thr: data.thr?.toString() || '',
           bonus: data.bonus?.toString() || '',
           tunjangan_jabatan: data.tunjanganJabatan?.toString() || '',
-          tunjangan_keluarga: data.tunjanganKeluarga?.toString() || '',
           tunjangan_komunikasi: data.tunjanganKomunikasi?.toString() || '',
           tunjangan_transportasi: data.tunjanganTransportasi?.toString() || '',
           izin: data.izin?.toString() || '',
@@ -1085,8 +1084,15 @@ export default function EditPegawaiPage() {
       
       // Map frontend field names to backend field names for UpdatePegawaiRequest
       const selectedJabatan = jabatanList.find(j => j.id.toString() === formData.jabatan_id)
+      const selectedLokasi = lokasiList.find(l => l.id.toString() === formData.lokasi_id)
+      
       if (!selectedJabatan) {
         showErrorToast('Jabatan yang dipilih tidak valid')
+        return
+      }
+      
+      if (!selectedLokasi) {
+        showErrorToast('Lokasi kantor yang dipilih tidak valid')
         return
       }
       
@@ -1098,7 +1104,8 @@ export default function EditPegawaiPage() {
         username: formData.username,
         password: formData.password || undefined, // Only include password if provided
         role: formData.is_admin,
-        jabatan: selectedJabatan.nama, // Use jabatan name, not ID
+        jabatan: selectedJabatan.nama, // Use jabatan name
+        lokasiId: parseInt(formData.lokasi_id), // Send lokasi ID
         alamat: formData.alamat,
         provinsi: formData.provinsi,
         kota: formData.kota,
@@ -1118,7 +1125,6 @@ export default function EditPegawaiPage() {
         thr: formData.thr ? parseInt(formData.thr.replace(/\D/g, '')) : null,
         bonus: formData.bonus ? parseInt(formData.bonus.replace(/\D/g, '')) : null,
         tunjanganJabatan: formData.tunjangan_jabatan ? parseInt(formData.tunjangan_jabatan.replace(/\D/g, '')) : null,
-        tunjanganKeluarga: formData.tunjangan_keluarga ? parseInt(formData.tunjangan_keluarga.replace(/\D/g, '')) : null,
         tunjanganKomunikasi: formData.tunjangan_komunikasi ? parseInt(formData.tunjangan_komunikasi.replace(/\D/g, '')) : null,
         tunjanganTransportasi: formData.tunjangan_transportasi ? parseInt(formData.tunjangan_transportasi.replace(/\D/g, '')) : null,
         izin: formData.izin ? parseInt(formData.izin.replace(/\D/g, '')) : null,
@@ -1912,12 +1918,12 @@ export default function EditPegawaiPage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="gaji_pokok">Gaji Pokok</Label>
+                      <Label htmlFor="tunjangan_komunikasi">Tunjangan Kinerja *</Label>
                       <div className="relative">
                         <Input
-                          id="gaji_pokok"
-                          value={formData.gaji_pokok}
-                          onChange={(e) => handleInputChange('gaji_pokok', e.target.value)}
+                          id="tunjangan_komunikasi"
+                          value={formData.tunjangan_komunikasi}
+                          onChange={(e) => handleInputChange('tunjangan_komunikasi', e.target.value)}
                           placeholder="5000000"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -1932,7 +1938,7 @@ export default function EditPegawaiPage() {
                           id="tunjangan_jabatan"
                           value={formData.tunjangan_jabatan}
                           onChange={(e) => handleInputChange('tunjangan_jabatan', e.target.value)}
-                          placeholder="1000000"
+                          placeholder="500000"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                           / Bulan
@@ -1942,20 +1948,6 @@ export default function EditPegawaiPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="tunjangan_keluarga">Tunjangan Keluarga</Label>
-                      <div className="relative">
-                        <Input
-                          id="tunjangan_keluarga"
-                          value={formData.tunjangan_keluarga}
-                          onChange={(e) => handleInputChange('tunjangan_keluarga', e.target.value)}
-                          placeholder="500000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Bulan
-                        </span>
-                      </div>
-                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="makan_transport">Makan & Transport</Label>
                       <div className="relative">
@@ -1964,23 +1956,6 @@ export default function EditPegawaiPage() {
                           value={formData.makan_transport}
                           onChange={(e) => handleInputChange('makan_transport', e.target.value)}
                           placeholder="750000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Bulan
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="tunjangan_komunikasi">Tunjangan Komunikasi</Label>
-                      <div className="relative">
-                        <Input
-                          id="tunjangan_komunikasi"
-                          value={formData.tunjangan_komunikasi}
-                          onChange={(e) => handleInputChange('tunjangan_komunikasi', e.target.value)}
-                          placeholder="200000"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                           / Bulan
@@ -2053,112 +2028,10 @@ export default function EditPegawaiPage() {
                 </CardContent>
               </Card>
 
-              {/* Potongan (Pengurang) */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <Calculator className="h-5 w-5 text-red-600" />
-                    Komponen Pengurang Gaji
-                  </CardTitle>
-                  <CardDescription>
-                    Komponen yang mengurangi total gaji pegawai
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="potongan_bpjs">Potongan BPJS</Label>
-                      <div className="relative">
-                        <Input
-                          id="potongan_bpjs"
-                          value={formData.potongan_bpjs}
-                          onChange={(e) => handleInputChange('potongan_bpjs', e.target.value)}
-                          placeholder="150000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Bulan
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="potongan_pajak">Potongan Pajak</Label>
-                      <div className="relative">
-                        <Input
-                          id="potongan_pajak"
-                          value={formData.potongan_pajak}
-                          onChange={(e) => handleInputChange('potongan_pajak', e.target.value)}
-                          placeholder="250000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Bulan
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="izin">Potongan Izin</Label>
-                      <div className="relative">
-                        <Input
-                          id="izin"
-                          value={formData.izin}
-                          onChange={(e) => handleInputChange('izin', e.target.value)}
-                          placeholder="50000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Hari
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="terlambat">Potongan Terlambat</Label>
-                      <div className="relative">
-                        <Input
-                          id="terlambat"
-                          value={formData.terlambat}
-                          onChange={(e) => handleInputChange('terlambat', e.target.value)}
-                          placeholder="25000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Hari
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="mangkir">Potongan Mangkir</Label>
-                      <div className="relative">
-                        <Input
-                          id="mangkir"
-                          value={formData.mangkir}
-                          onChange={(e) => handleInputChange('mangkir', e.target.value)}
-                          placeholder="100000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Hari
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="saldo_kasbon">Saldo Kasbon</Label>
-                      <div className="relative">
-                        <Input
-                          id="saldo_kasbon"
-                          value={formData.saldo_kasbon}
-                          onChange={(e) => handleInputChange('saldo_kasbon', e.target.value)}
-                          placeholder="500000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Bulan
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Informasi Potongan Absen - Read-only display */}
+              {formData.tunjangan_komunikasi && (
+                <PemotonganAbsenInfo tunjanganKinerja={formData.tunjangan_komunikasi} />
+              )}
             </div>
           )}
 
@@ -2259,11 +2132,9 @@ export default function EditPegawaiPage() {
                       <div>
                         <h5 className="font-medium text-green-600 mb-2">Komponen Penambah</h5>
                         <div className="space-y-1 text-sm">
-                          {formData.gaji_pokok && <div>Gaji Pokok: Rp {formatCurrency(formData.gaji_pokok)}</div>}
+                          {formData.tunjangan_komunikasi && <div>Tunjangan Kinerja: Rp {formatCurrency(formData.tunjangan_komunikasi)}</div>}
                           {formData.tunjangan_jabatan && <div>Tunjangan Jabatan: Rp {formatCurrency(formData.tunjangan_jabatan)}</div>}
-                          {formData.tunjangan_keluarga && <div>Tunjangan Keluarga: Rp {formatCurrency(formData.tunjangan_keluarga)}</div>}
                           {formData.makan_transport && <div>Makan & Transport: Rp {formatCurrency(formData.makan_transport)}</div>}
-                          {formData.tunjangan_komunikasi && <div>Tunjangan Komunikasi: Rp {formatCurrency(formData.tunjangan_komunikasi)}</div>}
                           {formData.kehadiran && <div>Tunjangan Kehadiran: Rp {formatCurrency(formData.kehadiran)}</div>}
                           {formData.lembur && <div>Lembur: Rp {formatCurrency(formData.lembur)}/jam</div>}
                           {formData.bonus && <div>Bonus: Rp {formatCurrency(formData.bonus)}</div>}
@@ -2271,14 +2142,17 @@ export default function EditPegawaiPage() {
                         </div>
                       </div>
                       <div>
-                        <h5 className="font-medium text-red-600 mb-2">Komponen Pengurang</h5>
-                        <div className="space-y-1 text-sm">
-                          {formData.potongan_bpjs && <div>Potongan BPJS: Rp {formatCurrency(formData.potongan_bpjs)}</div>}
-                          {formData.potongan_pajak && <div>Potongan Pajak: Rp {formatCurrency(formData.potongan_pajak)}</div>}
-                          {formData.izin && <div>Potongan Izin: Rp {formatCurrency(formData.izin)}/hari</div>}
-                          {formData.terlambat && <div>Potongan Terlambat: Rp {formatCurrency(formData.terlambat)}/hari</div>}
-                          {formData.mangkir && <div>Potongan Mangkir: Rp {formatCurrency(formData.mangkir)}/hari</div>}
-                          {formData.saldo_kasbon && <div>Saldo Kasbon: Rp {formatCurrency(formData.saldo_kasbon)}</div>}
+                        <h5 className="font-medium text-orange-600 mb-2">Potongan Absen</h5>
+                        <div className="text-sm text-muted-foreground">
+                          {formData.tunjangan_komunikasi ? (
+                            <div>
+                              <p>Potongan dihitung otomatis berdasarkan</p>
+                              <p>Tunjangan Kinerja: <span className="font-semibold">Rp {formatCurrency(formData.tunjangan_komunikasi)}</span></p>
+                              <p className="text-xs mt-1">Lihat detail pada bagian "Informasi Pemotongan Absen"</p>
+                            </div>
+                          ) : (
+                            <p>Masukkan Tunjangan Kinerja untuk melihat perhitungan potongan</p>
+                          )}
                         </div>
                       </div>
                     </div>

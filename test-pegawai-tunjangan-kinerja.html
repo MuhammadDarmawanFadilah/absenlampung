@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Pegawai Tunjangan Kinerja API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .test-section h3 { margin-top: 0; color: #333; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+        .success { border-left: 4px solid #28a745; }
+        .error { border-left: 4px solid #dc3545; }
+        input, select { margin: 5px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .form-group { margin: 10px 0; }
+        label { display: inline-block; width: 200px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test Pegawai Tunjangan Kinerja API</h1>
+        
+        <!-- Authentication Section -->
+        <div class="test-section">
+            <h3>🔐 Authentication</h3>
+            <div class="form-group">
+                <label>Token:</label>
+                <input type="text" id="authToken" placeholder="Masukkan auth token" style="width: 400px;">
+                <button onclick="loadTokenFromStorage()">Load dari localStorage</button>
+            </div>
+            <button onclick="testAuth()">Test Authentication</button>
+            <div id="authResult" class="result"></div>
+        </div>
+
+        <!-- Get Pegawai Section -->
+        <div class="test-section">
+            <h3>📋 Get Pegawai Data</h3>
+            <div class="form-group">
+                <label>Pegawai ID:</label>
+                <input type="number" id="pegawaiId" value="1" min="1">
+                <button onclick="getPegawai()">Get Pegawai</button>
+            </div>
+            <div id="getPegawaiResult" class="result"></div>
+        </div>
+
+        <!-- Create Pegawai Section -->
+        <div class="test-section">
+            <h3>➕ Create Pegawai</h3>
+            <div class="form-group">
+                <label>Nama Lengkap:</label>
+                <input type="text" id="createNama" value="Test Pegawai Tunjangan Kinerja">
+            </div>
+            <div class="form-group">
+                <label>NIP:</label>
+                <input type="text" id="createNip" value="9999999999999999">
+            </div>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="createEmail" value="test-tunjangan@example.com">
+            </div>
+            <div class="form-group">
+                <label>No Telepon:</label>
+                <input type="text" id="createTelepon" value="081999999999">
+            </div>
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="createUsername" value="test-tunjangan">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="createPassword" value="password123">
+            </div>
+            <div class="form-group">
+                <label>Jabatan:</label>
+                <input type="text" id="createJabatan" value="Analis">
+            </div>
+            <div class="form-group">
+                <label>Lokasi ID:</label>
+                <input type="number" id="createLokasiId" value="1">
+            </div>
+            <div class="form-group">
+                <label>Role:</label>
+                <input type="text" id="createRole" value="PEGAWAI">
+            </div>
+            <div class="form-group">
+                <label>Alamat:</label>
+                <input type="text" id="createAlamat" value="Jl. Test Tunjangan No. 123">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan Kinerja (tunjanganKomunikasi):</label>
+                <input type="number" id="createTunjanganKomunikasi" value="2000000">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan Jabatan:</label>  
+                <input type="number" id="createTunjanganJabatan" value="1000000">
+            </div>
+            <button onclick="createPegawai()">Create Pegawai</button>
+            <div id="createPegawaiResult" class="result"></div>
+        </div>
+
+        <!-- Update Pegawai Section -->
+        <div class="test-section">
+            <h3>✏️ Update Pegawai</h3>
+            <div class="form-group">
+                <label>Pegawai ID untuk Update:</label>
+                <input type="number" id="updatePegawaiId" value="1" min="1">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan Kinerja Baru (tunjanganKomunikasi):</label>
+                <input type="number" id="updateTunjanganKomunikasi" value="2500000">
+            </div>
+            <div class="form-group">
+                <label>Tunjangan Jabatan Baru:</label>
+                <input type="number" id="updateTunjanganJabatan" value="1500000">
+            </div>
+            <div class="form-group">
+                <label>Lokasi ID Baru:</label>
+                <input type="number" id="updateLokasiId" value="2">
+            </div>
+            <button onclick="updatePegawai()">Update Pegawai</button>
+            <div id="updatePegawaiResult" class="result"></div>
+        </div>
+
+        <!-- Test Summary -->
+        <div class="test-section">
+            <h3>📊 Test Summary</h3>
+            <button onclick="runAllTests()">🚀 Run All Tests (Sequential)</button>
+            <div id="testSummary" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        
+        function loadTokenFromStorage() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                document.getElementById('authToken').value = token;
+                log('authResult', 'Token loaded from localStorage', 'success');
+            } else {
+                log('authResult', 'No token found in localStorage', 'error');
+            }
+        }
+
+        function getAuthHeaders() {
+            const token = document.getElementById('authToken').value;
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.className = `result ${type}`;
+            element.textContent = `[${timestamp}] ${message}`;
+        }
+
+        async function testAuth() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('authResult', `Authentication successful!\nUser: ${data.username}\nRole: ${data.role}`, 'success');
+                } else {
+                    log('authResult', `Authentication failed: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log('authResult', `Authentication error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getPegawai() {
+            try {
+                const pegawaiId = document.getElementById('pegawaiId').value;
+                const response = await fetch(`${API_BASE}/api/pegawai/${pegawaiId}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('getPegawaiResult', 
+                        `✅ Pegawai data retrieved successfully!\n` +
+                        `Nama: ${data.namaLengkap}\n` +
+                        `NIP: ${data.nip}\n` +
+                        `Email: ${data.email}\n` +
+                        `Jabatan: ${data.jabatan?.nama || 'N/A'}\n` +
+                        `Lokasi: ${data.lokasi?.namaLokasi || 'N/A'} (ID: ${data.lokasi?.id || 'N/A'})\n` +
+                        `Tunjangan Kinerja (tunjanganKomunikasi): Rp ${(data.tunjanganKomunikasi || 0).toLocaleString('id-ID')}\n` +
+                        `Tunjangan Jabatan: Rp ${(data.tunjanganJabatan || 0).toLocaleString('id-ID')}\n` +
+                        `\nFull Response:\n${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    const errorData = await response.text();
+                    log('getPegawaiResult', `❌ Failed to get pegawai: ${response.status}\n${errorData}`, 'error');
+                }
+            } catch (error) {
+                log('getPegawaiResult', `❌ Error getting pegawai: ${error.message}`, 'error');
+            }
+        }
+
+        async function createPegawai() {
+            try {
+                const payload = {
+                    namaLengkap: document.getElementById('createNama').value,
+                    nip: document.getElementById('createNip').value,
+                    email: document.getElementById('createEmail').value,
+                    noTelp: document.getElementById('createTelepon').value,
+                    username: document.getElementById('createUsername').value,
+                    password: document.getElementById('createPassword').value,
+                    jabatan: document.getElementById('createJabatan').value,
+                    lokasiId: parseInt(document.getElementById('createLokasiId').value),
+                    role: document.getElementById('createRole').value,
+                    alamat: document.getElementById('createAlamat').value,
+                    tunjanganKomunikasi: parseInt(document.getElementById('createTunjanganKomunikasi').value),
+                    tunjanganJabatan: parseInt(document.getElementById('createTunjanganJabatan').value),
+                    isActive: true,
+                    jenisKelamin: 'L',
+                    tanggalLahir: '1990-01-01'
+                };
+
+                log('createPegawaiResult', `🚀 Creating pegawai with payload:\n${JSON.stringify(payload, null, 2)}`, 'info');
+
+                const response = await fetch(`${API_BASE}/api/pegawai`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('createPegawaiResult', 
+                        `✅ Pegawai created successfully!\n` +
+                        `ID: ${data.id}\n` +
+                        `Nama: ${data.namaLengkap}\n` +
+                        `NIP: ${data.nip}\n` +
+                        `Lokasi ID: ${data.lokasi?.id || 'N/A'}\n` +
+                        `Tunjangan Kinerja (tunjanganKomunikasi): Rp ${(data.tunjanganKomunikasi || 0).toLocaleString('id-ID')}\n` +
+                        `Tunjangan Jabatan: Rp ${(data.tunjanganJabatan || 0).toLocaleString('id-ID')}\n` +
+                        `\nFull Response:\n${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                    
+                    // Set the created ID for update test
+                    document.getElementById('updatePegawaiId').value = data.id;
+                } else {
+                    const errorData = await response.text();
+                    log('createPegawaiResult', `❌ Failed to create pegawai: ${response.status}\n${errorData}`, 'error');
+                }
+            } catch (error) {
+                log('createPegawaiResult', `❌ Error creating pegawai: ${error.message}`, 'error');
+            }
+        }
+
+        async function updatePegawai() {
+            try {
+                const pegawaiId = document.getElementById('updatePegawaiId').value;
+                
+                // First get current data
+                const getCurrentResponse = await fetch(`${API_BASE}/api/pegawai/${pegawaiId}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!getCurrentResponse.ok) {
+                    log('updatePegawaiResult', `❌ Failed to get current pegawai data: ${getCurrentResponse.status}`, 'error');
+                    return;
+                }
+                
+                const currentData = await getCurrentResponse.json();
+                
+                // Update with new values
+                const payload = {
+                    namaLengkap: currentData.namaLengkap,
+                    nip: currentData.nip,
+                    email: currentData.email,
+                    noTelp: currentData.noTelp,
+                    username: currentData.username,
+                    jabatan: currentData.jabatan?.nama || 'Analis',
+                    lokasiId: parseInt(document.getElementById('updateLokasiId').value),
+                    role: currentData.role,
+                    alamat: currentData.alamat,
+                    tunjanganKomunikasi: parseInt(document.getElementById('updateTunjanganKomunikasi').value),
+                    tunjanganJabatan: parseInt(document.getElementById('updateTunjanganJabatan').value),
+                    isActive: true,
+                    jenisKelamin: currentData.jenisKelamin,
+                    tanggalLahir: currentData.tanggalLahir
+                };
+
+                log('updatePegawaiResult', `🚀 Updating pegawai ${pegawaiId} with payload:\n${JSON.stringify(payload, null, 2)}`, 'info');
+
+                const response = await fetch(`${API_BASE}/api/pegawai/${pegawaiId}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('updatePegawaiResult', 
+                        `✅ Pegawai updated successfully!\n` +
+                        `ID: ${data.id}\n` +
+                        `Nama: ${data.namaLengkap}\n` +
+                        `Lokasi: ${data.lokasi?.namaLokasi || 'N/A'} (ID: ${data.lokasi?.id || 'N/A'})\n` +
+                        `Tunjangan Kinerja (tunjanganKomunikasi): Rp ${(data.tunjanganKomunikasi || 0).toLocaleString('id-ID')}\n` +
+                        `Tunjangan Jabatan: Rp ${(data.tunjanganJabatan || 0).toLocaleString('id-ID')}\n` +
+                        `\nFull Response:\n${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    const errorData = await response.text();
+                    log('updatePegawaiResult', `❌ Failed to update pegawai: ${response.status}\n${errorData}`, 'error');
+                }
+            } catch (error) {
+                log('updatePegawaiResult', `❌ Error updating pegawai: ${error.message}`, 'error');
+            }
+        }
+
+        async function runAllTests() {
+            log('testSummary', '🚀 Starting all tests...', 'info');
+            
+            try {
+                // Test 1: Authentication
+                await testAuth();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Test 2: Get existing pegawai
+                await getPegawai();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Test 3: Create new pegawai
+                await createPegawai();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Test 4: Update pegawai
+                await updatePegawai();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Test 5: Verify update by getting updated pegawai
+                const updatedId = document.getElementById('updatePegawaiId').value;
+                document.getElementById('pegawaiId').value = updatedId;
+                await getPegawai();
+                
+                log('testSummary', '✅ All tests completed! Check individual sections for results.', 'success');
+                
+            } catch (error) {
+                log('testSummary', `❌ Test suite error: ${error.message}`, 'error');
+            }
+        }
+
+        // Load token on page load
+        window.onload = function() {
+            loadTokenFromStorage();
+        };
+    </script>
+</body>
+</html>
