@@ -234,7 +234,7 @@ public class PegawaiController {
     }
 
     @PostMapping(consumes = "application/json")
-    @PreAuthorize("hasAuthority('pegawai.create')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<?> createPegawai(@Valid @RequestBody PegawaiRequest request) {
         try {
             PegawaiResponse pegawai = pegawaiService.createPegawai(request);
@@ -253,7 +253,7 @@ public class PegawaiController {
     }
 
     @PostMapping(consumes = "multipart/form-data")
-    @PreAuthorize("hasAuthority('pegawai.create')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<PegawaiResponse> createPegawaiWithFile(
             @RequestPart("data") @Valid PegawaiRequest request,
             @RequestPart(value = "foto_karyawan", required = false) MultipartFile file) {

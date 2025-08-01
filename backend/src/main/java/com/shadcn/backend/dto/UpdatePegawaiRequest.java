@@ -60,9 +60,8 @@ public class UpdatePegawaiRequest {
     private Integer kehadiran;
     private Integer thr;
     private Integer bonus;
-    private Integer tunjanganJabatan;
     private Integer tunjanganKeluarga;
-    private Integer tunjanganKomunikasi;
+    private Long tunjanganKinerja;
     private Integer tunjanganTransportasi;
     private Integer izin;
     private Integer terlambat;

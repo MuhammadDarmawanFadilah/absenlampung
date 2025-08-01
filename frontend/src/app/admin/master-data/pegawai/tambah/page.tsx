@@ -164,7 +164,6 @@ export default function TambahPegawaiPage() {
     kehadiran: '',
     thr: '',
     bonus: '',
-    tunjangan_jabatan: '',
     tunjangan_komunikasi: '',
     tunjangan_transportasi: '',
 
@@ -855,6 +854,39 @@ export default function TambahPegawaiPage() {
     try {
       setLoading(true)
       
+      let photoUrl = null
+      
+      // Upload photo first if there's a new one
+      if (formData.foto_karyawan !== null) {
+        try {
+          const photoFormData = new FormData()
+          photoFormData.append('file', formData.foto_karyawan as File)
+          
+          const photoResponse = await fetch(getApiUrl('api/upload/photo'), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            },
+            body: photoFormData
+          })
+          
+          if (photoResponse.ok) {
+            const photoData = await photoResponse.json()
+            photoUrl = photoData.filename
+            console.log('Photo uploaded successfully:', photoData)
+          } else {
+            const photoError = await photoResponse.json()
+            console.error('Photo upload failed:', photoError)
+            showErrorToast('Gagal mengupload foto: ' + photoError.message)
+            return
+          }
+        } catch (photoError) {
+          console.error('Photo upload error:', photoError)
+          showErrorToast('Gagal mengupload foto')
+          return
+        }
+      }
+      
       // Map frontend field names to backend field names
       const mappedData = {
         namaLengkap: formData.name,
@@ -886,37 +918,31 @@ export default function TambahPegawaiPage() {
         kehadiran: formData.kehadiran ? parseInt(formData.kehadiran.replace(/\D/g, '')) : null,
         thr: formData.thr ? parseInt(formData.thr.replace(/\D/g, '')) : null,
         bonus: formData.bonus ? parseInt(formData.bonus.replace(/\D/g, '')) : null,
+        tunjanganKinerja: formData.tunjangan_komunikasi ? parseInt(formData.tunjangan_komunikasi.replace(/\D/g, '')) : null,
+        tunjanganTransportasi: formData.tunjangan_transportasi ? parseInt(formData.tunjangan_transportasi.replace(/\D/g, '')) : null,
         izin: formData.izin ? parseInt(formData.izin.replace(/\D/g, '')) : null,
         terlambat: formData.terlambat ? parseInt(formData.terlambat.replace(/\D/g, '')) : null,
         mangkir: formData.mangkir ? parseInt(formData.mangkir.replace(/\D/g, '')) : null,
         saldoKasbon: formData.saldo_kasbon ? parseInt(formData.saldo_kasbon.replace(/\D/g, '')) : null,
+        potonganBpjs: formData.potongan_bpjs ? parseInt(formData.potongan_bpjs.replace(/\D/g, '')) : null,
+        potonganPajak: formData.potongan_pajak ? parseInt(formData.potongan_pajak.replace(/\D/g, '')) : null,
         izinCuti: formData.izin_cuti,
         izinLainnya: formData.izin_lainnya,
         izinTelat: formData.izin_telat,
-        izinPulangCepat: formData.izin_pulang_cepat
+        izinPulangCepat: formData.izin_pulang_cepat,
+        photoUrl: photoUrl // Include photo URL if uploaded
       }
       
-      // Check if we have file upload or not
-      const hasFile = formData.foto_karyawan !== null
+      // Remove photoUrl if no photo was uploaded
+      if (!photoUrl) {
+        delete mappedData.photoUrl
+      }
       
-      let requestBody: any
+      // For now, use JSON endpoint only (without file upload)
+      let requestBody: any = JSON.stringify(mappedData)
       let headers: any = {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      }
-      
-      if (hasFile) {
-        // Use FormData with multipart/form-data
-        const submitData = new FormData()
-        
-        submitData.append('data', JSON.stringify(mappedData))
-        submitData.append('foto_karyawan', formData.foto_karyawan as File)
-        
-        requestBody = submitData
-        // Don't set Content-Type for FormData, let browser set it
-      } else {
-        // Use JSON if no file
-        requestBody = JSON.stringify(mappedData)
-        headers['Content-Type'] = 'application/json'
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json'
       }
 
       const response = await fetch(getApiUrl('api/pegawai'), {
@@ -1647,12 +1673,12 @@ export default function TambahPegawaiPage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="tunjangan_jabatan">Tunjangan Kinerja</Label>
+                      <Label htmlFor="tunjangan_komunikasi">Tunjangan Kinerja</Label>
                       <div className="relative">
                         <Input
-                          id="tunjangan_jabatan"
-                          value={formData.tunjangan_jabatan}
-                          onChange={(e) => handleInputChange('tunjangan_jabatan', e.target.value)}
+                          id="tunjangan_komunikasi"
+                          value={formData.tunjangan_komunikasi}
+                          onChange={(e) => handleInputChange('tunjangan_komunikasi', e.target.value)}
                           placeholder="1000000"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -1739,6 +1765,20 @@ export default function TambahPegawaiPage() {
                         </span>
                       </div>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="tunjangan_transportasi">Tunjangan Transportasi</Label>
+                      <div className="relative">
+                        <Input
+                          id="tunjangan_transportasi"
+                          value={formData.tunjangan_transportasi}
+                          onChange={(e) => handleInputChange('tunjangan_transportasi', e.target.value)}
+                          placeholder="200000"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          / Bulan
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -1755,7 +1795,7 @@ export default function TambahPegawaiPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <PemotonganAbsenInfo tunjanganKinerja={formData.tunjangan_jabatan} />
+                  <PemotonganAbsenInfo tunjanganKinerja={formData.tunjangan_komunikasi} />
                 </CardContent>
               </Card>
 
@@ -1858,21 +1898,22 @@ export default function TambahPegawaiPage() {
                       <div>
                         <h5 className="font-medium text-green-600 mb-2">Komponen Penambah</h5>
                         <div className="space-y-1 text-sm">
-                          {formData.tunjangan_jabatan && <div>Tunjangan Kinerja: Rp {formatCurrency(formData.tunjangan_jabatan)}</div>}
+                          {formData.tunjangan_komunikasi && <div>Tunjangan Kinerja: Rp {formatCurrency(formData.tunjangan_komunikasi)}</div>}
                           {formData.makan_transport && <div>Makan & Transport: Rp {formatCurrency(formData.makan_transport)}</div>}
                           {formData.kehadiran && <div>Tunjangan Kehadiran: Rp {formatCurrency(formData.kehadiran)}</div>}
                           {formData.lembur && <div>Lembur: Rp {formatCurrency(formData.lembur)}/jam</div>}
                           {formData.bonus && <div>Bonus: Rp {formatCurrency(formData.bonus)}</div>}
                           {formData.thr && <div>THR: Rp {formatCurrency(formData.thr)}</div>}
+                          {formData.tunjangan_transportasi && <div>Tunjangan Transportasi: Rp {formatCurrency(formData.tunjangan_transportasi)}</div>}
                         </div>
                       </div>
                       <div>
                         <h5 className="font-medium text-orange-600 mb-2">Potongan Absen</h5>
                         <div className="text-sm text-muted-foreground">
-                          {formData.tunjangan_jabatan ? (
+                          {formData.tunjangan_komunikasi ? (
                             <div>
                               <p>Potongan dihitung otomatis berdasarkan</p>
-                              <p>Tunjangan Kinerja: <span className="font-semibold">Rp {formatCurrency(formData.tunjangan_jabatan)}</span></p>
+                              <p>Tunjangan Kinerja: <span className="font-semibold">Rp {formatCurrency(formData.tunjangan_komunikasi)}</span></p>
                               <p className="text-xs mt-1">Lihat detail pada bagian "Informasi Pemotongan Absen"</p>
                             </div>
                           ) : (

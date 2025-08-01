@@ -83,8 +83,7 @@ public class PegawaiRequest {
     private Integer potonganPajak;
     
     // Tunjangan fields
-    private Integer tunjanganJabatan;
-    private Integer tunjanganKomunikasi;
+    private Long tunjanganKinerja;
     private Integer tunjanganTransportasi;
     
     @Size(max = 50, message = "NIP maksimal 50 karakter")

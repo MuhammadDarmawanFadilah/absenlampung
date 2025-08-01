@@ -64,7 +64,7 @@ export default async function RootLayout({
             {process.env.NODE_ENV === 'development' && <NetworkInitializer />}
             <SidebarProvider defaultOpen={defaultOpen}>
               <ClientSidebarWrapper />              
-              <main className="flex-1 min-h-screen bg-gray-50 dark:bg-gray-900">
+              <main className="flex-1 min-h-screen bg-background">
                 <Navbar />
                 <div className="w-full">{children}</div>
               </main>

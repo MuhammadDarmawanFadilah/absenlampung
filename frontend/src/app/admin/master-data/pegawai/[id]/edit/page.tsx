@@ -171,7 +171,6 @@ export default function EditPegawaiPage() {
     kehadiran: '',
     thr: '',
     bonus: '',
-    tunjangan_jabatan: '',
     tunjangan_komunikasi: '',
     tunjangan_transportasi: '',
 
@@ -369,8 +368,7 @@ export default function EditPegawaiPage() {
           kehadiran: data.kehadiran?.toString() || '',
           thr: data.thr?.toString() || '',
           bonus: data.bonus?.toString() || '',
-          tunjangan_jabatan: data.tunjanganJabatan?.toString() || '',
-          tunjangan_komunikasi: data.tunjanganKomunikasi?.toString() || '',
+          tunjangan_komunikasi: data.tunjanganKinerja?.toString() || '',
           tunjangan_transportasi: data.tunjanganTransportasi?.toString() || '',
           izin: data.izin?.toString() || '',
           terlambat: data.terlambat?.toString() || '',
@@ -1124,8 +1122,7 @@ export default function EditPegawaiPage() {
         kehadiran: formData.kehadiran ? parseInt(formData.kehadiran.replace(/\D/g, '')) : null,
         thr: formData.thr ? parseInt(formData.thr.replace(/\D/g, '')) : null,
         bonus: formData.bonus ? parseInt(formData.bonus.replace(/\D/g, '')) : null,
-        tunjanganJabatan: formData.tunjangan_jabatan ? parseInt(formData.tunjangan_jabatan.replace(/\D/g, '')) : null,
-        tunjanganKomunikasi: formData.tunjangan_komunikasi ? parseInt(formData.tunjangan_komunikasi.replace(/\D/g, '')) : null,
+        tunjanganKinerja: formData.tunjangan_komunikasi ? parseInt(formData.tunjangan_komunikasi.replace(/\D/g, '')) : null,
         tunjanganTransportasi: formData.tunjangan_transportasi ? parseInt(formData.tunjangan_transportasi.replace(/\D/g, '')) : null,
         izin: formData.izin ? parseInt(formData.izin.replace(/\D/g, '')) : null,
         terlambat: formData.terlambat ? parseInt(formData.terlambat.replace(/\D/g, '')) : null,
@@ -1931,20 +1928,6 @@ export default function EditPegawaiPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tunjangan_jabatan">Tunjangan Jabatan</Label>
-                      <div className="relative">
-                        <Input
-                          id="tunjangan_jabatan"
-                          value={formData.tunjangan_jabatan}
-                          onChange={(e) => handleInputChange('tunjangan_jabatan', e.target.value)}
-                          placeholder="500000"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                          / Bulan
-                        </span>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2133,7 +2116,6 @@ export default function EditPegawaiPage() {
                         <h5 className="font-medium text-green-600 mb-2">Komponen Penambah</h5>
                         <div className="space-y-1 text-sm">
                           {formData.tunjangan_komunikasi && <div>Tunjangan Kinerja: Rp {formatCurrency(formData.tunjangan_komunikasi)}</div>}
-                          {formData.tunjangan_jabatan && <div>Tunjangan Jabatan: Rp {formatCurrency(formData.tunjangan_jabatan)}</div>}
                           {formData.makan_transport && <div>Makan & Transport: Rp {formatCurrency(formData.makan_transport)}</div>}
                           {formData.kehadiran && <div>Tunjangan Kehadiran: Rp {formatCurrency(formData.kehadiran)}</div>}
                           {formData.lembur && <div>Lembur: Rp {formatCurrency(formData.lembur)}/jam</div>}

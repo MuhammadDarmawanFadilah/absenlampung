@@ -240,7 +240,7 @@ export default function LokasiKantorMasterDataPage() {
               onPageSizeChange={handlePageSizeChange}
             />
 
-            <div className="rounded-lg border bg-white shadow-sm">
+            <div className="rounded-lg border bg-card shadow-sm">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -325,7 +325,7 @@ export default function LokasiKantorMasterDataPage() {
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
-                            <DropdownMenuTrigger className="h-8 w-8 p-0 border-0 bg-transparent hover:bg-gray-100 rounded-md inline-flex items-center justify-center">
+                            <DropdownMenuTrigger className="h-8 w-8 p-0 border-0 bg-transparent hover:bg-muted rounded-md inline-flex items-center justify-center">
                               <MoreHorizontal className="h-4 w-4" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">

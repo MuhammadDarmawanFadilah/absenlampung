@@ -3,8 +3,10 @@ package com.shadcn.backend.service;
 import com.shadcn.backend.dto.ProvinsiResponseDTO;
 import com.shadcn.backend.model.Role;
 import com.shadcn.backend.model.User;
+import com.shadcn.backend.model.Lokasi;
 import com.shadcn.backend.repository.RoleRepository;
 import com.shadcn.backend.repository.UserRepository;
+import com.shadcn.backend.repository.LokasiRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -33,7 +35,12 @@ public class DefaultDataService implements CommandLineRunner {
     private LocationService locationService;
     
     @Autowired
-    private MasterDataInitializer masterDataInitializer;@Value("${location.data.force-reinsert:false}")
+    private MasterDataInitializer masterDataInitializer;
+    
+    @Autowired
+    private LokasiRepository lokasiRepository;
+    
+    @Value("${location.data.force-reinsert:false}")
     private boolean forceReinsertLocationData;
     
     @Value("${app.admin.username:admin}")
@@ -244,11 +251,48 @@ public class DefaultDataService implements CommandLineRunner {
             // Initialize agama data
             masterDataInitializer.initializeAgamaData();
             
+            // Initialize default lokasi kantor
+            initializeDefaultLokasiKantor();
+            
             System.out.println("✅ Master data berhasil diinisialisasi!");
             System.out.println("💡 Data master siap untuk digunakan di sistem");
             
         } catch (Exception e) {
             System.err.println("❌ Error saat inisialisasi master data: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Inisialisasi default lokasi kantor
+     */
+    private void initializeDefaultLokasiKantor() {
+        try {
+            System.out.println("🏢 Mengecek lokasi kantor default...");
+            
+            // Cek apakah sudah ada lokasi kantor
+            long countLokasi = lokasiRepository.count();
+            if (countLokasi == 0) {
+                System.out.println("📍 Membuat lokasi kantor default: Bawaslu Lampung");
+                
+                Lokasi defaultLokasi = Lokasi.builder()
+                    .namaLokasi("Bawaslu Lampung")
+                    .alamat("Kota Bandar Lampung, Lampung")
+                    .latitude("-5.429270")
+                    .longitude("105.262650")
+                    .radius("100")
+                    .status("aktif")
+                    .isActive(true)
+                    .build();
+                
+                lokasiRepository.save(defaultLokasi);
+                System.out.println("✅ Lokasi kantor default berhasil dibuat!");
+            } else {
+                System.out.println("ℹ️ Lokasi kantor sudah ada (" + countLokasi + " lokasi)");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error saat inisialisasi lokasi kantor: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -176,8 +176,7 @@ public class PegawaiService {
                 .saldoKasbon(request.getSaldoKasbon())
                 .potonganBpjs(request.getPotonganBpjs())
                 .potonganPajak(request.getPotonganPajak())
-                .tunjanganJabatan(request.getTunjanganJabatan())
-                .tunjanganKomunikasi(request.getTunjanganKomunikasi())
+                .tunjanganKinerja(request.getTunjanganKinerja())
                 .tunjanganTransportasi(request.getTunjanganTransportasi())
                 .nip(request.getNip())
                 .pendidikan(request.getPendidikan())
@@ -298,14 +297,11 @@ public class PegawaiService {
         if (request.getBonus() != null) {
             pegawai.setBonus(request.getBonus());
         }
-        if (request.getTunjanganJabatan() != null) {
-            pegawai.setTunjanganJabatan(request.getTunjanganJabatan());
-        }
         if (request.getTunjanganKeluarga() != null) {
             pegawai.setTunjanganKeluarga(request.getTunjanganKeluarga());
         }
-        if (request.getTunjanganKomunikasi() != null) {
-            pegawai.setTunjanganKomunikasi(request.getTunjanganKomunikasi());
+        if (request.getTunjanganKinerja() != null) {
+            pegawai.setTunjanganKinerja(request.getTunjanganKinerja());
         }
         if (request.getTunjanganTransportasi() != null) {
             pegawai.setTunjanganTransportasi(request.getTunjanganTransportasi());

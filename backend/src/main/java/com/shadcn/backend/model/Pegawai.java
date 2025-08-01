@@ -105,14 +105,11 @@ public class Pegawai implements UserDetails {
     private Integer bonus;
     
     // Tunjangan fields
-    @Column(name = "tunjangan_jabatan")
-    private Integer tunjanganJabatan;
-    
     @Column(name = "tunjangan_keluarga")
     private Integer tunjanganKeluarga;
     
-    @Column(name = "tunjangan_komunikasi")
-    private Integer tunjanganKomunikasi;
+    @Column(name = "tunjangan_kinerja")
+    private Long tunjanganKinerja;
     
     @Column(name = "tunjangan_transportasi")
     private Integer tunjanganTransportasi;

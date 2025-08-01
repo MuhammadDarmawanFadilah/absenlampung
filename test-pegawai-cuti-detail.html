@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Pegawai Cuti Detail API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #e7f5e7; border-color: #4caf50; }
+        .error { background-color: #fde7e7; border-color: #f44336; }
+        .info { background-color: #e7f0ff; border-color: #2196f3; }
+        button { margin: 5px; padding: 8px 16px; }
+        input, select { margin: 5px; padding: 5px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Pegawai Cuti Detail API</h1>
+    
+    <div class="test-section">
+        <h3>🔐 Authentication</h3>
+        <div>
+            <label>Auth Token:</label>
+            <input type="text" id="authToken" placeholder="Bearer token" style="width: 400px;">
+            <button onclick="loadTokenFromStorage()">Load dari localStorage</button>
+        </div>
+        <button onclick="testAuth()">Test Authentication</button>
+        <div id="authResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📋 Test Pegawai Cuti API</h3>
+        <div>
+            <label>Pegawai ID:</label>
+            <input type="number" id="pegawaiId" value="1" min="1">
+            <label>Tahun:</label>
+            <input type="number" id="tahun" value="2025" min="2020" max="2030">
+        </div>
+        <button onclick="testGetPegawaiCutiByPegawaiId()">Get Cuti by Pegawai ID</button>
+        <button onclick="testGetPegawaiCutiByTahun()">Get Cuti by Tahun</button>
+        <button onclick="testGetPegawaiCutiQuota()">Get Cuti Quota</button>
+        <div id="pegawaiCutiResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Test All Endpoints</h3>
+        <button onclick="testAllEndpoints()">🚀 Test All Endpoints</button>
+        <div id="allEndpointsResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        
+        function loadTokenFromStorage() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                document.getElementById('authToken').value = token;
+                log('authResult', '✅ Token loaded from localStorage', 'success');
+            } else {
+                log('authResult', '❌ No token found in localStorage', 'error');
+            }
+        }
+
+        function getAuthHeaders() {
+            const token = document.getElementById('authToken').value;
+            return {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.innerHTML = `<pre>${message}</pre>`;
+        }
+
+        async function testAuth() {
+            try {
+                const response = await fetch(`${API_BASE}/api/pegawai/1`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('authResult', `✅ Authentication successful!\nPegawai: ${data.namaLengkap || data.fullName}`, 'success');
+                } else {
+                    log('authResult', `❌ Authentication failed: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log('authResult', `❌ Authentication error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGetPegawaiCutiByPegawaiId() {
+            try {
+                const pegawaiId = document.getElementById('pegawaiId').value;
+                const response = await fetch(`${API_BASE}/api/pegawai-cuti/pegawai/${pegawaiId}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('pegawaiCutiResult', 
+                        `✅ Pegawai Cuti (All Years) loaded successfully!\n` +
+                        `Count: ${data.length}\n` +
+                        `Data: ${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    const errorText = await response.text();
+                    log('pegawaiCutiResult', `❌ Failed to load pegawai cuti: ${response.status} ${response.statusText}\n${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('pegawaiCutiResult', `❌ Error loading pegawai cuti: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGetPegawaiCutiByTahun() {
+            try {
+                const pegawaiId = document.getElementById('pegawaiId').value;
+                const tahun = document.getElementById('tahun').value;
+                const response = await fetch(`${API_BASE}/api/pegawai-cuti/pegawai/${pegawaiId}/tahun/${tahun}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('pegawaiCutiResult', 
+                        `✅ Pegawai Cuti (Year ${tahun}) loaded successfully!\n` +
+                        `Count: ${data.length}\n` +
+                        `Data: ${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    const errorText = await response.text();
+                    log('pegawaiCutiResult', `❌ Failed to load pegawai cuti by year: ${response.status} ${response.statusText}\n${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('pegawaiCutiResult', `❌ Error loading pegawai cuti by year: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGetPegawaiCutiQuota() {
+            try {
+                const pegawaiId = document.getElementById('pegawaiId').value;
+                const response = await fetch(`${API_BASE}/api/pegawai-cuti/pegawai/${pegawaiId}/quota`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('pegawaiCutiResult', 
+                        `✅ Pegawai Cuti Quota loaded successfully!\n` +
+                        `Count: ${data.length}\n` +
+                        `Data: ${JSON.stringify(data, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    const errorText = await response.text();
+                    log('pegawaiCutiResult', `❌ Failed to load pegawai cuti quota: ${response.status} ${response.statusText}\n${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('pegawaiCutiResult', `❌ Error loading pegawai cuti quota: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllEndpoints() {
+            const pegawaiId = document.getElementById('pegawaiId').value;
+            const tahun = document.getElementById('tahun').value;
+            const results = {};
+            
+            // Test all endpoints
+            const endpoints = [
+                { name: 'getAllYears', url: `${API_BASE}/api/pegawai-cuti/pegawai/${pegawaiId}` },
+                { name: 'getByYear', url: `${API_BASE}/api/pegawai-cuti/pegawai/${pegawaiId}/tahun/${tahun}` },
+                { name: 'getQuota', url: `${API_BASE}/api/pegawai-cuti/pegawai/${pegawaiId}/quota` },
+                { name: 'getQuotaByYear', url: `${API_BASE}/api/pegawai-cuti/pegawai/${pegawaiId}/quota/tahun/${tahun}` }
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint.url, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        results[endpoint.name] = {
+                            status: 'success',
+                            count: data.length,
+                            data: data
+                        };
+                    } else {
+                        const errorText = await response.text();
+                        results[endpoint.name] = {
+                            status: 'error',
+                            error: `${response.status} ${response.statusText}: ${errorText}`
+                        };
+                    }
+                } catch (error) {
+                    results[endpoint.name] = {
+                        status: 'error',
+                        error: error.message
+                    };
+                }
+            }
+            
+            log('allEndpointsResult', 
+                `📊 All Endpoints Test Results:\n` +
+                JSON.stringify(results, null, 2), 
+                'info'
+            );
+        }
+
+        // Load token on page load
+        window.onload = function() {
+            loadTokenFromStorage();
+        };
+    </script>
+</body>
+</html>

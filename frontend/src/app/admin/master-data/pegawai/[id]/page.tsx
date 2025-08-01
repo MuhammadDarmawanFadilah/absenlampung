@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { showErrorToast } from "@/components/ui/toast-utils"
-import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, Building2, Edit, Shield, Eye, CheckCircle, XCircle, History, Clock, Camera, Timer, Zap, AlertCircle } from 'lucide-react'
+import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, Building2, Edit, Shield, Eye, CheckCircle, XCircle, History, Clock, Camera, Timer, Zap, AlertCircle, Calculator, AlertTriangle } from 'lucide-react'
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { useToast } from "@/hooks/use-toast"
 import { getApiUrl } from "@/lib/config"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PemotonganAbsenInfo } from "@/components/pegawai/PemotonganAbsenInfo"
 
 interface PegawaiDetail {
   id: number;
@@ -66,9 +67,17 @@ interface PegawaiDetail {
   gajiPokok?: number;
   makanTransport?: number;
   lembur?: number;
+  kehadiran?: number;
   thr?: number;
   bonus?: number;
+  tunjanganKinerja?: number;
+  tunjanganTransportasi?: number;
+  izin?: number;
+  terlambat?: number;
+  mangkir?: number;
   saldoKasbon?: number;
+  potonganBpjs?: number;
+  potonganPajak?: number;
   // Permission data
   izinCuti?: number;
   izinLainnya?: number;
@@ -92,13 +101,26 @@ interface AbsensiHistory {
   createdAt: string;
 }
 
+interface PegawaiCuti {
+  id: number;
+  pegawaiId: number;
+  namaPegawai: string;
+  jenisCutiId: number;
+  namaCuti: string;
+  jatahHari: number;
+  tahun: number;
+  isActive: boolean;
+}
+
 export default function DetailPegawaiPage() {
   const router = useRouter()
   const params = useParams()
   const [loading, setLoading] = useState(true)
   const [pegawaiData, setPegawaiData] = useState<PegawaiDetail | null>(null)
   const [absensiHistory, setAbsensiHistory] = useState<AbsensiHistory[]>([])
+  const [pegawaiCuti, setPegawaiCuti] = useState<PegawaiCuti[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [loadingCuti, setLoadingCuti] = useState(false)
   const [activeTab, setActiveTab] = useState('detail')
   const { toast } = useToast()
 
@@ -111,6 +133,12 @@ export default function DetailPegawaiPage() {
   useEffect(() => {
     if (activeTab === 'absensi' && pegawaiData) {
       loadAbsensiHistory()
+    }
+  }, [activeTab, pegawaiData])
+
+  useEffect(() => {
+    if (activeTab === 'cuti' && pegawaiData) {
+      loadPegawaiCuti()
     }
   }, [activeTab, pegawaiData])
 
@@ -136,6 +164,45 @@ export default function DetailPegawaiPage() {
       console.error('Error loading absensi history:', error)
     } finally {
       setLoadingHistory(false)
+    }
+  }
+
+  const loadPegawaiCuti = async () => {
+    try {
+      setLoadingCuti(true)
+      const currentYear = new Date().getFullYear()
+      
+      const response = await fetch(getApiUrl(`api/pegawai-cuti/pegawai/${pegawaiData?.id}/tahun/${currentYear}`), {
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setPegawaiCuti(data || [])
+        console.log('Pegawai cuti data loaded:', data)
+      } else {
+        console.error('Failed to load pegawai cuti data:', response.status, response.statusText)
+        // Try without year parameter as fallback
+        const fallbackResponse = await fetch(getApiUrl(`api/pegawai-cuti/pegawai/${pegawaiData?.id}`), {
+          headers: { 
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json()
+          setPegawaiCuti(fallbackData || [])
+          console.log('Pegawai cuti data loaded (fallback):', fallbackData)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading pegawai cuti data:', error)
+    } finally {
+      setLoadingCuti(false)
     }
   }
 
@@ -348,7 +415,7 @@ export default function DetailPegawaiPage() {
 
       <div className="container mx-auto p-6 max-w-6xl space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="detail" className="flex items-center">
               <User className="w-4 h-4 mr-2" />
               Detail Pegawai
@@ -356,6 +423,10 @@ export default function DetailPegawaiPage() {
             <TabsTrigger value="absensi" className="flex items-center">
               <History className="w-4 h-4 mr-2" />
               Histori Absensi
+            </TabsTrigger>
+            <TabsTrigger value="cuti" className="flex items-center">
+              <Calendar className="w-4 h-4 mr-2" />
+              Data Cuti
             </TabsTrigger>
           </TabsList>
 
@@ -536,66 +607,52 @@ export default function DetailPegawaiPage() {
           </Card>
         )}
 
-        {/* Financial Information */}
+        {/* Salary & Benefits Information */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Calendar className="h-5 w-5" />
-              <span>Informasi Keuangan & Izin</span>
+              <span>Informasi Gaji & Tunjangan</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Komponen Gaji</h4>
+              <h4 className="font-semibold text-green-600 mb-3 flex items-center gap-2">
+                <Calculator className="h-5 w-5" />
+                Komponen Penambah Gaji
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Gaji Pokok:</span>
-                  <span className="font-medium">{formatCurrency(pegawaiData.gajiPokok)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Tunjangan Kinerja:</span>
+                  <span className="font-medium">{formatCurrency(pegawaiData.tunjanganKinerja)} <span className="text-sm text-gray-500">/ Bulan</span></span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Makan & Transport:</span>
-                  <span className="font-medium">{formatCurrency(pegawaiData.makanTransport)}</span>
+                  <span className="font-medium">{formatCurrency(pegawaiData.makanTransport)} <span className="text-sm text-gray-500">/ Bulan</span></span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Tunjangan Kehadiran (100%):</span>
+                  <span className="font-medium">{formatCurrency(pegawaiData.kehadiran)} <span className="text-sm text-gray-500">/ Bulan</span></span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Lembur:</span>
-                  <span className="font-medium">{formatCurrency(pegawaiData.lembur)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">THR:</span>
-                  <span className="font-medium">{formatCurrency(pegawaiData.thr)}</span>
+                  <span className="font-medium">{formatCurrency(pegawaiData.lembur)} <span className="text-sm text-gray-500">/ Jam</span></span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Bonus:</span>
-                  <span className="font-medium">{formatCurrency(pegawaiData.bonus)}</span>
+                  <span className="font-medium">{formatCurrency(pegawaiData.bonus)} <span className="text-sm text-gray-500">/ Bulan</span></span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Saldo Kasbon:</span>
-                  <span className="font-medium">{formatCurrency(pegawaiData.saldoKasbon)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">THR:</span>
+                  <span className="font-medium">{formatCurrency(pegawaiData.thr)} <span className="text-sm text-gray-500">/ Tahun</span></span>
                 </div>
               </div>
             </div>
             
-            <div className="border-t pt-4">
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Informasi Izin</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{pegawaiData.izinCuti || 0}</div>
-                  <div className="text-xs text-gray-600">Izin Cuti</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">{pegawaiData.izinLainnya || 0}</div>
-                  <div className="text-xs text-gray-600">Izin Lainnya</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">{pegawaiData.izinTelat || 0}</div>
-                  <div className="text-xs text-gray-600">Izin Telat</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">{pegawaiData.izinPulangCepat || 0}</div>
-                  <div className="text-xs text-gray-600">Pulang Cepat</div>
-                </div>
-              </div>
-            </div>
+            {/* Informasi Pemotongan Absen - Read-only display */}
+            {pegawaiData.tunjanganKinerja && (
+              <PemotonganAbsenInfo tunjanganKinerja={pegawaiData.tunjanganKinerja?.toString() || '0'} />
+            )}
           </CardContent>
         </Card>
 
@@ -714,6 +771,120 @@ export default function DetailPegawaiPage() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="cuti" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Daftar Cuti Pegawai</CardTitle>
+                <CardDescription>
+                  Pengaturan jenis cuti dan kuota per tahun untuk pegawai
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingCuti ? (
+                  <div className="text-center py-8">
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Memuat data cuti...</span>
+                    </div>
+                  </div>
+                ) : pegawaiCuti.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Belum Ada Konfigurasi Cuti</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Pegawai belum memiliki konfigurasi jenis cuti untuk tahun {new Date().getFullYear()}.
+                    </p>
+                    <Button onClick={handleEdit} variant="outline">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Pegawai untuk Menambah Cuti
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {pegawaiCuti.map((cuti) => (
+                        <Card key={`${cuti.jenisCutiId}-${cuti.tahun}`} className="border-l-4 border-l-blue-500">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-lg text-blue-700 dark:text-blue-400">
+                                  {cuti.namaCuti}
+                                </h4>
+                                <Badge 
+                                  variant={cuti.isActive ? "default" : "secondary"}
+                                  className="text-xs"
+                                >
+                                  {cuti.isActive ? "Aktif" : "Nonaktif"}
+                                </Badge>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">Jatah Hari:</span>
+                                  <div className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1 text-green-600" />
+                                    <span className="font-semibold text-green-700 dark:text-green-400">
+                                      {cuti.jatahHari} hari
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">Tahun:</span>
+                                  <span className="font-medium">{cuti.tahun}</span>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                  <span>ID Jenis: {cuti.jenisCutiId}</span>
+                                  <span>ID Pegawai: {cuti.pegawaiId}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center">
+                        <Calendar className="w-5 h-5 mr-2 text-blue-600" />
+                        <h4 className="font-semibold text-blue-700 dark:text-blue-400">
+                          Ringkasan Cuti Tahun {new Date().getFullYear()}
+                        </h4>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">{pegawaiCuti.length}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">Total Jenis</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            {pegawaiCuti.reduce((sum, cuti) => sum + cuti.jatahHari, 0)}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">Total Hari</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {pegawaiCuti.filter(cuti => cuti.isActive).length}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">Aktif</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-gray-600">
+                            {pegawaiCuti.filter(cuti => !cuti.isActive).length}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">Nonaktif</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>

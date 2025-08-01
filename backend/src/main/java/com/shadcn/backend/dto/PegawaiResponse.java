@@ -43,6 +43,8 @@ public class PegawaiResponse {
     private Integer kehadiran;
     private Integer thr;
     private Integer bonus;
+    private Long tunjanganKinerja;
+    private Integer tunjanganTransportasi;
     private Integer izin;
     private Integer terlambat;
     private Integer mangkir;
@@ -130,6 +132,8 @@ public class PegawaiResponse {
         this.kehadiran = pegawai.getKehadiran();
         this.thr = pegawai.getThr();
         this.bonus = pegawai.getBonus();
+        this.tunjanganKinerja = pegawai.getTunjanganKinerja();
+        this.tunjanganTransportasi = pegawai.getTunjanganTransportasi();
         this.izin = pegawai.getIzin();
         this.terlambat = pegawai.getTerlambat();
         this.mangkir = pegawai.getMangkir();
