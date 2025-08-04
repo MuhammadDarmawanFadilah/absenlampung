@@ -1,13 +1,10 @@
 package com.shadcn.backend.controller;
 
-import com.shadcn.backend.dto.AuthRequest;
 import com.shadcn.backend.dto.AuthResponse;
-import com.shadcn.backend.dto.PublicRegistrationRequest;
-import com.shadcn.backend.model.User;
-import com.shadcn.backend.model.Pegawai;
+import com.shadcn.backend.dto.LoginRequest;
 import com.shadcn.backend.service.AuthService;
-import com.shadcn.backend.service.UserService;
-import com.shadcn.backend.service.WilayahCacheService;
+import com.shadcn.backend.service.LoginAuditService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,169 +12,137 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "${frontend.url}")
 @RequiredArgsConstructor
+@CrossOrigin(originPatterns = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3000"}, allowCredentials = "true")
 public class AuthController {
-    
+
     private final AuthService authService;
-    private final UserService userService;
-    private final WilayahCacheService wilayahCacheService;
-      @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest authRequest) {
+    private final LoginAuditService loginAuditService;
+
+    @PostMapping("/login")
+    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
-            log.debug("Login attempt for username: {}", authRequest.getUsername());
-            AuthResponse response = authService.authenticate(authRequest.getUsername(), authRequest.getPassword());
-            log.info("Successful login for username: {}", authRequest.getUsername());
+            log.debug("Login attempt for username: {}", loginRequest.getUsername());
+            
+            AuthResponse authResponse = authService.authenticate(loginRequest.getUsername(), loginRequest.getPassword());
+            
+            // Record successful login
+            loginAuditService.recordSuccessfulLogin(
+                loginRequest.getUsername(),
+                authResponse.getUser().getFullName(),
+                authResponse.getUser().getRole() != null ? authResponse.getUser().getRole().getRoleName() : "PEGAWAI",
+                request
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", authResponse.getToken());
+            response.put("user", authResponse.getUser());
+            response.put("expiresIn", authResponse.getExpiresIn());
+            
+            log.info("Login successful for user: {}", loginRequest.getUsername());
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            log.warn("Login failed for username: {} - {}", authRequest.getUsername(), e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("error", "Invalid username or password"));
+            
         } catch (Exception e) {
-            log.error("Login error for username: {}", authRequest.getUsername(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Authentication failed"));
+            log.error("Login failed for username: {}", loginRequest.getUsername(), e);
+            
+            // Record failed login
+            loginAuditService.recordFailedLogin(loginRequest.getUsername(), request);
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Login failed");
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
     }
-      @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
-        log.debug("Logout request received");
-        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
-    }
-      @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(@RequestHeader(value = "Authorization", required = false) String token) {
+
+    @PostMapping("/refresh")
+    public ResponseEntity<Map<String, Object>> refreshToken(@RequestHeader("Authorization") String authHeader) {
         try {
-            if (token == null || !token.startsWith("Bearer ")) {
-                log.warn("Invalid or missing Authorization header");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "No valid token provided"));
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                throw new RuntimeException("Invalid authorization header");
             }
             
-            String actualToken = token.substring(7); // Remove "Bearer " prefix
-            User user = authService.getUserFromToken(actualToken);
+            String token = authHeader.substring(7);
+            AuthResponse authResponse = authService.refreshToken(token);
             
-            if (user == null) {
-                log.warn("Invalid token provided");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid token"));
-            }
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", authResponse.getToken());
+            response.put("user", authResponse.getUser());
+            response.put("expiresIn", authResponse.getExpiresIn());
             
-            log.debug("Retrieved current user: {}", user.getUsername());
-            return ResponseEntity.ok(user);
-        } catch (Exception e) {
-            log.error("Error getting current user", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get user info"));
-        }
-    }
-      @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestHeader(value = "Authorization", required = false) String token) {
-        try {
-            if (token == null || !token.startsWith("Bearer ")) {
-                log.warn("Invalid or missing Authorization header for token refresh");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "No valid token provided"));
-            }
-            
-            String actualToken = token.substring(7); // Remove "Bearer " prefix
-            AuthResponse response = authService.refreshToken(actualToken);
-            
-            log.debug("Token refreshed successfully");
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            log.warn("Token refresh failed: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("error", "Invalid token"));
+            
         } catch (Exception e) {
-            log.error("Error refreshing token", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Token refresh failed"));
+            log.error("Token refresh failed", e);
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Token refresh failed");
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
     }
-      /**
-     * Register user from public invitation link
-     */
-    @PostMapping("/register/public")
-    public ResponseEntity<?> registerFromPublicLink(@Valid @RequestBody PublicRegistrationRequest request) {
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, Object>> logout(@RequestHeader("Authorization") String authHeader) {
         try {
-            log.debug("Public registration attempt for username: {}", request.getUsername());
-            User user = userService.registerFromPublicLink(request);
-            log.info("Public registration successful for username: {}", request.getUsername());
-            return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of(
-                    "message", "Pendaftaran berhasil! Akun Anda menunggu persetujuan admin sebelum dapat digunakan.",
-                    "user", Map.of(
-                        "id", user.getId(),
-                        "username", user.getUsername(),
-                        "fullName", user.getFullName(),
-                        "email", user.getEmail(),
-                        "status", user.getStatus()
-                    )
-                ));
-        } catch (RuntimeException e) {
-            log.warn("Public registration failed for username: {} - {}", request.getUsername(), e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("error", e.getMessage()));
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                throw new RuntimeException("Invalid authorization header");
+            }
+            
+            String token = authHeader.substring(7);
+            authService.logout(token);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Logout successful");
+            
+            return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
-            log.error("Error during public registration for username: {}", request.getUsername(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Terjadi kesalahan saat mendaftarkan pengguna"));
+            log.error("Logout failed", e);
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Logout failed");
+            
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
-      @GetMapping("/me/location")
-    public ResponseEntity<?> getCurrentUserLocation(@RequestHeader(value = "Authorization", required = false) String token) {
+
+    @GetMapping("/me")
+    public ResponseEntity<Map<String, Object>> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
         try {
-            if (token == null || !token.startsWith("Bearer ")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "No valid token provided"));
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                throw new RuntimeException("Invalid authorization header");
             }
             
-            String actualToken = token.substring(7);
+            String token = authHeader.substring(7);
+            var pegawai = authService.getCurrentPegawai(token);
             
-            // Check if token is for pegawai
-            if (authService.isPegawaiToken(actualToken)) {
-                Pegawai pegawai = authService.getCurrentPegawai(actualToken);
-                if (pegawai == null) {
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid token"));
-                }
-                
-                Map<String, Object> locationData = Map.of(
-                    "alamat", pegawai.getAlamat() != null ? pegawai.getAlamat() : "",
-                    "provinsi", pegawai.getProvinsi() != null ? wilayahCacheService.getNamaByKode(pegawai.getProvinsi()) : "",
-                    "kota", pegawai.getKota() != null ? wilayahCacheService.getNamaByKode(pegawai.getKota()) : "",
-                    "kecamatan", pegawai.getKecamatan() != null ? wilayahCacheService.getNamaByKode(pegawai.getKecamatan()) : "",
-                    "kelurahan", pegawai.getKelurahan() != null ? wilayahCacheService.getNamaByKode(pegawai.getKelurahan()) : ""
-                );
-                
-                return ResponseEntity.ok(locationData);
-            } else {
-                // Regular user - return biografi location if available
-                User user = authService.getUserFromToken(actualToken);
-                if (user == null) {
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid token"));
-                }
-                
-                Map<String, Object> locationData = Map.of(
-                    "alamat", user.getBiografi() != null && user.getBiografi().getAlamat() != null ? user.getBiografi().getAlamat() : "",
-                    "provinsi", user.getBiografi() != null && user.getBiografi().getProvinsi() != null ? wilayahCacheService.getNamaByKode(user.getBiografi().getProvinsi()) : "",
-                    "kota", user.getBiografi() != null && user.getBiografi().getKota() != null ? wilayahCacheService.getNamaByKode(user.getBiografi().getKota()) : "",
-                    "kecamatan", user.getBiografi() != null && user.getBiografi().getKecamatan() != null ? wilayahCacheService.getNamaByKode(user.getBiografi().getKecamatan()) : "",
-                    "kelurahan", user.getBiografi() != null && user.getBiografi().getKelurahan() != null ? wilayahCacheService.getNamaByKode(user.getBiografi().getKelurahan()) : ""
-                );
-                
-                return ResponseEntity.ok(locationData);
+            if (pegawai == null) {
+                throw new RuntimeException("Invalid token");
             }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", authService.convertPegawaiToUserSummary(pegawai));
+            
+            return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
-            log.error("Error getting current user location", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get location info"));
+            log.error("Get current user failed", e);
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Get current user failed");
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
     }
 }

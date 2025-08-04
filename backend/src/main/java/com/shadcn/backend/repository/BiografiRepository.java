@@ -47,20 +47,24 @@ public interface BiografiRepository extends JpaRepository<Biografi, Long> {
            "WHERE b.biografiId = :id")
     Optional<Biografi> findByIdWithSpesialisasi(@Param("id") Long id);
     
-    // Check if biography exists for a user (using User entity relationship)
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.id = :userId AND u.biografi IS NOT NULL")
-    boolean existsBiografiByUserId(@Param("userId") Long userId);
-      // Find biography by user ID (using User entity relationship)
-    @Query("SELECT u.biografi FROM User u WHERE u.id = :userId AND u.biografi IS NOT NULL")
-    Optional<Biografi> findBiografiByUserId(@Param("userId") Long userId);
-      // Find biography profile by user ID with only basic fields (no collections to avoid N+1)
-    @Query("SELECT b FROM Biografi b WHERE b.biografiId = (SELECT u.biografi.biografiId FROM User u WHERE u.id = :userId)")
-    Optional<Biografi> findBiografiProfileByUserId(@Param("userId") Long userId);
+    // Check if biography exists for a pegawai
+    @Query("SELECT COUNT(p) > 0 FROM Pegawai p WHERE p.id = :pegawaiId")
+    boolean existsBiografiByPegawaiId(@Param("pegawaiId") Long pegawaiId);
+      // Find biography by pegawai ID using native query
+    @Query(value = "SELECT b.* FROM biografi b " +
+                   "INNER JOIN pegawai p ON p.id = :pegawaiId " +
+                   "WHERE b.email = p.email AND b.nama_lengkap = p.name", nativeQuery = true)
+    Optional<Biografi> findBiografiByPegawaiId(@Param("pegawaiId") Long pegawaiId);
+      // Find biography profile by pegawai ID with only basic fields (no collections to avoid N+1)
+    @Query(value = "SELECT b.* FROM biografi b " +
+                   "INNER JOIN pegawai p ON p.id = :pegawaiId " +
+                   "WHERE b.email = p.email AND b.nama_lengkap = p.name", nativeQuery = true)
+    Optional<Biografi> findBiografiProfileByPegawaiId(@Param("pegawaiId") Long pegawaiId);
       // Alternative: Use native query for optimal performance
     @Query(value = "SELECT b.* FROM biografi b " +
-                   "INNER JOIN users u ON u.biografi_id = b.biografi_id " +
-                   "WHERE u.id = :userId", nativeQuery = true)
-    Optional<Biografi> findBiografiProfileByUserIdNative(@Param("userId") Long userId);
+                   "INNER JOIN pegawai p ON p.id = :pegawaiId " +
+                   "WHERE b.email = p.email AND b.nama_lengkap = p.name", nativeQuery = true)
+    Optional<Biografi> findBiografiProfileByPegawaiIdNative(@Param("pegawaiId") Long pegawaiId);
     
     // Find by status
     Page<Biografi> findByStatus(Biografi.StatusBiografi status, Pageable pageable);
@@ -413,8 +417,8 @@ public interface BiografiRepository extends JpaRepository<Biografi, Long> {
                b.alumni_tahun as alumniTahun,
                b.status as status
         FROM biografi b 
-        INNER JOIN users u ON u.biografi_id = b.biografi_id 
-        WHERE u.id = :userId AND b.status = 'AKTIF'
+        INNER JOIN pegawai p ON p.id = :pegawaiId 
+        WHERE b.email = p.email AND b.nama_lengkap = p.name AND b.status = 'AKTIF'
         """, nativeQuery = true)
-    Optional<BiografiProfileProjection> findProfileByUserId(@Param("userId") Long userId);
+    Optional<BiografiProfileProjection> findProfileByPegawaiId(@Param("pegawaiId") Long pegawaiId);
 }

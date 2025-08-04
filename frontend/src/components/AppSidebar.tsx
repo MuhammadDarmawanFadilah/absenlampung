@@ -117,6 +117,12 @@ const AppSidebar = () => {
       icon: Users,
     },
     {
+      title: "Laporan Tukin",
+      url: "/admin/master-data/laporan-tukin",
+      icon: FileText,
+      badge: "New",
+    },
+    {
       title: "Histori Absensi",
       url: "/admin/master-data/histori-absensi",
       icon: History,

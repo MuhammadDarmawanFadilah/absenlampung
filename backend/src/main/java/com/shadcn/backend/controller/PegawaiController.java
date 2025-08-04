@@ -147,14 +147,12 @@ public class PegawaiController {
             if (token != null && token.startsWith("Bearer ")) {
                 String actualToken = token.substring(7);
                 
-                // Check if this is a pegawai token
-                if (authService.isPegawaiToken(actualToken)) {
-                    Pegawai pegawai = authService.getCurrentPegawai(actualToken);
-                    if (pegawai != null && pegawai.getId().equals(userId)) {
-                        Optional<PegawaiResponse> pegawaiResponseOpt = pegawaiService.getPegawaiById(pegawai.getId());
-                        if (pegawaiResponseOpt.isPresent()) {
-                            return ResponseEntity.ok(pegawaiResponseOpt.get());
-                        }
+                // Try to get pegawai from token
+                Pegawai pegawai = authService.getPegawaiFromToken(actualToken);
+                if (pegawai != null && pegawai.getId().equals(userId)) {
+                    Optional<PegawaiResponse> pegawaiResponseOpt = pegawaiService.getPegawaiById(pegawai.getId());
+                    if (pegawaiResponseOpt.isPresent()) {
+                        return ResponseEntity.ok(pegawaiResponseOpt.get());
                     }
                 }
             }

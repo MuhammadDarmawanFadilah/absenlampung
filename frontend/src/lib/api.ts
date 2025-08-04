@@ -2104,3 +2104,203 @@ export const tahapanLaporanAPI = {
   getNextUrutan: (jenisLaporanId: number): Promise<{ nextUrutan: number }> =>
     apiCall<{ nextUrutan: number }>(`/tahapan-laporan/next-urutan/${jenisLaporanId}`),
 };
+
+// Laporan Tukin types and interfaces
+export interface DetailPegawaiTukin {
+  pegawaiId: number;
+  nip: string;
+  namaLengkap: string;
+  jabatan: string;
+  lokasi: string;
+  tunjanganKinerja: number;
+  statistikAbsen: {
+    totalHari: number;
+    hadir: number;
+    tidakHadir: number;
+    terlambat: number;
+    pulangCepat: number;
+  };
+  potonganAbsen: number;
+  detailPotonganAbsen: string;
+  pemotonganLain: number;
+  detailPemotonganLain: string;
+  totalPotongan: number;
+  tunjanganBersih: number;
+  // Enhanced Detail Fields
+  historiAbsensi?: HistoriAbsensi[];
+  detailPemotonganAbsenList?: DetailPemotonganAbsen[];
+}
+
+export interface HistoriAbsensi {
+  tanggal: string;
+  hari?: string;
+  jamMasuk?: string;
+  jamPulang?: string;
+  statusMasuk?: string;
+  statusPulang?: string;
+  menitTerlambat?: number;
+  menitPulangCepat?: number;
+  keterangan?: string;
+  hasPemotongan?: boolean;
+  
+  // Enhanced fields for daily deduction details
+  nominalPemotongan?: number;
+  persentasePemotongan?: number;
+  detailPemotongan?: string;
+  status?: string; // Combined status for display
+}
+
+export interface DetailPemotonganAbsen {
+  kodePemotongan: string;
+  namaPemotongan: string;
+  deskripsiPemotongan: string;
+  persentasePemotongan: number;
+  jumlahKejadian: number;
+  nominalPemotongan: number;
+  detailKejadian?: string;
+  tanggalKejadian?: string[];
+}
+
+export interface LaporanTukin {
+  id: number;
+  judul: string;
+  bulan: number;
+  tahun: number;
+  tanggalMulai: string;
+  tanggalAkhir: string;
+  formatLaporan: 'PDF' | 'EXCEL' | 'WEB';
+  status: string;
+  filePath?: string;
+  tanggalGenerate: string;
+  generatedBy: string;
+  totalPegawai: number;
+  totalTunjanganKinerja: number;
+  totalPotonganAbsen: number;
+  totalPemotongan: number;
+  totalTunjanganBersih: number;
+  detailPegawai?: DetailPegawaiTukin[];
+}
+
+export interface LaporanTukinRequest {
+  bulan: number;
+  tahun: number;
+  tanggalMulai?: string;
+  tanggalAkhir?: string;
+  formatLaporan: 'PDF' | 'EXCEL' | 'WEB';
+}
+
+export interface LaporanTukinHistoriRequest {
+  page?: number;
+  size?: number;
+  bulan?: number;
+  tahun?: number;
+  status?: string;
+}
+
+// Laporan Tukin API functions
+export const laporanTukinAPI = {
+  // Generate laporan tukin
+  generate: async (request: LaporanTukinRequest): Promise<LaporanTukin> => {
+    const response = await apiCall<any>('/admin/master-data/laporan-tukin/generate', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+
+    // Return the data from the response
+    return response.data;
+  },
+
+  // Get histori laporan tukin with pagination
+  getHistori: async (request: LaporanTukinHistoriRequest): Promise<PagedResponse<LaporanTukin>> => {
+    // Build query parameters
+    const params = new URLSearchParams();
+    
+    params.append('page', (request.page || 0).toString());
+    params.append('size', (request.size || 10).toString());
+    if (request.bulan) params.append('bulan', request.bulan.toString());
+    if (request.tahun) params.append('tahun', request.tahun.toString());
+    if (request.status) params.append('status', request.status);
+
+    const response = await apiCall<any>(`/admin/master-data/laporan-tukin/histori?${params.toString()}`, {
+      method: 'GET'
+    });
+
+    // Transform backend response to frontend PagedResponse format
+    return {
+      content: response.data || [],
+      totalElements: response.totalItems || 0,
+      totalPages: response.totalPages || 0,
+      size: response.size || 10,
+      number: response.currentPage || 0,
+      first: response.currentPage === 0,
+      last: !response.hasNext,
+      empty: !response.data || response.data.length === 0
+    };
+  },
+
+  // Get laporan tukin by ID
+  getById: async (id: number): Promise<LaporanTukin> => {
+    const response = await apiCall<{success: boolean, data: LaporanTukin, message: string}>(`/admin/master-data/laporan-tukin/${id}`);
+    
+    if (response.success) {
+      return response.data;
+    } else {
+      throw new Error(response.message || 'Failed to get laporan');
+    }
+  },
+
+  // Get laporan tukin detail with pegawai breakdown
+  getDetail: async (id: number): Promise<LaporanTukin> => {
+    const response = await apiCall<{success: boolean, data: LaporanTukin, message: string}>(`/admin/master-data/laporan-tukin/${id}/detail`);
+    
+    if (response.success) {
+      return response.data;
+    } else {
+      throw new Error(response.message || 'Failed to get laporan detail');
+    }
+  },
+
+  // Download laporan tukin file
+  downloadFile: (id: number): Promise<Blob> => {
+    const token = localStorage.getItem('auth_token');
+    
+    return fetch(`${API_BASE_URL}/admin/master-data/laporan-tukin/${id}/download`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      mode: 'cors',
+      credentials: 'omit',
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.blob();
+    });
+  },
+
+  // Download laporan tukin as PDF
+  downloadPDF: (id: number): Promise<Blob> => {
+    const token = localStorage.getItem('auth_token');
+    
+    return fetch(`${API_BASE_URL}/admin/master-data/laporan-tukin/${id}/download-pdf`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      mode: 'cors',
+      credentials: 'omit',
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.blob();
+    });
+  },
+
+  // Delete laporan tukin
+  delete: (id: number): Promise<void> =>
+    apiCall<void>(`/admin/master-data/laporan-tukin/${id}`, {
+      method: 'DELETE',
+    }),
+};

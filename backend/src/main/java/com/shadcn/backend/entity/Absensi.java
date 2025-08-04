@@ -68,7 +68,7 @@ public class Absensi {
     }
     
     public enum AbsensiStatus {
-        HADIR, TERLAMBAT, PULANG_CEPAT, ALPHA
+        HADIR, TERLAMBAT, PULANG_CEPAT, ALPHA, IZIN, SAKIT, SAKIT_TANPA_SURAT, CUTI
     }
     
     @PrePersist
