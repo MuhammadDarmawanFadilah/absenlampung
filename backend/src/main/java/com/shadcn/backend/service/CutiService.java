@@ -57,10 +57,16 @@ public class CutiService {
     private String uploadDirectory;
     
     private Pusher getPusher() {
-        Pusher pusher = new Pusher(pusherAppId, pusherAppKey, pusherAppSecret);
-        pusher.setCluster(pusherAppCluster);
-        pusher.setEncrypted(true);
-        return pusher;
+        try {
+            Pusher pusher = new Pusher(pusherAppId, pusherAppKey, pusherAppSecret);
+            pusher.setCluster(pusherAppCluster);
+            pusher.setEncrypted(true);
+            log.debug("Pusher initialized with app ID: {}, cluster: {}", pusherAppId, pusherAppCluster);
+            return pusher;
+        } catch (Exception e) {
+            log.error("Failed to initialize Pusher: {}", e.getMessage());
+            throw new RuntimeException("Failed to initialize Pusher", e);
+        }
     }
     
     @Transactional
@@ -231,6 +237,8 @@ public class CutiService {
     
     private void sendNotificationToAdmins(Pegawai pegawai, List<Cuti> cutiList) {
         try {
+            log.debug("Sending notification to admins for cuti request from: {}", pegawai.getNamaLengkap());
+            
             Pusher pusher = getPusher();
             
             Map<String, Object> data = new HashMap<>();
@@ -239,19 +247,23 @@ public class CutiService {
             data.put("pegawaiId", pegawai.getId());
             data.put("pegawaiName", pegawai.getNamaLengkap());
             data.put("cutiCount", cutiList.size());
-            data.put("startDate", cutiList.get(0).getTanggalCuti());
-            data.put("endDate", cutiList.get(cutiList.size() - 1).getTanggalCuti());
-            data.put("timestamp", LocalDateTime.now());
+            data.put("startDate", cutiList.get(0).getTanggalCuti().toString());
+            data.put("endDate", cutiList.get(cutiList.size() - 1).getTanggalCuti().toString());
+            data.put("timestamp", LocalDateTime.now().toString());
             
+            log.debug("Triggering pusher event on admin-channel with data: {}", data);
             pusher.trigger("admin-channel", "cuti-request", data);
             log.info("Notification sent to admins for cuti request from {}", pegawai.getNamaLengkap());
         } catch (Exception e) {
-            log.error("Failed to send notification to admins: {}", e.getMessage());
+            log.error("Failed to send notification to admins for pegawai {}: {}", pegawai.getNamaLengkap(), e.getMessage(), e);
+            // Don't throw exception to avoid breaking the main cuti submission flow
         }
     }
     
     private void sendNotificationToPegawai(Cuti cuti) {
         try {
+            log.debug("Sending notification to pegawai: {} for cuti ID: {}", cuti.getPegawai().getNamaLengkap(), cuti.getId());
+            
             Pusher pusher = getPusher();
             
             Map<String, Object> data = new HashMap<>();
@@ -259,17 +271,20 @@ public class CutiService {
             data.put("message", "Pengajuan cuti Anda telah " + 
                 (cuti.getStatusApproval() == Cuti.StatusApproval.DISETUJUI ? "disetujui" : "ditolak"));
             data.put("cutiId", cuti.getId());
-            data.put("status", cuti.getStatusApproval());
-            data.put("tanggalCuti", cuti.getTanggalCuti());
+            data.put("status", cuti.getStatusApproval().name());
+            data.put("tanggalCuti", cuti.getTanggalCuti().toString());
             data.put("catatan", cuti.getCatatanApproval());
-            data.put("approvedBy", cuti.getApprovedBy().getNamaLengkap());
-            data.put("timestamp", LocalDateTime.now());
+            data.put("approvedBy", cuti.getApprovedBy() != null ? cuti.getApprovedBy().getNamaLengkap() : "System");
+            data.put("timestamp", LocalDateTime.now().toString());
             
             String channel = "pegawai-" + cuti.getPegawai().getId();
+            log.debug("Triggering pusher event on channel: {} with data: {}", channel, data);
             pusher.trigger(channel, "cuti-response", data);
             log.info("Notification sent to pegawai {} for cuti approval", cuti.getPegawai().getNamaLengkap());
         } catch (Exception e) {
-            log.error("Failed to send notification to pegawai: {}", e.getMessage());
+            log.error("Failed to send notification to pegawai {} for cuti ID {}: {}", 
+                cuti.getPegawai().getNamaLengkap(), cuti.getId(), e.getMessage(), e);
+            // Don't throw exception to avoid breaking the main approval flow
         }
     }
     

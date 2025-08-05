@@ -225,8 +225,9 @@ public class Pegawai implements UserDetails {
     // UserDetails implementation
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Pegawai always has PEGAWAI role
-        return List.of(new SimpleGrantedAuthority("ROLE_PEGAWAI"));
+        // Use the actual role field instead of hardcoded PEGAWAI
+        String actualRole = this.role != null ? this.role : "PEGAWAI";
+        return List.of(new SimpleGrantedAuthority("ROLE_" + actualRole));
     }
     
     @Override

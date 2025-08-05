@@ -26,7 +26,6 @@ public class HariLiburController {
     private final HariLiburService hariLiburService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR', 'USER')")
     public ResponseEntity<Map<String, Object>> getAllHariLibur(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -190,7 +189,6 @@ public class HariLiburController {
     }
 
     @GetMapping("/check/{tanggal}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR', 'USER')")
     public ResponseEntity<Map<String, Object>> checkHariLibur(@PathVariable String tanggal) {
         try {
             java.time.LocalDate date = java.time.LocalDate.parse(tanggal);

@@ -109,9 +109,11 @@ public class CutiController {
     }
     
     @GetMapping("/{cutiId}/download-attachment")
-    public ResponseEntity<Resource> downloadAttachment(@PathVariable Long cutiId) {
+    public ResponseEntity<Resource> downloadAttachment(
+        @PathVariable Long cutiId,
+        @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            log.debug("Download attachment request for cuti ID: {}", cutiId);
+            log.debug("Download attachment request for cuti ID: {} with auth: {}", cutiId, authHeader != null ? "present" : "missing");
             Resource resource = cutiService.getAttachmentResource(cutiId);
             String filename = cutiService.getAttachmentFilename(cutiId);
             
@@ -125,9 +127,11 @@ public class CutiController {
     }
     
     @GetMapping("/{cutiId}/view-attachment")
-    public ResponseEntity<Resource> viewAttachment(@PathVariable Long cutiId) {
+    public ResponseEntity<Resource> viewAttachment(
+        @PathVariable Long cutiId,
+        @RequestParam(value = "token", required = false) String token) {
         try {
-            log.debug("View attachment request for cuti ID: {}", cutiId);
+            log.debug("View attachment request for cuti ID: {} with token: {}", cutiId, token != null ? "present" : "missing");
             Resource resource = cutiService.getAttachmentResource(cutiId);
             String filename = cutiService.getAttachmentFilename(cutiId);
             

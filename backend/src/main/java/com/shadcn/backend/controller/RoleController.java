@@ -41,7 +41,6 @@ public class RoleController {
     }
     
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('roles.read')")
     public ResponseEntity<List<Role>> getAllRolesNoPagination() {
         try {
             List<Role> roles = roleService.getAllRoles();

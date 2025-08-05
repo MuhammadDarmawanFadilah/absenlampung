@@ -15,7 +15,6 @@ import com.shadcn.backend.repository.PegawaiRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +26,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -62,6 +60,87 @@ public class AbsensiService {
                 .collect(Collectors.toList());
     }
     
+    /**
+     * Get location information for absensi based on shift requirements
+     */
+    public Map<String, Object> getLocationInfoForAbsensi(Long pegawaiId, Long shiftId, Double currentLat, Double currentLon) {
+        Map<String, Object> locationInfo = new HashMap<>();
+        
+        try {
+            // Get pegawai and shift
+            Pegawai pegawai = pegawaiRepository.findById(pegawaiId)
+                    .orElseThrow(() -> new RuntimeException("Pegawai tidak ditemukan"));
+            
+            Shift shift = shiftRepository.findById(shiftId)
+                    .orElseThrow(() -> new RuntimeException("Shift tidak ditemukan"));
+            
+            locationInfo.put("shiftName", shift.getNamaShift());
+            locationInfo.put("lockLokasi", shift.getLockLokasi());
+            locationInfo.put("currentLatitude", currentLat);
+            locationInfo.put("currentLongitude", currentLon);
+            
+            if ("HARUS_DI_KANTOR".equals(shift.getLockLokasi())) {
+                // Office-based attendance
+                if (pegawai.getLokasi() != null) {
+                    locationInfo.put("officeRequired", true);
+                    locationInfo.put("officeName", pegawai.getLokasi().getNamaLokasi());
+                    locationInfo.put("officeAddress", pegawai.getLokasi().getAlamat());
+                    locationInfo.put("officeLatitude", Double.parseDouble(pegawai.getLokasi().getLatitude()));
+                    locationInfo.put("officeLongitude", Double.parseDouble(pegawai.getLokasi().getLongitude()));
+                    
+                    double allowedRadius = 100.0;
+                    if (pegawai.getLokasi().getRadius() != null && !pegawai.getLokasi().getRadius().isEmpty()) {
+                        try {
+                            allowedRadius = Double.parseDouble(pegawai.getLokasi().getRadius());
+                        } catch (NumberFormatException e) {
+                            log.warn("Invalid radius for location {}", pegawai.getLokasi().getId());
+                        }
+                    }
+                    locationInfo.put("officeRadius", allowedRadius);
+                    
+                    if (currentLat != null && currentLon != null) {
+                        double distanceToOffice = calculateDistance(
+                            currentLat, currentLon,
+                            Double.parseDouble(pegawai.getLokasi().getLatitude()),
+                            Double.parseDouble(pegawai.getLokasi().getLongitude())
+                        );
+                        locationInfo.put("distanceToOffice", distanceToOffice);
+                        locationInfo.put("withinOfficeRadius", distanceToOffice <= allowedRadius);
+                    }
+                } else {
+                    locationInfo.put("officeRequired", true);
+                    locationInfo.put("error", "Lokasi kantor pegawai belum terdaftar");
+                }
+            } else {
+                // Flexible location attendance
+                locationInfo.put("officeRequired", false);
+                locationInfo.put("flexibleLocation", true);
+                
+                // Include home address if available
+                if (pegawai.getAlamat() != null && !pegawai.getAlamat().isEmpty()) {
+                    locationInfo.put("homeAddress", pegawai.getAlamat());
+                }
+                
+                if (pegawai.getLatitude() != null && pegawai.getLongitude() != null && 
+                    currentLat != null && currentLon != null) {
+                    double distanceToHome = calculateDistance(
+                        currentLat, currentLon,
+                        pegawai.getLatitude(), pegawai.getLongitude()
+                    );
+                    locationInfo.put("homeLatitude", pegawai.getLatitude());
+                    locationInfo.put("homeLongitude", pegawai.getLongitude());
+                    locationInfo.put("distanceToHome", distanceToHome);
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Error getting location info: {}", e.getMessage());
+            locationInfo.put("error", e.getMessage());
+        }
+        
+        return locationInfo;
+    }
+    
     public AbsensiResponse createAbsensi(AbsensiRequest request) {
         try {
             // Validate pegawai
@@ -83,6 +162,9 @@ public class AbsensiService {
             if (existingAbsensi.isPresent()) {
                 throw new RuntimeException("Anda sudah melakukan absensi " + request.getType() + " hari ini");
             }
+            
+            // Validate location based on shift lock
+            validateLocationForAbsensi(request, pegawai, shift);
             
             // Calculate distance based on shift location lock
             double distance = 0.0;
@@ -593,6 +675,51 @@ public class AbsensiService {
                 return Absensi.AbsensiStatus.HADIR;
             }
         }
+    }
+    
+    /**
+     * Validate location for attendance based on shift lock location
+     */
+    private void validateLocationForAbsensi(AbsensiRequest request, Pegawai pegawai, Shift shift) {
+        if (shift.getLockLokasi() != null && shift.getLockLokasi().equals("HARUS_DI_KANTOR")) {
+            // For office-locked shifts, validate employee is within office radius
+            if (pegawai.getLokasi() == null) {
+                throw new RuntimeException("Pegawai belum memiliki lokasi kantor yang terdaftar");
+            }
+            
+            if (pegawai.getLokasi().getLatitude() == null || pegawai.getLokasi().getLongitude() == null) {
+                throw new RuntimeException("Lokasi kantor pegawai belum memiliki koordinat yang valid");
+            }
+            
+            double distanceToOffice = calculateDistance(
+                request.getLatitude(), 
+                request.getLongitude(),
+                Double.parseDouble(pegawai.getLokasi().getLatitude()), 
+                Double.parseDouble(pegawai.getLokasi().getLongitude())
+            );
+            
+            // Get office radius (default 100 meters if not set)
+            double allowedRadius = 100.0; // default radius
+            if (pegawai.getLokasi().getRadius() != null && !pegawai.getLokasi().getRadius().isEmpty()) {
+                try {
+                    allowedRadius = Double.parseDouble(pegawai.getLokasi().getRadius());
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid radius value for location {}: {}", pegawai.getLokasi().getId(), pegawai.getLokasi().getRadius());
+                }
+            }
+            
+            if (distanceToOffice > allowedRadius) {
+                throw new RuntimeException(String.format(
+                    "Anda berada di luar radius kantor (%.0f meter dari kantor, maksimal %.0f meter). " +
+                    "Silakan datang ke kantor untuk melakukan absensi.",
+                    distanceToOffice, allowedRadius
+                ));
+            }
+            
+            log.info("Employee {} is within office radius: {:.2f}m <= {:.2f}m", 
+                pegawai.getId(), distanceToOffice, allowedRadius);
+        }
+        // For DIMANA_SAJA shifts, no location validation needed
     }
     
     private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {

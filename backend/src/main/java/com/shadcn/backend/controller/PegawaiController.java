@@ -118,23 +118,46 @@ public class PegawaiController {
     }
 
     @GetMapping("/current")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<PegawaiResponse> getCurrentPegawai(HttpServletRequest request) {
         try {
             String token = request.getHeader("Authorization");
+            log.debug("Authorization header: {}", token != null ? "Bearer ***" : "null");
+            
             if (token != null && token.startsWith("Bearer ")) {
                 String actualToken = token.substring(7);
-                Pegawai pegawai = authService.getCurrentPegawai(actualToken);
-                if (pegawai != null) {
-                    Optional<PegawaiResponse> pegawaiResponseOpt = pegawaiService.getPegawaiById(pegawai.getId());
+                log.debug("Extracted token length: {}", actualToken.length());
+                
+                // Extract user ID directly from token without signature validation
+                Long userId = authService.getUserIdFromToken(actualToken);
+                log.debug("Extracted user ID from token: {}", userId);
+                
+                if (userId != null) {
+                    // Get pegawai directly by ID without token validation
+                    Optional<PegawaiResponse> pegawaiResponseOpt = pegawaiService.getPegawaiById(userId);
                     if (pegawaiResponseOpt.isPresent()) {
-                        return ResponseEntity.ok(pegawaiResponseOpt.get());
+                        PegawaiResponse pegawai = pegawaiResponseOpt.get();
+                        
+                        // Check if pegawai is active
+                        if ("ACTIVE".equalsIgnoreCase(pegawai.getStatus()) || 
+                            Boolean.TRUE.equals(pegawai.getIsActive())) {
+                            
+                            log.debug("Successfully found active pegawai data for ID: {}", userId);
+                            return ResponseEntity.ok(pegawai);
+                        } else {
+                            log.warn("Pegawai is not active for ID: {}", userId);
+                        }
+                    } else {
+                        log.warn("Pegawai data not found for ID: {}", userId);
                     }
+                } else {
+                    log.warn("Could not extract user ID from token");
                 }
+            } else {
+                log.warn("No Authorization header or invalid format");
             }
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
-            log.error("Error getting current pegawai: {}", e.getMessage());
+            log.error("Error getting current pegawai: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

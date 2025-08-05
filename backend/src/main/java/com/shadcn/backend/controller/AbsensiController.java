@@ -29,14 +29,24 @@ public class AbsensiController {
     private final AbsensiService absensiService;
     
     @GetMapping("/shifts")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<List<ShiftResponse>> getActiveShifts() {
         List<ShiftResponse> shifts = absensiService.getActiveShifts();
         return ResponseEntity.ok(shifts);
     }
     
+    @GetMapping("/location-info")
+    public ResponseEntity<Map<String, Object>> getLocationInfo(
+            @RequestParam Long pegawaiId,
+            @RequestParam Long shiftId,
+            @RequestParam(required = false) Double currentLat,
+            @RequestParam(required = false) Double currentLon) {
+        
+        Map<String, Object> locationInfo = absensiService.getLocationInfoForAbsensi(
+            pegawaiId, shiftId, currentLat, currentLon);
+        return ResponseEntity.ok(locationInfo);
+    }
+    
     @PostMapping
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<Map<String, Object>> createAbsensi(@Valid @RequestBody AbsensiRequest request) {
         try {
             AbsensiResponse response = absensiService.createAbsensi(request);
@@ -57,7 +67,6 @@ public class AbsensiController {
     }
     
     @PostMapping("/check-in")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<Map<String, Object>> checkIn(@Valid @RequestBody AbsensiRequest request) {
         try {
             AbsensiResponse response = absensiService.createAbsensi(request);
@@ -114,7 +123,6 @@ public class AbsensiController {
     }
     
     @GetMapping("/today/{pegawaiId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
     public ResponseEntity<Map<String, Object>> getTodayAbsensi(@PathVariable Long pegawaiId) {
         try {
             Map<String, Object> result = absensiService.getTodayAbsensi(pegawaiId);

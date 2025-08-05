@@ -57,25 +57,50 @@ public class AuthService {
         throw new RuntimeException("Pegawai not found");
     }
       /**
-     * Extract pegawai ID from permanent token
+     * Extract pegawai ID from permanent token - simplified version
      */
     public Long getUserIdFromToken(String token) {
         try {
+            log.debug("Extracting user ID from token. Token length: {}", token != null ? token.length() : 0);
+            
+            if (token == null || token.trim().isEmpty()) {
+                log.warn("Token is null or empty");
+                return null;
+            }
+            
             // Decode the token and extract pegawai ID
-            String decoded = new String(Base64.getDecoder().decode(token));
+            String decoded;
+            try {
+                decoded = new String(Base64.getDecoder().decode(token));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid Base64 token format: {}", e.getMessage());
+                return null;
+            }
+            
+            log.debug("Decoded token content: {}", decoded);
+            
             String[] parts = decoded.split(":");
             if (parts.length >= 2) {
                 String userIdStr = parts[0];
                 // Remove P prefix if exists
                 if (userIdStr.startsWith("P")) {
-                    return Long.parseLong(userIdStr.substring(1));
-                } else {
-                    return Long.parseLong(userIdStr);
+                    userIdStr = userIdStr.substring(1);
                 }
+                
+                try {
+                    Long userId = Long.parseLong(userIdStr);
+                    log.debug("Extracted user ID: {}", userId);
+                    return userId;
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid user ID format in token: {}", userIdStr);
+                    return null;
+                }
+            } else {
+                log.warn("Token format invalid: expected at least 2 parts, got {}", parts.length);
+                return null;
             }
-            return null;
         } catch (Exception e) {
-            log.debug("Failed to extract user ID from token", e);
+            log.error("Failed to extract user ID from token: {}", e.getMessage());
             return null;
         }
     }
@@ -85,13 +110,13 @@ public class AuthService {
     public Pegawai getPegawaiFromToken(String token) {
         Long pegawaiId = getUserIdFromToken(token);
         if (pegawaiId == null) {
-            log.debug("Invalid token format");
+            log.warn("Invalid token format for pegawai lookup");
             return null;
         }
         
         Optional<Pegawai> pegawaiOpt = pegawaiRepository.findById(pegawaiId);
         if (pegawaiOpt.isEmpty()) {
-            log.debug("Pegawai not found for token: {}", pegawaiId);
+            log.warn("Pegawai not found for token: {}", pegawaiId);
             return null;
         }
         
@@ -100,13 +125,13 @@ public class AuthService {
         // Validate token signature
         String expectedToken = generatePermanentTokenForPegawai(pegawai);
         if (!token.equals(expectedToken)) {
-            log.debug("Token signature mismatch for pegawai: {}", pegawaiId);
+            log.warn("Token signature mismatch for pegawai: {}", pegawaiId);
             return null;
         }
         
         // Check if pegawai is still active
         if (!pegawai.getIsActive()) {
-            log.debug("Pegawai not active: {}", pegawaiId);
+            log.warn("Pegawai not active: {}", pegawaiId);
             return null;
         }
         
@@ -174,7 +199,10 @@ public class AuthService {
     private String generatePermanentTokenForPegawai(Pegawai pegawai) {
         // Generate deterministic permanent token based on pegawai data
         // This ensures same token for same pegawai across server restarts
-        String tokenData = "P" + pegawai.getId() + ":" + pegawai.getUsername() + ":" + pegawai.getPassword().substring(0, 10);
+        String passwordSubstring = pegawai.getPassword().length() >= 10 ? 
+            pegawai.getPassword().substring(0, 10) : pegawai.getPassword();
+        String tokenData = "P" + pegawai.getId() + ":" + pegawai.getUsername() + ":" + passwordSubstring;
+        
         return Base64.getEncoder().encodeToString(tokenData.getBytes());
     }
     
@@ -193,15 +221,34 @@ public class AuthService {
             userSummary.setStatus("INACTIVE");
         }
         
-        // Create a role DTO for pegawai
+        // Create a role DTO using the actual role from pegawai, not hardcoded
         UserSummaryDto.RoleDto roleDto = new UserSummaryDto.RoleDto();
-        roleDto.setRoleId(999L); // Special ID for pegawai role
-        roleDto.setRoleName("PEGAWAI");
-        roleDto.setDescription("Pegawai Sistem");
+        roleDto.setRoleId(999L); // Special ID for compatibility
+        // Use the actual role from pegawai instead of hardcoded "PEGAWAI"
+        String actualRole = pegawai.getRole() != null ? pegawai.getRole() : "PEGAWAI";
+        roleDto.setRoleName(actualRole);
+        roleDto.setDescription(getRoleDescription(actualRole));
         userSummary.setRole(roleDto);
         
         userSummary.setCreatedAt(pegawai.getCreatedAt());
         userSummary.setUpdatedAt(pegawai.getUpdatedAt());
         return userSummary;
+    }
+    
+    /**
+     * Get role description based on role name
+     */
+    private String getRoleDescription(String roleName) {
+        switch (roleName) {
+            case "ADMIN":
+                return "Administrator dengan akses penuh ke sistem";
+            case "MODERATOR":
+                return "Moderator dengan akses terbatas";
+            case "SUPERVISOR":
+                return "Supervisor dengan akses pengawasan";
+            case "PEGAWAI":
+            default:
+                return "Pegawai Sistem";
+        }
     }
 }

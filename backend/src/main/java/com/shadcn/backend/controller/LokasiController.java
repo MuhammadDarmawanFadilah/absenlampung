@@ -15,7 +15,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/master-data/lokasi")
+@RequestMapping({"/api/admin/master-data/lokasi", "/api/admin/master-data/lokasi-kantor"})
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(originPatterns = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3000"}, allowCredentials = "true")

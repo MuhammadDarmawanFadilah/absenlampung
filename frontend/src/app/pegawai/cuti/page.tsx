@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { CalendarIcon, Upload, FileText, Clock, CheckCircle, XCircle, Calendar as CalendarDays, History, Eye, Filter, Search, Download, Plus, Image, File, AlertCircle } from "lucide-react"
+import { CalendarIcon, Upload, FileText, Clock, CheckCircle, XCircle, Calendar as CalendarDays, History, Eye, Filter, Search, Download, Plus, Image, File, AlertCircle, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/AuthContext"
@@ -146,16 +146,36 @@ export default function PengajuanCutiPage() {
   }
 
   const loadAllCutiHistory = async () => {
+    if (!user?.id) {
+      console.error('User ID not available')
+      return
+    }
+
     setIsLoadingHistory(true)
     try {
+      console.log('Loading all cuti history for user:', user.id)
       const response = await fetch(getApiUrl(`api/cuti/pegawai/${user?.id}?size=100`))
+      
       if (response.ok) {
         const data = await response.json()
-        setAllCutiHistory(data.content || [])
+        console.log('All cuti history response:', data)
+        
+        if (data.content && Array.isArray(data.content)) {
+          setAllCutiHistory(data.content)
+          console.log('Set allCutiHistory with', data.content.length, 'items')
+        } else {
+          console.warn('Invalid data structure received:', data)
+          setAllCutiHistory([])
+        }
+      } else {
+        console.error('Failed to load all cuti history:', response.status, response.statusText)
+        toast.error('Gagal memuat riwayat cuti lengkap')
+        setAllCutiHistory([])
       }
     } catch (error) {
       console.error('Error loading all cuti history:', error)
       toast.error('Gagal memuat riwayat cuti')
+      setAllCutiHistory([])
     } finally {
       setIsLoadingHistory(false)
     }
@@ -364,19 +384,35 @@ export default function PengajuanCutiPage() {
 
   const filteredHistory = allCutiHistory.filter(cuti => {
     const matchesSearch = historyFilter === '' || 
-      cuti.jenisCutiNama.toLowerCase().includes(historyFilter.toLowerCase()) ||
-      cuti.alasanCuti.toLowerCase().includes(historyFilter.toLowerCase())
+      cuti.jenisCutiNama?.toLowerCase().includes(historyFilter.toLowerCase()) ||
+      cuti.alasanCuti?.toLowerCase().includes(historyFilter.toLowerCase())
     
     const matchesStatus = statusFilter === 'semua' || cuti.statusApproval === statusFilter
     
     return matchesSearch && matchesStatus
   })
 
+  // Debug logging for filtered history
+  console.log('All cuti history count:', allCutiHistory.length)
+  console.log('Filtered history count:', filteredHistory.length)
+  console.log('History filter:', historyFilter)
+  console.log('Status filter:', statusFilter)
+
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    if (value === 'history' && allCutiHistory.length === 0) {
+    if (value === 'history') {
+      // Load all history when switching to history tab
       loadAllCutiHistory()
     }
+  }
+
+  const handleLihatSemua = () => {
+    // Clear any existing filters
+    setHistoryFilter('')
+    setStatusFilter('semua')
+    // Switch to history tab and load all data
+    setActiveTab('history')
+    loadAllCutiHistory()
   }
 
   return (
@@ -858,7 +894,7 @@ export default function PengajuanCutiPage() {
                           variant="outline" 
                           size="sm" 
                           className="w-full"
-                          onClick={() => setActiveTab('history')}
+                          onClick={handleLihatSemua}
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           Lihat Semua
@@ -1006,11 +1042,26 @@ export default function PengajuanCutiPage() {
                               <div className="flex flex-col items-center">
                                 <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-2" />
                                 <p className="text-gray-500 dark:text-gray-400">
-                                  {historyFilter || statusFilter !== 'semua' 
-                                    ? 'Tidak ada data yang sesuai dengan filter'
-                                    : 'Belum ada riwayat cuti'
+                                  {isLoadingHistory 
+                                    ? 'Memuat riwayat cuti...'
+                                    : allCutiHistory.length === 0 
+                                      ? 'Belum ada riwayat cuti'
+                                      : (historyFilter || statusFilter !== 'semua')
+                                        ? `Tidak ada data yang sesuai dengan filter (dari ${allCutiHistory.length} total data)`
+                                        : 'Tidak ada data cuti'
                                   }
                                 </p>
+                                {!isLoadingHistory && allCutiHistory.length === 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={loadAllCutiHistory}
+                                    className="mt-2"
+                                  >
+                                    <RotateCcw className="w-4 h-4 mr-1" />
+                                    Muat Ulang
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>

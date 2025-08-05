@@ -32,27 +32,9 @@ import {
   Smartphone
 } from 'lucide-react'
 import { getApiUrl } from "@/lib/config"
+import { config } from "@/lib/config"
 import { useAuth } from "@/contexts/AuthContext"
-
-const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false })
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false })
-const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false })
-const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false })
-const Circle = dynamic(() => import('react-leaflet').then(mod => mod.Circle), { ssr: false })
-
-// Fix for default markers in React Leaflet
-let L: any = null
-if (typeof window !== 'undefined') {
-  import('leaflet').then((leafletModule) => {
-    L = leafletModule.default;
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: '/images/marker-icon-2x.png',
-      iconUrl: '/images/marker-icon.png',
-      shadowUrl: '/images/marker-shadow.png',
-    });
-  });
-}
+import { ApiClient } from "@/lib/api-client"
 
 interface PegawaiUser {
   id: number
@@ -116,9 +98,9 @@ interface Lokasi {
   id: number
   namaLokasi: string
   alamat: string
-  latitude: number
-  longitude: number
-  radius: number
+  latitude: string
+  longitude: string
+  radius: string
 }
 
 interface AbsensiData {
@@ -132,12 +114,12 @@ interface AbsensiData {
 
 const steps = [
   { id: 1, title: "Pilih Shift", description: "Pilih shift dan jenis absensi" },
-  { id: 2, title: "Lokasi & Foto", description: "Verifikasi lokasi dan ambil foto" },
+  { id: 2, title: "Lokasi & Foto", description: "Lokasi dan foto absensi" },
   { id: 3, title: "Konfirmasi", description: "Review data sebelum submit" }
 ]
 
 export default function AbsensiPage() {
-  const { user } = useAuth()
+  const { user, refreshToken } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [shiftList, setShiftList] = useState<Shift[]>([])
@@ -155,6 +137,7 @@ export default function AbsensiPage() {
   const [todayAbsensi, setTodayAbsensi] = useState<TodayAbsensi | null>(null)
   const [loadingTodayAbsensi, setLoadingTodayAbsensi] = useState(true)
   const [showAbsensiDetailModal, setShowAbsensiDetailModal] = useState(false)
+  const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false)
   const [hariLiburInfo, setHariLiburInfo] = useState<{ isHariLibur: boolean; namaLibur?: string; isNasional?: boolean } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -181,7 +164,7 @@ export default function AbsensiPage() {
 
   useEffect(() => {
     if (currentStep === 2) {
-      getCurrentLocation()
+      // Only start camera, don't auto-request location
       startCamera()
     } else {
       stopCamera()
@@ -203,21 +186,13 @@ export default function AbsensiPage() {
   const checkHariLibur = async () => {
     try {
       const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
-      const response = await fetch(getApiUrl(`hari-libur/check/${today}`), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      })
+      const response = await ApiClient.get(`hari-libur/check/${today}`)
       
       if (response.ok) {
         const data = await response.json()
         if (data.isHariLibur) {
           // Get holiday details
-          const holidayResponse = await fetch(getApiUrl(`hari-libur?tanggalLibur=${today}`), {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-            }
-          })
+          const holidayResponse = await ApiClient.get(`hari-libur?tanggalLibur=${today}`)
           
           if (holidayResponse.ok) {
             const holidayData = await holidayResponse.json()
@@ -249,11 +224,7 @@ export default function AbsensiPage() {
     
     try {
       setLoadingTodayAbsensi(true)
-      const response = await fetch(getApiUrl(`api/absensi/today/${user.id}`), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      })
+      const response = await ApiClient.get(`api/absensi/today/${user.id}`)
       
       if (response.ok) {
         const data = await response.json()
@@ -290,13 +261,22 @@ export default function AbsensiPage() {
     }
   }, [todayAbsensi, shiftList, selectedShift])
 
+  // Update location info when shift changes
+  useEffect(() => {
+    if (selectedShift && currentLocation && pegawaiData?.id) {
+      updateLocationInfo(pegawaiData.id, selectedShift.id, currentLocation.lat, currentLocation.lng)
+    } else if (selectedShift?.lockLokasi !== 'HARUS_DI_KANTOR') {
+      // For flexible locations, allow attendance by default
+      setIsLocationAllowed(true)
+    } else {
+      // For office-required shifts without location, disallow
+      setIsLocationAllowed(false)
+    }
+  }, [selectedShift, currentLocation, pegawaiData?.id])
+
   const loadShiftData = async () => {
     try {
-      const response = await fetch(getApiUrl('api/admin/master-data/shift/active'), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      })
+      const response = await ApiClient.get('api/admin/master-data/shift/active')
       
       if (response.ok) {
         const data = await response.json()
@@ -309,58 +289,123 @@ export default function AbsensiPage() {
 
   const loadPegawaiData = async () => {
     try {
-      const response = await fetch(getApiUrl(`api/pegawai/current`), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        console.error('No auth token found')
+        // Fallback to user data from context
+        if (user) {
+          setPegawaiData({
+            id: user.id || 0,
+            username: user.username || '',
+            email: user.email || '',
+            fullName: user.fullName || '',
+            namaLengkap: user.fullName || '',
+            jabatan: '',
+            photoUrl: undefined,
+            phoneNumber: user.phoneNumber,
+            status: user.status || 'ACTIVE'
+          })
         }
+        return
+      }
+
+      console.log('Loading pegawai data with token...')
+      const response = await fetch(getApiUrl('api/pegawai/current'), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       })
+      
+      console.log('Pegawai API response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
-        setPegawaiData({
-          id: data.id,
-          username: data.nip || user?.username || '',
-          email: data.email || user?.email || '',
-          fullName: data.namaLengkap || user?.fullName || '',
-          namaLengkap: data.namaLengkap || user?.fullName || '',
-          jabatan: (typeof data.jabatan === 'object' && data.jabatan?.nama) ? data.jabatan.nama : (data.jabatan || ''),
-          photoUrl: data.photoUrl,
-          phoneNumber: data.nomorTelepon || user?.phoneNumber,
-          status: data.isActive ? 'ACTIVE' : 'INACTIVE',
-          latitude: data.latitude,
-          longitude: data.longitude,
-          alamat: data.alamat
-        })
-        
-        if (data.lokasi) {
-          setPegawaiLokasi(data.lokasi)
+        console.log('Pegawai data loaded successfully:', data)
+        processPegawaiData(data)
+      } else if (response.status === 404) {
+        console.warn('Pegawai data not found, using user data as fallback')
+        // Fallback to user data
+        if (user) {
+          setPegawaiData({
+            id: user.id || 0,
+            username: user.username || '',
+            email: user.email || '',
+            fullName: user.fullName || '',
+            namaLengkap: user.fullName || '',
+            jabatan: '',
+            photoUrl: undefined,
+            phoneNumber: user.phoneNumber,
+            status: user.status || 'ACTIVE'
+          })
         }
-        
-        // Calculate distance to home if pegawai has home coordinates
-        if (data.latitude && data.longitude && currentLocation) {
-          const distHome = calculateDistance(
-            currentLocation.lat,
-            currentLocation.lng,
-            data.latitude,
-            data.longitude
-          )
-          setDistanceToHome(distHome)
+      } else if (response.status === 401) {
+        console.warn('Token expired or invalid, trying to refresh...')
+        // Try to refresh token
+        const refreshSuccess = await refreshToken()
+        if (refreshSuccess) {
+          // Retry loading pegawai data
+          loadPegawaiData()
+        } else {
+          console.error('Token refresh failed, user needs to login again')
         }
+      } else {
+        console.error('Failed to load pegawai data:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Error loading pegawai data:', error)
       // Fallback to user data
-      setPegawaiData({
-        id: user?.id || 0,
-        username: user?.username || '',
-        email: user?.email || '',
-        fullName: user?.fullName || '',
-        namaLengkap: user?.fullName || '',
-        jabatan: '',
-        photoUrl: undefined,
-        phoneNumber: user?.phoneNumber,
-        status: user?.status || 'ACTIVE'
-      })
+      if (user) {
+        setPegawaiData({
+          id: user.id || 0,
+          username: user.username || '',
+          email: user.email || '',
+          fullName: user.fullName || '',
+          namaLengkap: user.fullName || '',
+          jabatan: '',
+          photoUrl: undefined,
+          phoneNumber: user.phoneNumber,
+          status: user.status || 'ACTIVE'
+        })
+      }
+    }
+  }
+
+  const processPegawaiData = (data: any) => {
+    setPegawaiData({
+      id: data.id,
+      username: data.nip || user?.username || '',
+      email: data.email || user?.email || '',
+      fullName: data.namaLengkap || user?.fullName || '',
+      namaLengkap: data.namaLengkap || user?.fullName || '',
+      jabatan: (typeof data.jabatan === 'object' && data.jabatan?.nama) ? data.jabatan.nama : (data.jabatan || ''),
+      photoUrl: data.photoUrl,
+      phoneNumber: data.nomorTelepon || user?.phoneNumber,
+      status: data.isActive ? 'ACTIVE' : 'INACTIVE',
+      latitude: data.latitude,
+      longitude: data.longitude,
+      alamat: data.alamat
+    })
+    
+    // Set pegawai lokasi (kantor) if available
+    if (data.lokasi) {
+      console.log('Pegawai lokasi (kantor) loaded:', data.lokasi) // Debug log
+      setPegawaiLokasi(data.lokasi)
+    } else {
+      console.log('No lokasi kantor found for pegawai') // Debug log
+    }
+    
+    // Calculate distance to home if pegawai has home coordinates
+    if (data.latitude && data.longitude && currentLocation) {
+      const distHome = calculateDistance(
+        currentLocation.lat,
+        currentLocation.lng,
+        data.latitude,
+        data.longitude
+      )
+      setDistanceToHome(distHome)
+      console.log('Distance to home calculated:', distHome) // Debug log
     }
   }
 
@@ -368,26 +413,44 @@ export default function AbsensiPage() {
     // This function is now integrated into loadPegawaiData
   }
 
+  const handleRequestLocation = () => {
+    // If GPS is already active (currentLocation exists), don't show modal
+    if (currentLocation) {
+      console.log('GPS sudah aktif, tidak perlu tampilkan modal')
+      return
+    }
+    
+    // Show GPS modal then request location
+    setShowLocationPermissionModal(true)
+  }
+
   const getCurrentLocation = () => {
+    // Simple location request without modal
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
           }
           setCurrentLocation(location)
-          setIsLocationAllowed(true) // Set default to true, will be updated based on shift
+          
+          // Get location info from backend if shift is selected
+          if (selectedShift && pegawaiData?.id) {
+            await updateLocationInfo(pegawaiData.id, selectedShift.id, location.lat, location.lng)
+          }
+          
+          setIsLocationAllowed(true) // Set default to true, will be updated by location info
           
           if (pegawaiLokasi && selectedShift?.lockLokasi === 'HARUS_DI_KANTOR') {
             const dist = calculateDistance(
               location.lat,
               location.lng,
-              pegawaiLokasi.latitude,
-              pegawaiLokasi.longitude
+              parseFloat(pegawaiLokasi.latitude),
+              parseFloat(pegawaiLokasi.longitude)
             )
             setDistance(dist)
-            setIsLocationAllowed(dist <= pegawaiLokasi.radius)
+            setIsLocationAllowed(dist <= parseFloat(pegawaiLokasi.radius || '100'))
           }
           
           // Calculate distance to pegawai home if available
@@ -400,12 +463,83 @@ export default function AbsensiPage() {
             )
             setDistanceToHome(distHome)
           }
+
+          showSuccessToast('Lokasi berhasil didapatkan!')
         },
         (error) => {
           console.error('Geolocation error:', error)
-          showErrorToast('Gagal mendapatkan lokasi. Pastikan GPS aktif.')
+          let errorMessage = 'Gagal mendapatkan lokasi. '
+          
+          // Clear current location to prevent unauthorized access
+          setCurrentLocation(null)
+          
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage += 'Izin lokasi ditolak. Silakan aktifkan izin lokasi di browser dan refresh halaman.'
+              showErrorToast('⚠️ Izin Lokasi Diperlukan: Klik ikon kunci/gembok di address bar browser, pilih "Izinkan" untuk lokasi, lalu refresh halaman.')
+              break
+            case error.POSITION_UNAVAILABLE:
+              errorMessage += 'Informasi lokasi tidak tersedia. Pastikan GPS aktif.'
+              showErrorToast(errorMessage)
+              break
+            case error.TIMEOUT:
+              errorMessage += 'Permintaan lokasi timeout. Coba lagi.'
+              showErrorToast(errorMessage)
+              break
+            default:
+              errorMessage += 'Pastikan GPS aktif dan izin lokasi diaktifkan.'
+              showErrorToast(errorMessage)
+              break
+          }
+          
+          // DO NOT set default location - user must provide real GPS location
+          // setCurrentLocation({ lat: -7.4491, lng: 109.2388 }) // REMOVED
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes
         }
       )
+    } else {
+      showErrorToast('Geolocation tidak didukung oleh browser ini.')
+    }
+  }
+
+  const updateLocationInfo = async (pegawaiId: number, shiftId: number, currentLat: number, currentLon: number) => {
+    try {
+      const response = await fetch(
+        getApiUrl(`absensi/location-info?pegawaiId=${pegawaiId}&shiftId=${shiftId}&currentLat=${currentLat}&currentLon=${currentLon}`),
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        }
+      )
+      
+      if (response.ok) {
+        const locationInfo = await response.json()
+        
+        if (locationInfo.officeRequired) {
+          // Update office-based location info
+          if (locationInfo.distanceToOffice !== undefined) {
+            setDistance(locationInfo.distanceToOffice)
+            setIsLocationAllowed(locationInfo.withinOfficeRadius)
+          }
+          
+          if (locationInfo.error) {
+            showErrorToast(locationInfo.error)
+          }
+        } else {
+          // Flexible location - always allowed
+          setIsLocationAllowed(true)
+          if (locationInfo.distanceToHome !== undefined) {
+            setDistanceToHome(locationInfo.distanceToHome)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error getting location info:', error)
     }
   }
 
@@ -622,8 +756,8 @@ export default function AbsensiPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 p-3 sm:p-4 lg:p-6">
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 p-2 sm:p-4 lg:p-6">
+      <div className="max-w-4xl mx-auto space-y-3 sm:space-y-6">
         
         {/* Compact Header with Time & Theme Toggle */}
         <div className="flex justify-between items-center">
@@ -815,12 +949,15 @@ export default function AbsensiPage() {
                   <div className="flex items-center justify-center mb-4">
                     <div className="relative">
                       <Avatar className="w-20 h-20 border-4 border-white dark:border-gray-700 shadow-lg">
-                        <AvatarImage src={pegawaiData?.photoUrl ? 
-                          pegawaiData.photoUrl.startsWith('http') 
-                            ? pegawaiData.photoUrl 
-                            : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/upload/photos/${pegawaiData.photoUrl}`
-                          : undefined
-                        } />
+                        <AvatarImage 
+                          src={pegawaiData?.photoUrl ? 
+                            pegawaiData.photoUrl.startsWith('http') 
+                              ? pegawaiData.photoUrl 
+                              : `${config.backendUrl}/api/upload/photos/${pegawaiData.photoUrl}`
+                            : undefined
+                          } 
+                          alt={pegawaiData?.namaLengkap || 'Profile'}
+                        />
                         <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xl font-bold">
                           {pegawaiData?.namaLengkap?.split(' ').map((n: string) => n[0]).join('') || 'U'}
                         </AvatarFallback>
@@ -1026,50 +1163,80 @@ export default function AbsensiPage() {
               <div className="space-y-6">
                 <div className="text-center">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                    Verifikasi Lokasi & Ambil Foto
+                    Lokasi & Foto Absensi
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-                    Pastikan Anda berada di lokasi yang benar dan ambil foto selfie
-                  </p>
                 </div>
 
-                {/* Location Status - Single Row */}
+                {/* Location Status - Mobile Optimized */}
                 <Card className="border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+                  <CardContent className="p-3 sm:p-4">
+                    {/* Mobile: Stack layout, Desktop: Side by side */}
+                    <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+                      {/* Profile and Info Section */}
                       <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-full ${isLocationAllowed ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                          <Navigation className={`w-5 h-5 ${isLocationAllowed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                        {/* Profile Photo */}
+                        <div className="relative flex-shrink-0">
+                          <Avatar className="w-12 h-12 sm:w-14 sm:h-14 border-2 border-white dark:border-gray-700 shadow-sm">
+                            <AvatarImage 
+                              src={pegawaiData?.photoUrl ? 
+                                pegawaiData.photoUrl.startsWith('http') 
+                                  ? pegawaiData.photoUrl 
+                                  : `${config.backendUrl}/api/upload/photos/${pegawaiData.photoUrl}`
+                                : undefined
+                              } 
+                              alt={pegawaiData?.namaLengkap || 'Profile'}
+                            />
+                            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-bold">
+                              {pegawaiData?.namaLengkap?.split(' ').map((n: string) => n[0]).join('') || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-gray-700 ${isLocationAllowed ? 'bg-green-500' : 'bg-red-500'}`} />
                         </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm sm:text-base">
-                            Status Lokasi
-                          </div>
-                          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                        
+                        {/* Info Section */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm sm:text-base truncate">
+                              {pegawaiData?.namaLengkap || user?.fullName}
+                            </div>
                             {selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' ? (
+                              <div className="text-lg flex-shrink-0" title="Lokasi harus di kantor">🏢</div>
+                            ) : (
+                              <div className="text-lg flex-shrink-0" title="Lokasi fleksibel - dapat absen dari rumah">🏠</div>
+                            )}
+                          </div>
+                          
+                          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                            {!currentLocation ? (
+                              <span className="text-orange-600 dark:text-orange-400 font-medium">
+                                GPS belum aktif
+                              </span>
+                            ) : selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' ? (
                               distance !== null ? (
-                                <>
+                                <span>
                                   <span className="font-medium">{Math.round(distance)}m</span> dari kantor
                                   {pegawaiLokasi && (
-                                    <span className="text-gray-500 dark:text-gray-400"> (radius: {pegawaiLokasi.radius}m)</span>
+                                    <span className="text-gray-500 dark:text-gray-400 hidden sm:inline"> (radius: {pegawaiLokasi.radius}m)</span>
                                   )}
-                                </>
+                                </span>
                               ) : (
                                 'Menghitung jarak...'
                               )
                             ) : (
                               distanceToHome !== null ? (
-                                <>
+                                <span>
                                   <span className="font-medium">{Math.round(distanceToHome)}m</span> dari rumah
-                                </>
+                                </span>
                               ) : (
-                                'Absensi fleksibel - lokasi bebas'
+                                'Absensi fleksibel'
                               )
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      
+                      {/* Action Buttons Section - Mobile: Full width, Desktop: Compact */}
+                      <div className="flex items-center justify-between sm:justify-end sm:space-x-2">
                         <Badge 
                           variant={isLocationAllowed ? "default" : "destructive"}
                           className="text-xs"
@@ -1077,47 +1244,74 @@ export default function AbsensiPage() {
                           {isLocationAllowed ? '✅ Valid' : '❌ Invalid'}
                         </Badge>
                         
-                        {/* Desktop View */}
-                        <div className="hidden md:block">
-                          <LocationMapDesktop
-                            showLocationMap={showLocationMap}
-                            setShowLocationMap={setShowLocationMap}
-                            currentLocation={currentLocation}
-                            selectedShift={selectedShift}
-                            pegawaiLokasi={pegawaiLokasi}
-                            pegawaiData={pegawaiData}
-                            distance={distance}
-                            distanceToHome={distanceToHome}
-                          />
-                        </div>
-                        
-                        {/* Mobile View */}
-                        <div className="md:hidden">
-                          <LocationMapMobile
-                            showLocationMap={showLocationMap}
-                            setShowLocationMap={setShowLocationMap}
-                            currentLocation={currentLocation}
-                            selectedShift={selectedShift}
-                            pegawaiLokasi={pegawaiLokasi}
-                            pegawaiData={pegawaiData}
-                            distance={distance}
-                            distanceToHome={distanceToHome}
-                          />
+                        <div className="flex items-center space-x-2">
+                          {!currentLocation ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={getCurrentLocation}
+                              className="text-xs bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 border-blue-300 dark:border-blue-700"
+                            >
+                              <Navigation className="w-3 h-3 mr-1" />
+                              <span className="hidden sm:inline">Aktifkan GPS</span>
+                              <span className="sm:hidden">GPS</span>
+                            </Button>
+                          ) : (
+                            <Badge variant="default" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              <Navigation className="w-3 h-3 mr-1" />
+                              <span className="hidden sm:inline">GPS Aktif</span>
+                              <span className="sm:hidden">Aktif</span>
+                            </Badge>
+                          )}
+                          
+                          {/* Desktop View */}
+                          <div className="hidden md:block">
+                            {typeof window !== 'undefined' && window.innerWidth >= 768 && (
+                              <LocationMapDesktop
+                                showLocationMap={showLocationMap}
+                                setShowLocationMap={setShowLocationMap}
+                                currentLocation={currentLocation}
+                                selectedShift={selectedShift}
+                                pegawaiLokasi={pegawaiLokasi}
+                                pegawaiData={pegawaiData}
+                                distance={distance}
+                                distanceToHome={distanceToHome}
+                                isLocationAllowed={isLocationAllowed}
+                                onRequestLocation={handleRequestLocation}
+                              />
+                            )}
+                          </div>
+                          
+                          {/* Mobile View */}
+                          <div className="md:hidden">
+                            {typeof window !== 'undefined' && window.innerWidth < 768 && (
+                              <LocationMapMobile
+                                showLocationMap={showLocationMap}
+                                setShowLocationMap={setShowLocationMap}
+                                currentLocation={currentLocation}
+                                selectedShift={selectedShift}
+                                pegawaiLokasi={pegawaiLokasi}
+                                pegawaiData={pegawaiData}
+                                distance={distance}
+                                distanceToHome={distanceToHome}
+                                isLocationAllowed={isLocationAllowed}
+                                onRequestLocation={handleRequestLocation}
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-
-                {/* Camera Section */}
+                </Card>                {/* Camera Section - Mobile Optimized */}
                 <Card className="border-2 border-gray-200 dark:border-gray-700">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base sm:text-lg flex items-center">
+                    <CardTitle className="text-base sm:text-lg flex items-center justify-center">
                       <Camera className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                       Ambil Foto Selfie
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-3 sm:px-6">
                     <div className="space-y-4">
                       {capturedPhoto ? (
                         <div className="flex flex-col items-center">
@@ -1125,7 +1319,7 @@ export default function AbsensiPage() {
                             <img 
                               src={capturedPhoto} 
                               alt="Captured" 
-                              className="w-72 h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 object-cover rounded-xl border-4 border-white dark:border-gray-700 shadow-lg"
+                              className="w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 object-cover rounded-xl border-4 border-white dark:border-gray-700 shadow-lg"
                             />
                             <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-2 border-white dark:border-gray-700 flex items-center justify-center">
                               <CheckCircle className="w-4 h-4 text-white" />
@@ -1135,7 +1329,7 @@ export default function AbsensiPage() {
                             variant="outline" 
                             onClick={retakePhoto}
                             disabled={isRetakingPhoto}
-                            className="mt-4 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            className="mt-4 w-full sm:w-auto hover:bg-blue-50 dark:hover:bg-blue-900/20"
                           >
                             {isRetakingPhoto ? (
                               <>
@@ -1158,7 +1352,7 @@ export default function AbsensiPage() {
                               autoPlay
                               playsInline
                               muted
-                              className="w-72 h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 object-cover rounded-xl border-4 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                              className="w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 object-cover rounded-xl border-4 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
                             />
                             {!cameraStream && (
                               <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl">
@@ -1171,7 +1365,7 @@ export default function AbsensiPage() {
                           </div>
                           <Button 
                             onClick={capturePhoto}
-                            className="mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                            className="mt-4 w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                             disabled={!cameraStream}
                           >
                             <Camera className="w-4 h-4 mr-2" />
@@ -1288,26 +1482,27 @@ export default function AbsensiPage() {
               </div>
             )}
 
-            {/* Enhanced Navigation Buttons */}
-            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            {/* Enhanced Navigation Buttons - Mobile Optimized */}
+            <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center">
                 <Button
                   variant="outline"
                   onClick={handlePrevious}
                   disabled={currentStep === 1}
-                  className={`min-w-[120px] h-12 transition-all duration-300 ${
+                  className={`min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-sm sm:text-base transition-all duration-300 ${
                     currentStep === 1 
                       ? 'opacity-50 cursor-not-allowed' 
                       : 'hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-400 dark:hover:border-gray-500'
                   }`}
                 >
-                  <Navigation className="w-4 h-4 mr-2 rotate-180" />
-                  Kembali
+                  <Navigation className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 rotate-180" />
+                  <span className="hidden sm:inline">Kembali</span>
+                  <span className="sm:hidden">Back</span>
                 </Button>
 
                 {/* Progress Indicator */}
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     {currentStep} dari {steps.length}
                   </span>
                   <div className="flex space-x-1">
@@ -1332,7 +1527,7 @@ export default function AbsensiPage() {
                       (currentStep === 1 && !selectedShift) ||
                       (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed))
                     }
-                    className={`min-w-[120px] h-12 transition-all duration-300 ${
+                    className={`min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-sm sm:text-base transition-all duration-300 ${
                       todayAbsensi?.isComplete ||
                       (currentStep === 1 && !selectedShift) ||
                       (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed))
@@ -1340,28 +1535,36 @@ export default function AbsensiPage() {
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
                     }`}
                   >
-                    {todayAbsensi?.isComplete ? 'Sudah Lengkap' : 'Lanjutkan'}
-                    {!todayAbsensi?.isComplete && <Navigation className="w-4 h-4 ml-2" />}
+                    {todayAbsensi?.isComplete ? (
+                      <span className="text-xs">Lengkap</span>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">Lanjutkan</span>
+                        <span className="sm:hidden">Next</span>
+                        {!todayAbsensi?.isComplete && <Navigation className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />}
+                      </>
+                    )}
                   </Button>
                 ) : (
                   <Button
                     onClick={handleSubmit}
                     disabled={loading || todayAbsensi?.isComplete}
-                    className="min-w-[120px] h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-sm sm:text-base bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     {loading ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Menyimpan...
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">Menyimpan...</span>
+                        <span className="sm:hidden">Wait...</span>
                       </>
                     ) : todayAbsensi?.isComplete ? (
                       <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Sudah Lengkap
+                        <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <span className="text-xs">Lengkap</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
+                        <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                         Submit
                       </>
                     )}
@@ -1370,10 +1573,10 @@ export default function AbsensiPage() {
               </div>
               
               {/* Help Text */}
-              <div className="mt-4 text-center">
+              <div className="mt-3 sm:mt-4 text-center">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {currentStep === 1 && "Pilih jenis absensi dan shift kerja Anda"}
-                  {currentStep === 2 && "Pastikan lokasi dan foto sudah sesuai"}
+                  {currentStep === 2 && currentLocation ? "Ambil foto selfie untuk menyelesaikan absensi" : "Nyalakan GPS dan ambil foto selfie"}
                   {currentStep === 3 && "Periksa kembali data sebelum submit"}
                 </p>
               </div>
@@ -1383,6 +1586,70 @@ export default function AbsensiPage() {
           </>
         )}
       </div>
+
+      {/* Modal Panduan GPS Permission */}
+      <Dialog open={showLocationPermissionModal} onOpenChange={setShowLocationPermissionModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Navigation className="w-5 h-5 mr-2 text-blue-600" />
+              GPS Diperlukan untuk Melihat Peta
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="text-center">
+              <div className="text-6xl mb-3">�️</div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Aktifkan GPS untuk melihat peta lokasi dan melakukan absensi
+              </p>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-2">
+                � Langkah Aktivasi GPS:
+              </h4>
+              <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                <li>1. Klik tombol <strong>"Nyalakan GPS"</strong> di bawah</li>
+                <li>2. Pilih <strong>"Izinkan"</strong> saat browser meminta akses</li>
+                <li>3. Pastikan GPS aktif di perangkat Anda</li>
+                <li>4. Tunggu hingga lokasi terdeteksi</li>
+              </ol>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+              <h4 className="font-semibold text-amber-700 dark:text-amber-400 mb-2">
+                ⚠️ Catatan Penting:
+              </h4>
+              <ul className="text-sm text-amber-800 dark:text-amber-200 space-y-1">
+                <li>• GPS diperlukan untuk verifikasi lokasi absensi</li>
+                <li>• Peta hanya dapat dibuka setelah GPS aktif</li>
+                <li>• Data lokasi tidak disimpan permanen</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowLocationPermissionModal(false)}
+                className="text-sm"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowLocationPermissionModal(false)
+                  getCurrentLocation()
+                }}
+                className="text-sm bg-blue-600 hover:bg-blue-700"
+              >
+                <Navigation className="w-4 h-4 mr-2" />
+                Nyalakan GPS
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Detail Absensi */}
       <Dialog open={showAbsensiDetailModal} onOpenChange={setShowAbsensiDetailModal}>

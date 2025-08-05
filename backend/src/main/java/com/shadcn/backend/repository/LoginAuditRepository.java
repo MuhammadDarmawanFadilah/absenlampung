@@ -32,4 +32,7 @@ public interface LoginAuditRepository extends JpaRepository<LoginAudit, Long> {
     // Count daily logins for a specific month
     @Query("SELECT DAY(la.createdAt), COUNT(la) FROM LoginAudit la WHERE YEAR(la.createdAt) = :year AND MONTH(la.createdAt) = :month GROUP BY DAY(la.createdAt) ORDER BY DAY(la.createdAt)")
     List<Object[]> getDailyLoginCountForMonth(@Param("year") int year, @Param("month") int month);
+    
+    // Count by status and created after date
+    Long countByStatusAndCreatedAtAfter(LoginAudit.LoginStatus status, LocalDateTime createdAt);
 }

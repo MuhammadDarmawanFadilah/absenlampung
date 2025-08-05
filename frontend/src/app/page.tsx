@@ -438,16 +438,16 @@ const Dashboard = () => {
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl p-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       <div className="bg-white dark:bg-gray-700 rounded-lg p-6 text-center">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Total Users</h4>
-                        <p className="text-2xl font-bold text-green-600">{overview.quickStats.totalMembers}</p>
-                      </div>
-                      <div className="bg-white dark:bg-gray-700 rounded-lg p-6 text-center">
                         <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Total Pegawai</h4>
-                        <p className="text-2xl font-bold text-blue-600">{overview.quickStats.activeMembers}</p>
+                        <p className="text-2xl font-bold text-green-600">{overview.quickStats.totalMembers || 0}</p>
                       </div>
                       <div className="bg-white dark:bg-gray-700 rounded-lg p-6 text-center">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Total Pemilihan</h4>
-                        <p className="text-2xl font-bold text-purple-600">{overview.quickStats.totalProposals}</p>
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Pegawai Aktif</h4>
+                        <p className="text-2xl font-bold text-blue-600">{overview.quickStats.activeMembers || 0}</p>
+                      </div>
+                      <div className="bg-white dark:bg-gray-700 rounded-lg p-6 text-center">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Login Bulan Ini</h4>
+                        <p className="text-2xl font-bold text-purple-600">{overview.quickStats.monthlyLogins || 0}</p>
                       </div>
                     </div>
                   </div>
@@ -484,8 +484,8 @@ const Dashboard = () => {
                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Users</p>
-                          <p className="text-2xl font-bold text-green-600">{overview.quickStats.totalMembers}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Pegawai</p>
+                          <p className="text-2xl font-bold text-green-600">{overview.quickStats.totalMembers || 0}</p>
                         </div>
                         <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
                           <Users className="w-5 h-5 text-green-600" />
@@ -496,8 +496,8 @@ const Dashboard = () => {
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Pegawai</p>
-                          <p className="text-2xl font-bold text-blue-600">{overview.quickStats.activeMembers}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Pegawai Aktif</p>
+                          <p className="text-2xl font-bold text-blue-600">{overview.quickStats.activeMembers || 0}</p>
                         </div>
                         <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
                           <FileText className="w-5 h-5 text-blue-600" />
@@ -508,8 +508,8 @@ const Dashboard = () => {
                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Pemilihan</p>
-                          <p className="text-2xl font-bold text-purple-600">{overview.quickStats.totalProposals}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Login Bulan Ini</p>
+                          <p className="text-2xl font-bold text-purple-600">{overview.quickStats.monthlyLogins || 0}</p>
                         </div>
                         <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
                           <Calendar className="w-5 h-5 text-purple-600" />

@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { usePusherNotifications } from "@/hooks/usePusherNotifications"
@@ -30,7 +31,8 @@ import {
   Download,
   Filter,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Users
 } from "lucide-react"
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { ServerPagination } from "@/components/ServerPagination"
@@ -39,132 +41,142 @@ import { getApiUrl } from "@/lib/config"
 
 interface CutiData {
   id: number
-  pegawaiId: number
   namaPegawai: string
   tanggalCuti: string
   jenisCuti: string
   alasanCuti: string
-  lampiranCuti?: string
   statusApproval: string
-  catatanApproval?: string
-  approvedByName?: string
+  lampiranCuti?: string
   createdAt: string
+  adminApprovalNama?: string
+  catatanApproval?: string
 }
 
-interface PegawaiOption {
-  id: number
-  namaLengkap: string
-}
-
-export default function MasterDataCutiPage() {
+export default function AdminCutiPage() {
   const { user } = useAuth()
   const [cutiData, setCutiData] = useState<CutiData[]>([])
-  const [pegawaiList, setPegawaiList] = useState<PegawaiOption[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize] = useState(10)
 
   // Filter states
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedPegawai, setSelectedPegawai] = useState<string>('semua')
-  const [selectedStatus, setSelectedStatus] = useState<string>('semua')
-  const [selectedJenis, setSelectedJenis] = useState<string>('semua')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('semua')
+  const [selectedJenis, setSelectedJenis] = useState('semua')
   const [startDate, setStartDate] = useState<Date | undefined>()
   const [endDate, setEndDate] = useState<Date | undefined>()
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false)
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
 
-  // Approval states
-  const [selectedCuti, setSelectedCuti] = useState<CutiData | null>(null)
+  // Applied filters (only change when search button is clicked)
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchTerm: '',
+    status: 'semua',
+    jenis: 'semua',
+    startDate: undefined as Date | undefined,
+    endDate: undefined as Date | undefined
+  })
+
+  // Approval dialog states
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
-  const [approvalStatus, setApprovalStatus] = useState<string>('')
-  const [catatanApproval, setCatatanApproval] = useState<string>('')
+  const [selectedCuti, setSelectedCuti] = useState<CutiData | null>(null)
+  const [approvalStatus, setApprovalStatus] = useState('')
+  const [catatanApproval, setCatatanApproval] = useState('')
   const [isApproving, setIsApproving] = useState(false)
 
-  // Initialize Pusher notifications for admin
-  usePusherNotifications({
-    onCutiRequest: () => {
-      toast.success("Pengajuan cuti baru masuk!", {
-        description: "Ada pengajuan cuti yang perlu direview",
-        action: {
-          label: "Refresh",
-          onClick: () => loadCutiData()
-        }
-      });
-    }
-  });
+  // Bulk approval states
+  const [selectedCutiIds, setSelectedCutiIds] = useState<number[]>([])
+  const [showBulkApprovalDialog, setShowBulkApprovalDialog] = useState(false)
+  const [bulkApprovalStatus, setBulkApprovalStatus] = useState('')
+  const [bulkCatatanApproval, setBulkCatatanApproval] = useState('')
+  const [isBulkApproving, setIsBulkApproving] = useState(false)
 
-  useEffect(() => {
-    loadCutiData()
-    loadPegawaiList()
-  }, [currentPage, pageSize])
-
-  const loadCutiData = async () => {
+  const loadCutiData = async (page = 0) => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
+      let queryParams = new URLSearchParams({
+        page: page.toString(),
         size: pageSize.toString()
       })
 
-      if (selectedPegawai !== 'semua') {
-        params.append('pegawaiId', selectedPegawai)
+      if (appliedFilters.searchTerm) {
+        queryParams.append('search', appliedFilters.searchTerm)
       }
-      if (selectedStatus !== 'semua') {
-        params.append('status', selectedStatus.toUpperCase())
+      if (appliedFilters.status && appliedFilters.status !== 'semua') {
+        queryParams.append('status', appliedFilters.status.toUpperCase())
       }
-      if (selectedJenis !== 'semua') {
-        params.append('jenisCuti', selectedJenis)
+      if (appliedFilters.jenis && appliedFilters.jenis !== 'semua') {
+        queryParams.append('jenis', appliedFilters.jenis)
       }
-      if (startDate) {
-        params.append('startDate', format(startDate, 'yyyy-MM-dd'))
+      if (appliedFilters.startDate) {
+        queryParams.append('startDate', format(appliedFilters.startDate, 'yyyy-MM-dd'))
       }
-      if (endDate) {
-        params.append('endDate', format(endDate, 'yyyy-MM-dd'))
+      if (appliedFilters.endDate) {
+        queryParams.append('endDate', format(appliedFilters.endDate, 'yyyy-MM-dd'))
       }
 
-      const response = await fetch(getApiUrl(`api/cuti?${params}`))
+      const response = await fetch(getApiUrl(`api/cuti?${queryParams.toString()}`), {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+
       if (response.ok) {
         const data = await response.json()
         setCutiData(data.content || [])
         setTotalElements(data.totalElements || 0)
         setTotalPages(data.totalPages || 0)
+        setCurrentPage(page)
+      } else {
+        console.error('Failed to fetch cuti data')
+        setCutiData([])
       }
     } catch (error) {
-      console.error('Error loading cuti data:', error)
-      toast.error('Gagal memuat data cuti')
+      console.error('Error fetching cuti data:', error)
+      setCutiData([])
     } finally {
       setLoading(false)
     }
   }
 
-  const loadPegawaiList = async () => {
-    try {
-      const response = await fetch(getApiUrl('api/pegawai'))
-      if (response.ok) {
-        const data = await response.json()
-        setPegawaiList(data)
-      }
-    } catch (error) {
-      console.error('Error loading pegawai list:', error)
-    }
-  }
+  useEffect(() => {
+    loadCutiData(0)
+  }, [appliedFilters])
+
+  usePusherNotifications({ 
+    onCutiResponse: () => loadCutiData(currentPage)
+  })
 
   const handleSearch = () => {
+    setAppliedFilters({
+      searchTerm,
+      status: selectedStatus,
+      jenis: selectedJenis,
+      startDate,
+      endDate
+    })
     setCurrentPage(0)
-    loadCutiData()
   }
 
-  const handleClearFilters = () => {
-    setSelectedPegawai('semua')
+  const handleResetFilters = () => {
+    setSearchTerm('')
     setSelectedStatus('semua')
     setSelectedJenis('semua')
     setStartDate(undefined)
     setEndDate(undefined)
+    setAppliedFilters({
+      searchTerm: '',
+      status: 'semua',
+      jenis: 'semua',
+      startDate: undefined,
+      endDate: undefined
+    })
     setCurrentPage(0)
-    loadCutiData()
+  }
+
+  const handlePageChange = (page: number) => {
+    loadCutiData(page)
   }
 
   const handleApproval = async () => {
@@ -205,17 +217,85 @@ export default function MasterDataCutiPage() {
     }
   }
 
+  const handleBulkApproval = async () => {
+    if (selectedCutiIds.length === 0) {
+      toast.error('Mohon pilih pengajuan cuti yang akan diproses')
+      return
+    }
+
+    if (!bulkApprovalStatus) {
+      toast.error('Mohon pilih status approval')
+      return
+    }
+
+    setIsBulkApproving(true)
+    try {
+      const results = await Promise.all(
+        selectedCutiIds.map(async (cutiId) => {
+          const response = await fetch(getApiUrl(`api/cuti/${cutiId}/approve?adminId=${user?.id}`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              statusApproval: bulkApprovalStatus,
+              catatanApproval: bulkCatatanApproval
+            })
+          })
+          return { cutiId, success: response.ok }
+        })
+      )
+
+      const successCount = results.filter(r => r.success).length
+      const failCount = results.filter(r => !r.success).length
+
+      if (successCount > 0) {
+        toast.success(`${successCount} pengajuan cuti berhasil diupdate!`)
+      }
+      
+      if (failCount > 0) {
+        toast.error(`${failCount} pengajuan cuti gagal diupdate`)
+      }
+
+      setShowBulkApprovalDialog(false)
+      setSelectedCutiIds([])
+      setBulkApprovalStatus('')
+      setBulkCatatanApproval('')
+      loadCutiData()
+    } catch (error) {
+      console.error('Error bulk updating cuti status:', error)
+      toast.error('Terjadi kesalahan saat mengupdate status')
+    } finally {
+      setIsBulkApproving(false)
+    }
+  }
+
+  const handleSelectCuti = (cutiId: number, checked: boolean) => {
+    if (checked) {
+      setSelectedCutiIds(prev => [...prev, cutiId])
+    } else {
+      setSelectedCutiIds(prev => prev.filter(id => id !== cutiId))
+    }
+  }
+
+  const handleSelectAllCuti = (checked: boolean) => {
+    if (checked) {
+      const availableCutiIds = cutiData
+        .filter(cuti => cuti.statusApproval === 'PENDING' || cuti.statusApproval === 'DIAJUKAN')
+        .map(cuti => cuti.id)
+      setSelectedCutiIds(availableCutiIds)
+    } else {
+      setSelectedCutiIds([])
+    }
+  }
+
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'PENDING':
+      case 'DIAJUKAN':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
           <Clock className="w-3 h-3 mr-1" />
           Pending
-        </Badge>
-      case 'DIAJUKAN':
-        return <Badge variant="default" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-          <FileText className="w-3 h-3 mr-1" />
-          Diajukan
         </Badge>
       case 'DISETUJUI':
         return <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
@@ -230,6 +310,42 @@ export default function MasterDataCutiPage() {
       default:
         return <Badge variant="outline">{status}</Badge>
     }
+  }
+
+  const handleDownloadAttachment = async (cutiId: number, fileName: string) => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(getApiUrl(`api/cuti/${cutiId}/download-attachment`), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.style.display = 'none'
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        toast.error('Gagal mengunduh lampiran')
+      }
+    } catch (error) {
+      console.error('Error downloading attachment:', error)
+      toast.error('Terjadi kesalahan saat mengunduh lampiran')
+    }
+  }
+
+  const isImageFile = (fileName?: string) => {
+    if (!fileName) return false
+    const extension = fileName.split('.').pop()?.toLowerCase()
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')
   }
 
   const openApprovalDialog = (cuti: CutiData) => {
@@ -276,58 +392,45 @@ export default function MasterDataCutiPage() {
               </Button>
             </div>
           </CardHeader>
-          {!showFilters && (
-            <CardContent className="pt-0 p-3 md:p-6">
-              <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 space-y-1 md:space-y-0">
-                <div>
-                  <span className="font-medium">Periode:</span> {
-                    startDate && endDate 
-                      ? `${format(startDate, "dd MMM yyyy", { locale: id })} - ${format(endDate, "dd MMM yyyy", { locale: id })}`
-                      : 'Semua periode'
-                  }
-                </div>
-                {selectedPegawai !== 'semua' && (
-                  <div className="md:ml-4">
-                    <span className="font-medium">Pegawai:</span> {pegawaiList.find(p => p.id.toString() === selectedPegawai)?.namaLengkap || 'Unknown'}
-                  </div>
-                )}
-                {selectedJenis !== 'semua' && (
-                  <div className="md:ml-4">
-                    <span className="font-medium">Jenis:</span> {selectedJenis.charAt(0).toUpperCase() + selectedJenis.slice(1)}
-                  </div>
-                )}
-                {selectedStatus !== 'semua' && (
-                  <div className="md:ml-4">
-                    <span className="font-medium">Status:</span> {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          )}
           {showFilters && (
-            <CardContent className="p-3 md:p-6">
+            <CardContent className="pt-0 p-3 md:p-6">
               <div className="space-y-3 md:space-y-4">
-                {/* Row 1: Periode */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                {/* Row 1: Search */}
+                <div className="grid grid-cols-1 gap-3 md:gap-4">
                   <div>
                     <Label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                      Dari Tanggal
+                      Cari Pegawai
                     </Label>
-                    <Popover open={showStartDatePicker} onOpenChange={setShowStartDatePicker}>
+                    <Input
+                      placeholder="Masukkan nama pegawai..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full text-xs md:text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2: Date range and Status */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                  <div>
+                    <Label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                      Tanggal Mulai
+                    </Label>
+                    <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal text-xs md:text-sm h-8 md:h-10"
+                        >
+                          <CalendarIcon className="mr-2 h-3 w-3 md:h-4 md:w-4" />
                           {startDate ? format(startDate, "dd MMM yyyy", { locale: id }) : "Pilih tanggal"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={startDate}
-                          onSelect={(date) => {
-                            setStartDate(date)
-                            setShowStartDatePicker(false)
-                          }}
+                          onSelect={setStartDate}
                           initialFocus
                         />
                       </PopoverContent>
@@ -336,50 +439,27 @@ export default function MasterDataCutiPage() {
 
                   <div>
                     <Label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                      Sampai Tanggal
+                      Tanggal Akhir
                     </Label>
-                    <Popover open={showEndDatePicker} onOpenChange={setShowEndDatePicker}>
+                    <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal text-xs md:text-sm h-8 md:h-10"
+                        >
+                          <CalendarIcon className="mr-2 h-3 w-3 md:h-4 md:w-4" />
                           {endDate ? format(endDate, "dd MMM yyyy", { locale: id }) : "Pilih tanggal"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={endDate}
-                          onSelect={(date) => {
-                            setEndDate(date)
-                            setShowEndDatePicker(false)
-                          }}
-                          disabled={(date) => startDate ? date < startDate : false}
+                          onSelect={setEndDate}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
-                  </div>
-                </div>
-
-                {/* Row 2: Pegawai dan Status */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                  <div>
-                    <Label className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                      Pegawai
-                    </Label>
-                    <Select value={selectedPegawai} onValueChange={setSelectedPegawai}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih pegawai" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="semua">Semua Pegawai</SelectItem>
-                        {pegawaiList.map((pegawai) => (
-                          <SelectItem key={pegawai.id} value={pegawai.id.toString()}>
-                            {pegawai.namaLengkap}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   <div>
@@ -423,13 +503,16 @@ export default function MasterDataCutiPage() {
                   </div>
 
                   <div className="flex flex-col md:flex-row gap-2">
-                    <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">
-                      <Search className="w-4 h-4 mr-2" />
-                      Terapkan Filter
+                    <Button onClick={handleSearch} className="w-full text-xs md:text-sm h-8 md:h-10">
+                      <Search className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+                      Cari
                     </Button>
-
-                    <Button variant="outline" onClick={handleClearFilters} className="border-gray-300 dark:border-gray-600 w-full md:w-auto">
-                      <RotateCcw className="w-4 h-4 mr-2" />
+                    <Button 
+                      variant="outline" 
+                      onClick={handleResetFilters}
+                      className="w-full text-xs md:text-sm h-8 md:h-10"
+                    >
+                      <RotateCcw className="w-3 h-3 md:w-4 md:h-4 mr-2" />
                       Reset
                     </Button>
                   </div>
@@ -442,9 +525,21 @@ export default function MasterDataCutiPage() {
         {/* Table */}
         <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900 dark:text-gray-100">
-              Data Pengajuan Cuti ({totalElements} data)
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg text-gray-900 dark:text-gray-100">
+                Data Pengajuan Cuti ({totalElements} data)
+              </CardTitle>
+              {selectedCutiIds.length > 0 && (
+                <Button
+                  size="sm"
+                  onClick={() => setShowBulkApprovalDialog(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Proses {selectedCutiIds.length} Item
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -453,13 +548,18 @@ export default function MasterDataCutiPage() {
               </div>
             ) : cutiData.length > 0 ? (
               <>
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>
+                          <Checkbox
+                            checked={selectedCutiIds.length > 0 && selectedCutiIds.length === cutiData.filter(cuti => cuti.statusApproval === 'PENDING' || cuti.statusApproval === 'DIAJUKAN').length}
+                            onCheckedChange={handleSelectAllCuti}
+                          />
+                        </TableHead>
                         <TableHead>Pegawai</TableHead>
-                        <TableHead>Tanggal Cuti</TableHead>
+                        <TableHead>Tanggal</TableHead>
                         <TableHead>Jenis</TableHead>
                         <TableHead>Alasan</TableHead>
                         <TableHead>Status</TableHead>
@@ -470,6 +570,13 @@ export default function MasterDataCutiPage() {
                     <TableBody>
                       {cutiData.map((cuti) => (
                         <TableRow key={cuti.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedCutiIds.includes(cuti.id)}
+                              disabled={cuti.statusApproval !== 'PENDING' && cuti.statusApproval !== 'DIAJUKAN'}
+                              onCheckedChange={(checked) => handleSelectCuti(cuti.id, !!checked)}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{cuti.namaPegawai}</TableCell>
                           <TableCell>
                             {format(new Date(cuti.tanggalCuti), "dd MMM yyyy", { locale: id })}
@@ -499,16 +606,25 @@ export default function MasterDataCutiPage() {
                                 <Eye className="w-4 h-4" />
                               </Button>
                               {cuti.lampiranCuti && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    // Download attachment logic here
-                                    window.open(`http://localhost:3001/uploads/cuti/${cuti.lampiranCuti}`, '_blank')
-                                  }}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
+                                <div className="flex gap-1">
+                                  {isImageFile(cuti.lampiranCuti) ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(getApiUrl(`api/upload/cuti/${cuti.lampiranCuti}`), '_blank')}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDownloadAttachment(cuti.id, cuti.lampiranCuti!)}
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </TableCell>
@@ -517,79 +633,21 @@ export default function MasterDataCutiPage() {
                     </TableBody>
                   </Table>
                 </div>
-
-                {/* Mobile Cards */}
-                <div className="md:hidden space-y-4">
-                  {cutiData.map((cuti) => (
-                    <Card key={cuti.id} className="border">
-                      <CardContent className="p-4">
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-medium text-sm">{cuti.namaPegawai}</h3>
-                              <p className="text-xs text-gray-600 dark:text-gray-400">
-                                {format(new Date(cuti.tanggalCuti), "dd MMM yyyy", { locale: id })}
-                              </p>
-                            </div>
-                            {getStatusBadge(cuti.statusApproval)}
-                          </div>
-                          
-                          <div>
-                            <Badge variant="outline" className="mb-2">
-                              {cuti.jenisCuti}
-                            </Badge>
-                            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-                              {cuti.alasanCuti}
-                            </p>
-                          </div>
-
-                          <div className="flex justify-between items-center pt-2 border-t">
-                            <p className="text-xs text-gray-500">
-                              {format(new Date(cuti.createdAt), "dd MMM HH:mm", { locale: id })}
-                            </p>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openApprovalDialog(cuti)}
-                                disabled={cuti.statusApproval === 'DISETUJUI' || cuti.statusApproval === 'DITOLAK'}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              {cuti.lampiranCuti && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    window.open(`http://localhost:3001/uploads/cuti/${cuti.lampiranCuti}`, '_blank')
-                                  }}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                <div className="mt-6">
+                
+                <div className="mt-4">
                   <ServerPagination
                     currentPage={currentPage}
                     totalPages={totalPages}
-                    onPageChange={setCurrentPage}
                     totalElements={totalElements}
                     pageSize={pageSize}
-                    onPageSizeChange={setPageSize}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={() => {}}
                   />
                 </div>
               </>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500 dark:text-gray-400">Tidak ada data cuti</p>
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                Tidak ada data cuti yang ditemukan
               </div>
             )}
           </CardContent>
@@ -597,83 +655,107 @@ export default function MasterDataCutiPage() {
 
         {/* Approval Dialog */}
         <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Approval Pengajuan Cuti</DialogTitle>
               <DialogDescription>
-                Berikan keputusan untuk pengajuan cuti ini
+                Proses approval untuk pengajuan cuti dari {selectedCuti?.namaPegawai}
               </DialogDescription>
             </DialogHeader>
-            
-            {selectedCuti && (
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <h4 className="font-medium">{selectedCuti.namaPegawai}</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {format(new Date(selectedCuti.tanggalCuti), "dd MMMM yyyy", { locale: id })}
-                  </p>
-                  <p className="text-sm mt-1">
-                    <strong>Jenis:</strong> {selectedCuti.jenisCuti}
-                  </p>
-                  <p className="text-sm mt-1">
-                    <strong>Alasan:</strong> {selectedCuti.alasanCuti}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Status Approval</Label>
-                  <Select value={approvalStatus} onValueChange={setApprovalStatus}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Pilih status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DIAJUKAN">Diajukan</SelectItem>
-                      <SelectItem value="DISETUJUI">Disetujui</SelectItem>
-                      <SelectItem value="DITOLAK">Ditolak</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Catatan (Opsional)</Label>
-                  <Textarea
-                    value={catatanApproval}
-                    onChange={(e) => setCatatanApproval(e.target.value)}
-                    placeholder="Berikan catatan untuk keputusan ini..."
-                    className="mt-2"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    onClick={handleApproval}
-                    disabled={!approvalStatus || isApproving}
-                    className="flex-1"
-                  >
-                    {isApproving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Menyimpan...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4 mr-2" />
-                        Simpan
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowApprovalDialog(false)}
-                    disabled={isApproving}
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Batal
-                  </Button>
-                </div>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Pegawai</Label>
+                <p className="text-sm font-medium">{selectedCuti?.namaPegawai}</p>
               </div>
-            )}
+              <div className="space-y-2">
+                <Label>Tanggal Cuti</Label>
+                <p className="text-sm">
+                  {selectedCuti && format(new Date(selectedCuti.tanggalCuti), "dd MMMM yyyy", { locale: id })}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Jenis Cuti</Label>
+                <p className="text-sm">{selectedCuti?.jenisCuti}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Alasan</Label>
+                <p className="text-sm">{selectedCuti?.alasanCuti}</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status Approval</Label>
+                <Select value={approvalStatus} onValueChange={setApprovalStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DISETUJUI">Disetujui</SelectItem>
+                    <SelectItem value="DITOLAK">Ditolak</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="catatan">Catatan (Opsional)</Label>
+                <Textarea
+                  id="catatan"
+                  placeholder="Tambahkan catatan approval..."
+                  value={catatanApproval}
+                  onChange={(e) => setCatatanApproval(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>
+                Batal
+              </Button>
+              <Button onClick={handleApproval} disabled={isApproving || !approvalStatus}>
+                {isApproving ? 'Memproses...' : 'Simpan'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Approval Dialog */}
+        <Dialog open={showBulkApprovalDialog} onOpenChange={setShowBulkApprovalDialog}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Approval Bulk Pengajuan Cuti</DialogTitle>
+              <DialogDescription>
+                Proses approval untuk {selectedCutiIds.length} pengajuan cuti sekaligus
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="bulk-status">Status Approval</Label>
+                <Select value={bulkApprovalStatus} onValueChange={setBulkApprovalStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DISETUJUI">Disetujui</SelectItem>
+                    <SelectItem value="DITOLAK">Ditolak</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk-catatan">Catatan (Opsional)</Label>
+                <Textarea
+                  id="bulk-catatan"
+                  placeholder="Tambahkan catatan untuk semua approval..."
+                  value={bulkCatatanApproval}
+                  onChange={(e) => setBulkCatatanApproval(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowBulkApprovalDialog(false)}>
+                Batal
+              </Button>
+              <Button onClick={handleBulkApproval} disabled={isBulkApproving || !bulkApprovalStatus}>
+                {isBulkApproving ? 'Memproses...' : `Proses ${selectedCutiIds.length} Item`}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

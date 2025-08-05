@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => void;
   setUser: (user: User | null) => void;
   isAuthenticated: boolean;
+  refreshToken: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,6 +116,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   }, []);
 
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const currentToken = localStorage.getItem('auth_token');
+      if (!currentToken) {
+        console.log('No token found for refresh');
+        return false;
+      }
+
+      console.log('Attempting token refresh...');
+      const response = await fetch(getApiUrl('api/auth/refresh'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': config.contentType.json,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Store new token and user
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+        
+        setToken(data.token);
+        setUser(data.user);
+        
+        console.log('Token refreshed successfully');
+        return true;
+      } else {
+        // If refresh fails, logout user
+        console.error('Token refresh failed:', response.status, response.statusText);
+        logout();
+        return false;
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      logout();
+      return false;
+    }
+  }, [logout]);
+
   const isAuthenticated = useMemo(() => !!user && !!token, [user, token]);
 
   const value = useMemo(() => ({
@@ -125,7 +168,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     setUser,
     isAuthenticated,
-  }), [user, token, isLoading, login, logout, isAuthenticated]);
+    refreshToken,
+  }), [user, token, isLoading, login, logout, isAuthenticated, refreshToken]);
 
   return (
     <AuthContext.Provider value={value}>

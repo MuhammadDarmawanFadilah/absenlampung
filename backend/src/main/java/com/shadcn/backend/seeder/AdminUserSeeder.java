@@ -37,14 +37,14 @@ public class AdminUserSeeder implements CommandLineRunner {
                 
                 // Update admin user to ensure it has correct admin role and active status
                 admin.setIsAdmin("1"); // Set as admin
-                admin.setRole("ADMIN");
+                admin.setRole("ADMIN"); // Make sure role is ADMIN
                 admin.setIsActive(true);
                 
                 // Update password if needed (uncomment if you want to reset password)
-                // admin.setPassword(passwordEncoder.encode("admin123"));
+                admin.setPassword(passwordEncoder.encode("admin123"));
                 
                 pegawaiRepository.save(admin);
-                log.info("Admin user updated successfully");
+                log.info("Admin user updated successfully - Role: {}, IsAdmin: {}", admin.getRole(), admin.getIsAdmin());
                 return;
             }
 
