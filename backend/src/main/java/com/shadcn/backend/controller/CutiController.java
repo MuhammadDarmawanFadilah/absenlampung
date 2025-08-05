@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -106,6 +107,14 @@ public class CutiController {
     public ResponseEntity<Map<String, Integer>> getCutiStats(@PathVariable Long pegawaiId) {
         Map<String, Integer> stats = cutiService.getCutiStats(pegawaiId);
         return ResponseEntity.ok(stats);
+    }
+    
+    @GetMapping("/check-leave-today/{pegawaiId}")
+    public ResponseEntity<Map<String, Boolean>> checkLeaveToday(@PathVariable Long pegawaiId) {
+        boolean isOnLeave = cutiService.isOnApprovedLeaveToday(pegawaiId);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("isOnApprovedLeave", isOnLeave);
+        return ResponseEntity.ok(response);
     }
     
     @GetMapping("/{cutiId}/download-attachment")

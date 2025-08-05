@@ -62,6 +62,10 @@ public interface CutiRepository extends JpaRepository<Cuti, Long> {
     @Query("SELECT c FROM Cuti c WHERE c.pegawai = :pegawai AND c.tanggalCuti = :tanggalCuti AND c.statusApproval IN ('PENDING', 'DIAJUKAN', 'DISETUJUI')")
     List<Cuti> findOverlappingCuti(@Param("pegawai") Pegawai pegawai, @Param("tanggalCuti") LocalDate tanggalCuti);
     
+    // Find approved cuti for a pegawai on specific date
+    @Query("SELECT c FROM Cuti c WHERE c.pegawai = :pegawai AND c.tanggalCuti = :tanggalCuti AND c.statusApproval = :statusApproval")
+    List<Cuti> findByPegawaiAndTanggalCutiAndStatusApproval(@Param("pegawai") Pegawai pegawai, @Param("tanggalCuti") LocalDate tanggalCuti, @Param("statusApproval") Cuti.StatusApproval statusApproval);
+    
     // Find all cuti with filters
     @Query("SELECT c FROM Cuti c WHERE " +
            "(:pegawaiId IS NULL OR c.pegawai.id = :pegawaiId) AND " +

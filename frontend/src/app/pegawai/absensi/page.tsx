@@ -139,6 +139,8 @@ export default function AbsensiPage() {
   const [showAbsensiDetailModal, setShowAbsensiDetailModal] = useState(false)
   const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false)
   const [hariLiburInfo, setHariLiburInfo] = useState<{ isHariLibur: boolean; namaLibur?: string; isNasional?: boolean } | null>(null)
+  const [isOnApprovedLeave, setIsOnApprovedLeave] = useState<boolean>(false)
+  const [loadingLeaveCheck, setLoadingLeaveCheck] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
@@ -159,6 +161,7 @@ export default function AbsensiPage() {
       loadPegawaiData()
       loadTodayAbsensi()
       checkHariLibur()
+      checkApprovedLeaveToday()
     }
   }, [user])
 
@@ -216,6 +219,27 @@ export default function AbsensiPage() {
     } catch (error) {
       console.error('Error checking hari libur:', error)
       setHariLiburInfo({ isHariLibur: false })
+    }
+  }
+
+  const checkApprovedLeaveToday = async () => {
+    if (!user?.id) return
+    
+    try {
+      setLoadingLeaveCheck(true)
+      const response = await ApiClient.get(`api/cuti/check-leave-today/${user.id}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        setIsOnApprovedLeave(data.isOnApprovedLeave || false)
+      } else {
+        setIsOnApprovedLeave(false)
+      }
+    } catch (error) {
+      console.error('Error checking approved leave today:', error)
+      setIsOnApprovedLeave(false)
+    } finally {
+      setLoadingLeaveCheck(false)
     }
   }
 
@@ -804,6 +828,24 @@ export default function AbsensiPage() {
           </Alert>
         )}
 
+        {/* Approved Leave Alert */}
+        {!loadingLeaveCheck && isOnApprovedLeave && (
+          <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+            <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <strong>🏖️ Anda Sedang Cuti Hari Ini</strong>
+                  <p className="mt-1 text-sm">
+                    Anda memiliki cuti yang telah disetujui untuk hari ini. Anda tidak perlu melakukan absensi. 
+                    Nikmati waktu cuti Anda! 😊
+                  </p>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Tampilan Khusus untuk Absensi Lengkap */}
         {todayAbsensi?.isComplete ? (
           <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-xl">
@@ -883,6 +925,47 @@ export default function AbsensiPage() {
                     <CalendarClock className="w-4 h-4 mr-2" />
                     Lihat Detail Lengkap
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : !loadingLeaveCheck && isOnApprovedLeave ? (
+          // Special display for approved leave - no absensi form
+          <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-xl">
+            <CardContent className="p-8">
+              <div className="text-center space-y-6">
+                <div className="flex justify-center">
+                  <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                    <div className="text-4xl">🏖️</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                    Selamat Menikmati Cuti Anda! 🌴
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Anda memiliki cuti yang telah disetujui untuk hari ini. Tidak perlu melakukan absensi.
+                  </p>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800 max-w-md mx-auto">
+                  <div className="flex items-center justify-center mb-4">
+                    <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400 mr-3" />
+                    <h3 className="text-lg font-semibold text-green-700 dark:text-green-400">Status Cuti Hari Ini</h3>
+                  </div>
+                  <div className="text-center">
+                    <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-sm px-3 py-1">
+                      ✅ Cuti Disetujui
+                    </Badge>
+                    <p className="text-sm text-green-600 dark:text-green-400 mt-2">
+                      {getCurrentDate()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <p>💡 <strong>Tips:</strong> Nikmati waktu istirahat Anda dan kembali bekerja dengan semangat baru!</p>
                 </div>
               </div>
             </CardContent>

@@ -345,4 +345,27 @@ public class CutiService {
         
         return cuti.getLampiranCuti();
     }
+    
+    @Transactional(readOnly = true)
+    public boolean isOnApprovedLeaveToday(Long pegawaiId) {
+        try {
+            Pegawai pegawai = pegawaiRepository.findById(pegawaiId)
+                .orElseThrow(() -> new RuntimeException("Pegawai tidak ditemukan"));
+            
+            LocalDate today = LocalDate.now();
+            log.debug("Checking approved leave for pegawai {} on date {}", pegawai.getNamaLengkap(), today);
+            
+            // Check if there's any approved cuti for today
+            List<Cuti> approvedCutiToday = cutiRepository.findByPegawaiAndTanggalCutiAndStatusApproval(
+                pegawai, today, Cuti.StatusApproval.DISETUJUI);
+            
+            boolean isOnLeave = !approvedCutiToday.isEmpty();
+            log.debug("Pegawai {} is on approved leave today: {}", pegawai.getNamaLengkap(), isOnLeave);
+            
+            return isOnLeave;
+        } catch (Exception e) {
+            log.error("Error checking approved leave for pegawai {}: {}", pegawaiId, e.getMessage(), e);
+            return false;
+        }
+    }
 }
