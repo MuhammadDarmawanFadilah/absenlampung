@@ -8,9 +8,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,6 +60,47 @@ public class PemotonganAbsenService {
         log.debug("Pemotongan absen berhasil diupdate: {}", saved.getKode());
         
         return mapToResponse(saved);
+    }
+    
+    public void resetToDefaultData() {
+        log.debug("Mereset data pemotongan absen ke pengaturan default");
+        
+        // Update existing records to default values
+        updateToDefaultIfExists("TL0", "Terlambat Masuk 0", "Terlambat Masuk 1 - 30 menit", BigDecimal.valueOf(0.00));
+        updateToDefaultIfExists("TL1", "Terlambat Masuk 1", "Terlambat Masuk 31 - 60 menit", BigDecimal.valueOf(0.50));
+        updateToDefaultIfExists("TL2", "Terlambat Masuk 2", "Terlambat Masuk 61 - 90 menit", BigDecimal.valueOf(1.25));
+        updateToDefaultIfExists("TL3", "Terlambat Masuk 3", "Terlambat Masuk lebih dari 90 menit", BigDecimal.valueOf(2.50));
+        updateToDefaultIfExists("PSW1", "Pulang Cepat 1", "Pulang Cepat 1 - 30 menit", BigDecimal.valueOf(0.50));
+        updateToDefaultIfExists("PSW2", "Pulang Cepat 2", "Pulang Cepat 31 - 60 menit", BigDecimal.valueOf(1.25));
+        updateToDefaultIfExists("PSW3", "Pulang Cepat 3", "Pulang Cepat lebih dari 61 menit", BigDecimal.valueOf(2.50));
+        updateToDefaultIfExists("LAM", "Lupa Absen Masuk", "Lupa Absen Masuk", BigDecimal.valueOf(2.50));
+        updateToDefaultIfExists("LAP", "Lupa Absen Pulang", "Lupa Absen Pulang", BigDecimal.valueOf(2.50));
+        updateToDefaultIfExists("TA", "Tidak Absen", "Tidak Absen", BigDecimal.valueOf(5.00));
+        
+        log.debug("Data pemotongan absen berhasil direset ke pengaturan default");
+    }
+    
+    private void updateToDefaultIfExists(String kode, String nama, String deskripsi, BigDecimal persentase) {
+        Optional<PemotonganAbsen> existing = pemotonganAbsenRepository.findByKodeAndIsActive(kode, true);
+        if (existing.isPresent()) {
+            PemotonganAbsen pemotonganAbsen = existing.get();
+            pemotonganAbsen.setNama(nama);
+            pemotonganAbsen.setDeskripsi(deskripsi);
+            pemotonganAbsen.setPersentase(persentase);
+            pemotonganAbsenRepository.save(pemotonganAbsen);
+            log.debug("Updated {} to default values", kode);
+        } else {
+            // Create new record if doesn't exist
+            PemotonganAbsen pemotonganAbsen = PemotonganAbsen.builder()
+                    .kode(kode)
+                    .nama(nama)
+                    .deskripsi(deskripsi)
+                    .persentase(persentase)
+                    .isActive(true)
+                    .build();
+            pemotonganAbsenRepository.save(pemotonganAbsen);
+            log.debug("Created new default entry for {}", kode);
+        }
     }
     
     private Map<String, Object> mapToResponse(PemotonganAbsen pemotonganAbsen) {

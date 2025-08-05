@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Percent, Save, X } from "lucide-react";
+import { Edit, Percent, Save, X, RotateCcw, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { getApiUrl } from '@/lib/config';
 import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface PemotonganAbsen {
   id: number;
@@ -35,6 +36,7 @@ const PemotonganAbsenPage = () => {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showResetDialog, setShowResetDialog] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState<PemotonganAbsenFormData>({
@@ -138,6 +140,33 @@ const PemotonganAbsenPage = () => {
     }
   };
 
+  const handleResetToDefault = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(getApiUrl('pemotongan-absen/reset-to-default'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+
+      toast.success(result.message);
+      setShowResetDialog(false);
+      fetchPemotonganAbsens();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPemotonganAbsens();
   }, []);
@@ -149,6 +178,15 @@ const PemotonganAbsenPage = () => {
           <h1 className="text-3xl font-bold">Master Data Pemotongan Absen</h1>
           <p className="text-muted-foreground">Kelola pengaturan pemotongan gaji berdasarkan absensi</p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowResetDialog(true)}
+          className="flex items-center gap-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
+          disabled={loading}
+        >
+          <RotateCcw className="h-4 w-4" />
+          Reset ke Default
+        </Button>
       </div>
 
       {/* Data Table */}
@@ -314,6 +352,55 @@ const PemotonganAbsenPage = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <AlertDialogTitle>Reset ke Pengaturan Default</AlertDialogTitle>
+                <AlertDialogDescription className="mt-2">
+                  Apakah Anda yakin ingin mereset semua data pemotongan absen ke pengaturan default? 
+                  Semua perubahan yang telah dibuat akan hilang dan tidak dapat dikembalikan.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          
+          <div className="my-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h4 className="font-medium text-yellow-800 mb-2">Data Default yang akan diterapkan:</h4>
+            <div className="text-sm text-yellow-700 space-y-1">
+              <div>• Terlambat Masuk 1-30 menit: 0%</div>
+              <div>• Terlambat Masuk 31-60 menit: 0.5%</div>
+              <div>• Terlambat Masuk 61-90 menit: 1.25%</div>
+              <div>• Terlambat Masuk {'>'}90 menit: 2.5%</div>
+              <div>• Pulang Cepat 1-30 menit: 0.5%</div>
+              <div>• Pulang Cepat 31-60 menit: 1.25%</div>
+              <div>• Pulang Cepat {'>'}61 menit: 2.5%</div>
+              <div>• Lupa Absen Masuk: 2.5%</div>
+              <div>• Lupa Absen Pulang: 2.5%</div>
+              <div>• Tidak Absen: 5%</div>
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetToDefault}
+              disabled={loading}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {loading ? 'Mereset...' : 'Ya, Reset ke Default'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -87,4 +87,25 @@ public class PemotonganAbsenController {
             ));
         }
     }
+    
+    @PostMapping("/reset-to-default")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> resetToDefault() {
+        try {
+            log.debug("Request untuk reset pemotongan absen ke data default");
+            
+            pemotonganAbsenService.resetToDefaultData();
+            
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Data pemotongan absen berhasil direset ke pengaturan default"
+            ));
+        } catch (Exception e) {
+            log.error("Error saat reset pemotongan absen ke default: ", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Gagal reset pemotongan absen ke default: " + e.getMessage()
+            ));
+        }
+    }
 }
