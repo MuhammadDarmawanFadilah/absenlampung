@@ -1147,9 +1147,11 @@ public class LaporanTukinService {
         CellStyle dateStyle = createDateStyle(workbook);
         CellStyle currencyStyle = createCurrencyStyle(workbook);
         CellStyle holidayStyle = createHolidayStyle(workbook);
+        CellStyle nameStyle = createNameStyle(workbook);
+        CellStyle numberStyle = createNumberStyle(workbook);
         
         // Sheet 1: Input Absensi Hadir
-        createInputAbsensiSheet(workbook, rincianData, laporan, holidays, titleStyle, headerStyle, emptyHeaderStyle, dataStyle, dateStyle, holidayStyle);
+        createInputAbsensiSheet(workbook, rincianData, laporan, holidays, titleStyle, headerStyle, emptyHeaderStyle, dataStyle, dateStyle, holidayStyle, nameStyle, numberStyle, currencyStyle);
         
         // Sheet 2: Rekapitulasi Pemotongan Tunjangan Kinerja
         createRekapitulasiPemotonganSheet(workbook, rincianData, laporan, titleStyle, headerStyle, emptyHeaderStyle, dataStyle, currencyStyle);
@@ -1172,9 +1174,9 @@ public class LaporanTukinService {
         CellStyle style = workbook.createCellStyle();
         Font font = workbook.createFont();
         font.setBold(true);
-        font.setFontHeightInPoints((short) 12);
+        font.setFontHeightInPoints((short) 11);
         font.setColor(IndexedColors.WHITE.getIndex());
-        font.setFontName("Arial");
+        font.setFontName("Calibri");
         style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1192,12 +1194,18 @@ public class LaporanTukinService {
         CellStyle style = workbook.createCellStyle();
         Font font = workbook.createFont();
         font.setBold(true);
-        font.setFontHeightInPoints((short) 14);
+        font.setFontHeightInPoints((short) 16);
         font.setColor(IndexedColors.BLACK.getIndex());
-        font.setFontName("Arial");
+        font.setFontName("Calibri");
         style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderTop(BorderStyle.MEDIUM);
+        style.setBorderBottom(BorderStyle.MEDIUM);
+        style.setBorderLeft(BorderStyle.MEDIUM);
+        style.setBorderRight(BorderStyle.MEDIUM);
+        style.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         return style;
     }
     
@@ -1218,7 +1226,7 @@ public class LaporanTukinService {
         CellStyle style = workbook.createCellStyle();
         Font font = workbook.createFont();
         font.setFontHeightInPoints((short) 10);
-        font.setFontName("Arial");
+        font.setFontName("Calibri");
         style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1244,6 +1252,10 @@ public class LaporanTukinService {
     
     private CellStyle createCurrencyStyle(Workbook workbook) {
         CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Calibri");
+        style.setFont(font);
         style.setAlignment(HorizontalAlignment.RIGHT);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
         style.setBorderTop(BorderStyle.THIN);
@@ -1255,8 +1267,46 @@ public class LaporanTukinService {
         return style;
     }
     
+    // Add new style methods for better formatting
+    private CellStyle createNameStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Calibri");
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.LEFT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setWrapText(true);
+        return style;
+    }
+    
+    private CellStyle createNumberStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Calibri");
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+    
     private CellStyle createHolidayStyle(Workbook workbook) {
         CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 10);
+        font.setColor(IndexedColors.DARK_GREEN.getIndex());
+        font.setFontName("Calibri");
+        style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
         style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
@@ -1270,11 +1320,14 @@ public class LaporanTukinService {
     
     private void createInputAbsensiSheet(Workbook workbook, List<LaporanTukinResponse.DetailPegawaiTukin> rincianData,
                                        LaporanTukin laporan, List<HariLibur> holidays,
-                                       CellStyle titleStyle, CellStyle headerStyle, CellStyle emptyHeaderStyle, CellStyle dataStyle, CellStyle dateStyle, CellStyle holidayStyle) {
+                                       CellStyle titleStyle, CellStyle headerStyle, CellStyle emptyHeaderStyle, 
+                                       CellStyle dataStyle, CellStyle dateStyle, CellStyle holidayStyle,
+                                       CellStyle nameStyle, CellStyle numberStyle, CellStyle currencyStyle) {
         Sheet sheet = workbook.createSheet("Input Absensi Hadir");
         
         // Create title
         Row titleRow = sheet.createRow(0);
+        titleRow.setHeightInPoints(25); // Set row height for better appearance
         Cell titleCell = titleRow.createCell(0);
         titleCell.setCellValue("INPUT ABSENSI HADIR");
         titleCell.setCellStyle(titleStyle);
@@ -1299,18 +1352,32 @@ public class LaporanTukinService {
         // Calculate total columns needed
         int totalCols = 3 + (workingDates.size() * 3); // No, Nama, Nilai Kls Jab + (K,M,P for each date)
         
-        // Merge title cells
-        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, totalCols - 1));
+        // Merge title cells and apply borders
+        CellRangeAddress titleRange = new CellRangeAddress(0, 0, 0, totalCols - 1);
+        sheet.addMergedRegion(titleRange);
+        // Fill all cells in merged region with empty cells for proper border rendering
+        for (int i = 1; i < totalCols; i++) {
+            Cell emptyCell = titleRow.createCell(i);
+            emptyCell.setCellStyle(titleStyle);
+        }
         
         // Add period row
         Row periodRow = sheet.createRow(1);
+        periodRow.setHeightInPoints(20); // Set row height for better appearance
         Cell periodCell = periodRow.createCell(0);
         periodCell.setCellValue("BULAN " + getMonthName(laporan.getBulan()).toUpperCase() + " TAHUN " + laporan.getTahun());
         periodCell.setCellStyle(titleStyle);
-        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, totalCols - 1));
+        CellRangeAddress periodRange = new CellRangeAddress(1, 1, 0, totalCols - 1);
+        sheet.addMergedRegion(periodRange);
+        // Fill all cells in merged region for proper border rendering
+        for (int i = 1; i < totalCols; i++) {
+            Cell emptyCell = periodRow.createCell(i);
+            emptyCell.setCellStyle(titleStyle);
+        }
         
         // Create date header row
         Row dateHeaderRow = sheet.createRow(2);
+        dateHeaderRow.setHeightInPoints(18); // Set row height for header
         Cell noHeaderCell1 = dateHeaderRow.createCell(0);
         noHeaderCell1.setCellStyle(headerStyle); // Uniform header style
         Cell namaHeaderCell1 = dateHeaderRow.createCell(1);
@@ -1322,15 +1389,21 @@ public class LaporanTukinService {
         for (LocalDate date : workingDates) {
             Cell dateCell = dateHeaderRow.createCell(colIndex);
             dateCell.setCellValue(date.getDayOfMonth());
-            dateCell.setCellStyle(holidayDates.contains(date) ? holidayStyle : headerStyle);
+            CellStyle dateStyleToUse = holidayDates.contains(date) ? holidayStyle : headerStyle;
+            dateCell.setCellStyle(dateStyleToUse);
             
-            // Merge 3 columns for each date (K, M, P)
+            // Merge 3 columns for each date (K, M, P) and fill for proper borders
             sheet.addMergedRegion(new CellRangeAddress(2, 2, colIndex, colIndex + 2));
+            for (int i = 1; i <= 2; i++) {
+                Cell emptyCell = dateHeaderRow.createCell(colIndex + i);
+                emptyCell.setCellStyle(dateStyleToUse);
+            }
             colIndex += 3;
         }
         
         // Create day name header row  
         Row dayHeaderRow = sheet.createRow(3);
+        dayHeaderRow.setHeightInPoints(18); // Set row height for header
         Cell noHeaderCell2 = dayHeaderRow.createCell(0);
         noHeaderCell2.setCellStyle(headerStyle); // Uniform header style
         Cell namaHeaderCell2 = dayHeaderRow.createCell(1);
@@ -1344,15 +1417,21 @@ public class LaporanTukinService {
             Cell dayCell = dayHeaderRow.createCell(colIndex);
             String dayName = dayNames[date.getDayOfWeek().getValue() % 7];
             dayCell.setCellValue(dayName);
-            dayCell.setCellStyle(holidayDates.contains(date) ? holidayStyle : headerStyle);
+            CellStyle dayStyleToUse = holidayDates.contains(date) ? holidayStyle : headerStyle;
+            dayCell.setCellStyle(dayStyleToUse);
             
-            // Merge 3 columns for day name
+            // Merge 3 columns for day name and fill for proper borders
             sheet.addMergedRegion(new CellRangeAddress(3, 3, colIndex, colIndex + 2));
+            for (int i = 1; i <= 2; i++) {
+                Cell emptyCell = dayHeaderRow.createCell(colIndex + i);
+                emptyCell.setCellStyle(dayStyleToUse);
+            }
             colIndex += 3;
         }
         
         // Create K/M/P header row
         Row kmpHeaderRow = sheet.createRow(4);
+        kmpHeaderRow.setHeightInPoints(18); // Set row height for header
         kmpHeaderRow.createCell(0).setCellValue("No");
         kmpHeaderRow.createCell(1).setCellValue("Nama");
         kmpHeaderRow.createCell(2).setCellValue("Tunjangan Kinerja");
@@ -1385,10 +1464,18 @@ public class LaporanTukinService {
             LaporanTukinResponse.DetailPegawaiTukin pegawai = rincianData.get(i);
             Row row = sheet.createRow(rowIndex++);
             
-            // Basic info
-            row.createCell(0).setCellValue(i + 1);
-            row.createCell(1).setCellValue(pegawai.getNamaLengkap());
-            row.createCell(2).setCellValue(pegawai.getTunjanganKinerja());
+            // Basic info with appropriate styles
+            Cell noCell = row.createCell(0);
+            noCell.setCellValue(i + 1);
+            noCell.setCellStyle(numberStyle);
+            
+            Cell nameCell = row.createCell(1);
+            nameCell.setCellValue(pegawai.getNamaLengkap());
+            nameCell.setCellStyle(nameStyle);
+            
+            Cell tunjanganCell = row.createCell(2);
+            tunjanganCell.setCellValue(pegawai.getTunjanganKinerja());
+            tunjanganCell.setCellStyle(currencyStyle);
             
             // Create attendance map
             Map<String, LaporanTukinResponse.HistoriAbsensi> attendanceMap = new HashMap<>();
@@ -1461,14 +1548,21 @@ public class LaporanTukinService {
         }
         
         // Set custom column widths for better readability
-        sheet.setColumnWidth(0, 2000);  // No - slightly wider
-        sheet.setColumnWidth(1, 10000); // Nama - much wider for better readability
-        sheet.setColumnWidth(2, 6000);  // Tunjangan Kinerja - wider
+        sheet.setColumnWidth(0, 2500);   // No - slightly wider
+        sheet.setColumnWidth(1, 12000);  // Nama - much wider for better readability
+        sheet.setColumnWidth(2, 7000);   // Tunjangan Kinerja - wider
         
-        // Set width for date columns (K, M, P) - wider for better readability
+        // Set width for date columns (K, M, P) - optimal for visibility
         for (int i = 3; i < totalCols; i++) {
-            sheet.setColumnWidth(i, 1800); // K, M, P columns - wider for better visibility
+            if ((i - 3) % 3 == 0) {
+                sheet.setColumnWidth(i, 2200); // K columns - wider for status
+            } else {
+                sheet.setColumnWidth(i, 2800); // M, P columns - wider for time values
+            }
         }
+        
+        // Add freeze panes for better navigation
+        sheet.createFreezePane(3, 5); // Freeze first 3 columns and first 5 rows
     }
     
     private void createRekapitulasiPemotonganSheet(Workbook workbook, List<LaporanTukinResponse.DetailPegawaiTukin> rincianData,
