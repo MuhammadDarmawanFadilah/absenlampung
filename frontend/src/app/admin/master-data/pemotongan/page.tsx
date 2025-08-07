@@ -39,6 +39,7 @@ interface Pegawai {
   namaLengkap: string;
   nip: string;
   gajiPokok?: number;
+  tunjanganKinerja?: number;
 }
 
 interface PemotonganFormData {
@@ -177,9 +178,14 @@ const PemotonganPage = () => {
 
   const calculateNominalPemotongan = () => {
     const selectedPegawai = pegawaiList.find(p => p.id.toString() === formData.pegawaiId);
-    const gajiPokok = selectedPegawai?.gajiPokok || 0;
+    const tunjanganKinerja = selectedPegawai?.tunjanganKinerja || 0;
     const persentase = parseFloat(formData.persentasePemotongan) || 0;
-    return (gajiPokok * persentase / 100).toLocaleString('id-ID');
+    return (tunjanganKinerja * persentase / 100).toLocaleString('id-ID');
+  };
+
+  const getSelectedPegawaiTunjangan = () => {
+    const selectedPegawai = pegawaiList.find(p => p.id.toString() === formData.pegawaiId);
+    return selectedPegawai?.tunjanganKinerja || 0;
   };
 
   const handlePegawaiChange = (pegawaiId: string) => {
@@ -488,15 +494,27 @@ const PemotonganPage = () => {
               {formData.pegawaiId && formData.persentasePemotongan && (
                 <div className="space-y-2">
                   <Label>Estimasi Pemotongan</Label>
-                  <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-4 rounded-md border border-blue-200">
-                    <Calculator className="h-5 w-5" />
-                    <div className="flex flex-col">
-                      <span className="font-medium text-lg">Rp {calculateNominalPemotongan()}</span>
-                      <span className="text-xs text-gray-600">
-                        {formData.persentasePemotongan}% dari gaji pokok pegawai
-                      </span>
+                  {getSelectedPegawaiTunjangan() > 0 ? (
+                    <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-4 rounded-md border border-blue-200">
+                      <Calculator className="h-5 w-5" />
+                      <div className="flex flex-col">
+                        <span className="font-medium text-lg">Rp {calculateNominalPemotongan()}</span>
+                        <span className="text-xs text-gray-600">
+                          {formData.persentasePemotongan}% dari tunjangan kinerja pegawai
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 p-4 rounded-md border border-amber-200">
+                      <Calculator className="h-5 w-5" />
+                      <div className="flex flex-col">
+                        <span className="font-medium text-lg">Rp 0</span>
+                        <span className="text-xs text-gray-600">
+                          Pegawai belum memiliki tunjangan kinerja yang ditetapkan
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

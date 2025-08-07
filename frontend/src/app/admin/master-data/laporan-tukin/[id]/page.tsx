@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -183,6 +183,8 @@ function RincianDetailPerPegawai({
                           <Badge 
                             variant={absensi.statusMasuk === 'HADIR' ? 'default' : 
                                     absensi.statusMasuk === 'TERLAMBAT' ? 'destructive' : 
+                                    absensi.statusMasuk === 'LIBUR' ? 'outline' :
+                                    absensi.statusMasuk === 'CUTI' ? 'secondary' :
                                     'secondary'}
                           >
                             {absensi.status || absensi.statusMasuk || 'HADIR'}
@@ -759,6 +761,7 @@ export default function LaporanTukinDetailPage() {
               .alpha { background-color: #fecaca; color: #dc2626; }
               .sakit { background-color: #fef3c7; color: #d97706; }
               .cuti { background-color: #dbeafe; color: #2563eb; }
+              .libur { background-color: #f3e8ff; color: #7c3aed; }
               .page-break { page-break-before: always; }
               @media print {
                 body { font-size: 10px; }
@@ -943,6 +946,9 @@ export default function LaporanTukinDetailPage() {
                       } else if (status === 'CUTI') {
                         statusClass = 'cuti';
                         statusText = 'C';
+                      } else if (status === 'LIBUR') {
+                        statusClass = 'libur';
+                        statusText = 'L';
                       }
                       
                       return `<div class="attendance-day ${statusClass}" title="${formatDate(hari.tanggal)} - ${status}">${hari_nama}<br/>${statusText}</div>`;
@@ -1058,6 +1064,10 @@ export default function LaporanTukinDetailPage() {
                             potonganHari = 0;
                             persentasePotongan = 0;
                             keterangan = 'Cuti resmi';
+                          } else if (status === 'LIBUR') {
+                            potonganHari = 0;
+                            persentasePotongan = 0;
+                            keterangan = 'Hari libur';
                           } else if (hari.menitTerlambat && hari.menitTerlambat > 0) {
                             potonganHari = tunjanganPerHari * 0.1;
                             persentasePotongan = 10;

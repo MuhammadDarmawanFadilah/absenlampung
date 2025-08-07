@@ -918,6 +918,7 @@ export default function MasterDataHistoriAbsensi() {
                     currentLocationData.pegawaiData.latitude,
                     currentLocationData.pegawaiData.longitude
                   ) : null}
+                isLocationAllowed={true}
               />
             </div>
             
@@ -948,6 +949,7 @@ export default function MasterDataHistoriAbsensi() {
                     currentLocationData.pegawaiData.latitude,
                     currentLocationData.pegawaiData.longitude
                   ) : null}
+                isLocationAllowed={true}
               />
             </div>
           </>

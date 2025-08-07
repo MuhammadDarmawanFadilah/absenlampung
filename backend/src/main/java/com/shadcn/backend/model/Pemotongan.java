@@ -45,8 +45,8 @@ public class Pemotongan {
     @Column(name = "nominal_pemotongan", precision = 15, scale = 2)
     private BigDecimal nominalPemotongan;
     
-    @Column(name = "gaji_pokok", precision = 15, scale = 2)
-    private BigDecimal gajiPokok;
+    @Column(name = "tunjangan_kinerja", precision = 15, scale = 2)
+    private BigDecimal tunjanganKinerja;
     
     @Column(name = "is_active", nullable = false)
     @Builder.Default
@@ -63,9 +63,9 @@ public class Pemotongan {
     @PrePersist
     @PreUpdate
     private void calculateValues() {
-        // Auto-calculate nominal pemotongan if gaji pokok is available
-        if (this.gajiPokok != null && this.persentasePemotongan != null) {
-            this.nominalPemotongan = this.gajiPokok
+        // Auto-calculate nominal pemotongan if tunjangan kinerja is available
+        if (this.tunjanganKinerja != null && this.persentasePemotongan != null) {
+            this.nominalPemotongan = this.tunjanganKinerja
                 .multiply(this.persentasePemotongan)
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         }

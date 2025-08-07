@@ -56,7 +56,7 @@ public class PemotonganService {
                 .tahunPemotongan(request.getTahunPemotongan())
                 .persentasePemotongan(request.getPersentasePemotongan())
                 .alasanPemotongan(request.getAlasanPemotongan())
-                .gajiPokok(request.getGajiPokok())
+                .tunjanganKinerja(request.getTunjanganKinerja())
                 .isActive(true)
                 .build();
 
@@ -92,7 +92,7 @@ public class PemotonganService {
         existingPemotongan.setTahunPemotongan(request.getTahunPemotongan());
         existingPemotongan.setPersentasePemotongan(request.getPersentasePemotongan());
         existingPemotongan.setAlasanPemotongan(request.getAlasanPemotongan());
-        existingPemotongan.setGajiPokok(request.getGajiPokok());
+        existingPemotongan.setTunjanganKinerja(request.getTunjanganKinerja());
 
         Pemotongan updatedPemotongan = pemotonganRepository.save(existingPemotongan);
         log.info("Pemotongan berhasil diupdate untuk pegawai: {} pada periode: {}/{}", 
@@ -143,7 +143,7 @@ public class PemotonganService {
                 .persentasePemotongan(pemotongan.getPersentasePemotongan())
                 .alasanPemotongan(pemotongan.getAlasanPemotongan())
                 .nominalPemotongan(pemotongan.getNominalPemotongan())
-                .gajiPokok(pemotongan.getGajiPokok())
+                .tunjanganKinerja(pemotongan.getTunjanganKinerja())
                 .isActive(pemotongan.getIsActive())
                 .createdAt(pemotongan.getCreatedAt())
                 .updatedAt(pemotongan.getUpdatedAt())

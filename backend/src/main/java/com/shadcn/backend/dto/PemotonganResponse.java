@@ -24,7 +24,7 @@ public class PemotonganResponse {
     private BigDecimal persentasePemotongan;
     private String alasanPemotongan;
     private BigDecimal nominalPemotongan;
-    private BigDecimal gajiPokok;
+    private BigDecimal tunjanganKinerja;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

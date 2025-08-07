@@ -24,6 +24,8 @@ public interface HariLiburRepository extends JpaRepository<HariLibur, Long> {
     
     boolean existsByTanggalLiburAndIsActiveTrue(LocalDate tanggalLibur);
     
+    List<HariLibur> findByTanggalLiburBetweenAndIsActiveTrue(LocalDate startDate, LocalDate endDate);
+    
     @Query("SELECT h FROM HariLibur h WHERE h.isActive = true AND " +
            "(:namaLibur IS NULL OR LOWER(h.namaLibur) LIKE LOWER(CONCAT('%', :namaLibur, '%'))) AND " +
            "(:tahun IS NULL OR h.tahunLibur = :tahun) AND " +

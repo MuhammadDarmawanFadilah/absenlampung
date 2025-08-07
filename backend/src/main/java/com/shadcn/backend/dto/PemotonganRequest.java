@@ -37,7 +37,7 @@ public class PemotonganRequest {
     @Size(min = 5, max = 500, message = "Alasan pemotongan harus antara 5-500 karakter")
     private String alasanPemotongan;
     
-    @DecimalMin(value = "0", message = "Gaji pokok tidak boleh negatif")
-    @Digits(integer = 13, fraction = 2, message = "Format gaji pokok tidak valid")
-    private BigDecimal gajiPokok;
+    @DecimalMin(value = "0", message = "Tunjangan kinerja tidak boleh negatif")
+    @Digits(integer = 13, fraction = 2, message = "Format tunjangan kinerja tidak valid")
+    private BigDecimal tunjanganKinerja;
 }

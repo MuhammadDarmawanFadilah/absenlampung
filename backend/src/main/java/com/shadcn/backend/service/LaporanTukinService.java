@@ -237,6 +237,12 @@ public class LaporanTukinService {
     private Map<String, Object> calculateAbsensiStats(Pegawai pegawai, LocalDate startDate, LocalDate endDate) {
         List<Absensi> absensiList = absensiRepository.findByPegawaiAndTanggalBetween(pegawai, startDate, endDate);
         
+        // Get holidays for the period
+        List<HariLibur> hariLiburList = hariLiburRepository.findByTanggalLiburBetweenAndIsActiveTrue(startDate, endDate);
+        Set<LocalDate> hariLiburDates = hariLiburList.stream()
+            .map(HariLibur::getTanggalLibur)
+            .collect(Collectors.toSet());
+        
         Map<String, Object> stats = new HashMap<>();
         
         // Group by date to check daily attendance
@@ -254,8 +260,8 @@ public class LaporanTukinService {
         // Check each working day in the period
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            // Skip weekends (assuming Saturday=6, Sunday=7)
-            if (currentDate.getDayOfWeek().getValue() < 6) {
+            // Skip weekends (assuming Saturday=6, Sunday=7) and holidays
+            if (currentDate.getDayOfWeek().getValue() < 6 && !hariLiburDates.contains(currentDate)) {
                 totalHariKerja++;
                 
                 List<Absensi> dayAbsensi = absensiByDate.get(currentDate);
@@ -448,6 +454,12 @@ public class LaporanTukinService {
         Map<LocalDate, Cuti> cutiByDate = cutiList.stream()
             .collect(Collectors.toMap(Cuti::getTanggalCuti, Function.identity(), (existing, replacement) -> existing));
         
+        // Get holidays for the period to exclude from deductions
+        List<HariLibur> hariLiburList = hariLiburRepository.findByTanggalLiburBetweenAndIsActiveTrue(startDate, endDate);
+        Set<LocalDate> hariLiburDates = hariLiburList.stream()
+            .map(HariLibur::getTanggalLibur)
+            .collect(Collectors.toSet());
+        
         // Get pemotongan rules for percentage calculation
         List<PemotonganAbsen> pemotonganRules = pemotonganAbsenRepository.findAllActiveOrderByKode();
         Map<String, BigDecimal> rulePercentages = pemotonganRules.stream()
@@ -582,18 +594,26 @@ public class LaporanTukinService {
                 }
             } else {
                 // No attendance record for this date
-                // Check if there's approved cuti for this date
-                Cuti cutiHariIni = cutiByDate.get(currentDate);
-                if (cutiHariIni != null) {
-                    statusMasuk = "CUTI";
-                    statusPulang = "CUTI";
-                    keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
-                    // No deduction for approved cuti
+                // Check if it's a holiday first
+                if (hariLiburDates.contains(currentDate)) {
+                    statusMasuk = "LIBUR";
+                    statusPulang = "LIBUR";
+                    keterangan = "Hari Libur";
+                    // No deduction for holidays
                 } else {
-                    // No attendance record and no cuti - Tidak Absen
-                    keterangan = "Tidak ada data absensi";
-                    BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
-                    detailPemotongan.add("Tidak absen (" + percentage + "%)");
+                    // Check if there's approved cuti for this date
+                    Cuti cutiHariIni = cutiByDate.get(currentDate);
+                    if (cutiHariIni != null) {
+                        statusMasuk = "CUTI";
+                        statusPulang = "CUTI";
+                        keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
+                        // No deduction for approved cuti
+                    } else {
+                        // No attendance record and no cuti and no holiday - Tidak Absen
+                        keterangan = "Tidak ada data absensi";
+                        BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
+                        detailPemotongan.add("Tidak absen (" + percentage + "%)");
+                    }
                 }
             }
             
@@ -643,7 +663,10 @@ public class LaporanTukinService {
             if (statusMasuk.equals("CUTI")) {
                 combinedStatus = "CUTI";
                 actuallyHasPemotongan = false; // No deduction for approved cuti
-            } else if (statusMasuk.equals("ALPHA") || (absenMasuk == null && absenPulang == null && !statusMasuk.equals("CUTI"))) {
+            } else if (statusMasuk.equals("LIBUR")) {
+                combinedStatus = "LIBUR";
+                actuallyHasPemotongan = false; // No deduction for holidays
+            } else if (statusMasuk.equals("ALPHA") || (absenMasuk == null && absenPulang == null && !statusMasuk.equals("CUTI") && !statusMasuk.equals("LIBUR"))) {
                 BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
                 actuallyHasPemotongan = true;
                 dailyPercentage = percentage;
@@ -1389,6 +1412,8 @@ public class LaporanTukinService {
                     String status = attendance.getStatusMasuk();
                     if ("CUTI".equals(status)) {
                         kCell.setCellValue("CT");
+                    } else if ("LIBUR".equals(status)) {
+                        kCell.setCellValue("L");
                     } else if ("HADIR".equals(status) || "TERLAMBAT".equals(status)) {
                         // Determine work location based on shift lock location
                         String lockLokasi = attendance.getLockLokasi();
@@ -2029,6 +2054,9 @@ public class LaporanTukinService {
                                     persentasePotongan = BigDecimal.valueOf(50);
                                 } else if ("CUTI".equals(status)) {
                                     potonganHari = BigDecimal.ZERO; // No deduction for approved leave  
+                                    persentasePotongan = BigDecimal.ZERO;
+                                } else if ("LIBUR".equals(status)) {
+                                    potonganHari = BigDecimal.ZERO; // No deduction for holidays  
                                     persentasePotongan = BigDecimal.ZERO;
                                 }
                                 // Additional deduction logic can be added here

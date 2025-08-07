@@ -840,6 +840,7 @@ export default function HistoriAbsensiPage() {
                     currentLocationData.pegawaiData.latitude,
                     currentLocationData.pegawaiData.longitude
                   ) : null}
+                isLocationAllowed={true}
               />
             </div>
             
@@ -870,6 +871,7 @@ export default function HistoriAbsensiPage() {
                     currentLocationData.pegawaiData.latitude,
                     currentLocationData.pegawaiData.longitude
                   ) : null}
+                isLocationAllowed={true}
               />
             </div>
           </>

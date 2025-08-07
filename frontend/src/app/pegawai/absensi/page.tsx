@@ -157,6 +157,7 @@ export default function AbsensiPage() {
 
   useEffect(() => {
     if (user) {
+      console.log('User logged in, loading data...', user) // Debug log
       loadShiftData()
       loadPegawaiData()
       loadTodayAbsensi()
@@ -189,31 +190,46 @@ export default function AbsensiPage() {
   const checkHariLibur = async () => {
     try {
       const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
-      const response = await ApiClient.get(`hari-libur/check/${today}`)
+      console.log('Checking hari libur for date:', today) // Debug log
+      
+      const response = await ApiClient.get(`api/hari-libur/check/${today}`)
       
       if (response.ok) {
         const data = await response.json()
+        console.log('Hari libur check response:', data) // Debug log
+        
         if (data.isHariLibur) {
-          // Get holiday details
-          const holidayResponse = await ApiClient.get(`hari-libur?tanggalLibur=${today}`)
+          // Get holiday details by searching all holidays
+          const holidayResponse = await ApiClient.get(`api/hari-libur?page=0&size=200`)
           
           if (holidayResponse.ok) {
             const holidayData = await holidayResponse.json()
+            console.log('Holiday detail response:', holidayData) // Debug log
+            
             if (holidayData.data && holidayData.data.length > 0) {
-              const holiday = holidayData.data[0]
-              setHariLiburInfo({
-                isHariLibur: true,
-                namaLibur: holiday.namaLibur,
-                isNasional: holiday.isNasional
-              })
+              const holiday = holidayData.data.find((h: any) => h.tanggalLibur === today)
+              if (holiday) {
+                setHariLiburInfo({
+                  isHariLibur: true,
+                  namaLibur: holiday.namaLibur,
+                  isNasional: holiday.isNasional
+                })
+                console.log('Holiday found:', holiday) // Debug log
+              } else {
+                setHariLiburInfo({ isHariLibur: true })
+                console.log('Holiday confirmed but no details found') // Debug log
+              }
             } else {
               setHariLiburInfo({ isHariLibur: true })
+              console.log('Holiday confirmed but no data available') // Debug log
             }
           } else {
             setHariLiburInfo({ isHariLibur: true })
+            console.log('Holiday confirmed but detail API failed') // Debug log
           }
         } else {
           setHariLiburInfo({ isHariLibur: false })
+          console.log('Not a holiday') // Debug log
         }
       }
     } catch (error) {
@@ -808,19 +824,24 @@ export default function AbsensiPage() {
 
         {/* Holiday Information Alert */}
         {hariLiburInfo?.isHariLibur && (
-          <Alert className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-            <CalendarClock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+          <Alert className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 border-2 shadow-lg">
+            <CalendarClock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
             <AlertDescription className="text-yellow-800 dark:text-yellow-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <strong>Hari Libur:</strong> {hariLiburInfo.namaLibur || 'Hari Libur'}
-                  {hariLiburInfo.isNasional && (
-                    <Badge variant="secondary" className="ml-2 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                      Nasional
-                    </Badge>
-                  )}
-                  <p className="mt-1 text-sm">
-                    Hari ini adalah hari libur, namun Anda tetap dapat melakukan absensi jika diperlukan.
+                <div className="flex-1">
+                  <div className="flex items-center mb-2">
+                    <strong className="text-lg">🎉 Hari Libur: {hariLiburInfo.namaLibur || 'Hari Libur'}</strong>
+                    {hariLiburInfo.isNasional && (
+                      <Badge variant="secondary" className="ml-3 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 font-semibold">
+                        🏛️ Nasional
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium mb-1">
+                    ✨ Hari ini adalah hari libur, namun Anda tetap dapat melakukan absensi jika diperlukan.
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                    📅 {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
               </div>
@@ -979,7 +1000,7 @@ export default function AbsensiPage() {
                   {/* Progress Bar Background */}
                   <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-600"></div>
                   <div 
-                    className="absolute top-5 left-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-500 ease-out"
+                    className={`absolute top-5 left-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-500 ease-out`}
                     style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
                   ></div>
                   
