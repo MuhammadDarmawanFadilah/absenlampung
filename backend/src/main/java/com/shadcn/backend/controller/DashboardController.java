@@ -1,9 +1,10 @@
 package com.shadcn.backend.controller;
 
+import com.shadcn.backend.dto.response.DashboardTableResponse;
 import com.shadcn.backend.model.LoginAudit;
-import com.shadcn.backend.model.Pegawai;
 import com.shadcn.backend.repository.LoginAuditRepository;
 import com.shadcn.backend.repository.PegawaiRepository;
+import com.shadcn.backend.service.DashboardService;
 import com.shadcn.backend.service.LoginAuditService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class DashboardController {
     private final PegawaiRepository pegawaiRepository;
     private final LoginAuditRepository loginAuditRepository;
     private final LoginAuditService loginAuditService;
+    private final DashboardService dashboardService;
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> getHealthStatus() {
@@ -43,6 +45,30 @@ public class DashboardController {
             health.put("timestamp", LocalDateTime.now().toString());
             health.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(health);
+        }
+    }
+
+    @GetMapping("/table-data")
+    public ResponseEntity<DashboardTableResponse.DashboardTableData> getDashboardTableData() {
+        try {
+            log.info("Getting dashboard table data");
+            DashboardTableResponse.DashboardTableData tableData = dashboardService.getDashboardTableData();
+            return ResponseEntity.ok(tableData);
+        } catch (Exception e) {
+            log.error("Error getting dashboard table data", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/daily-stats")
+    public ResponseEntity<Map<String, Object>> getDailyAttendanceStats() {
+        try {
+            log.info("Getting daily attendance statistics");
+            Map<String, Object> dailyStats = dashboardService.getDailyAttendanceStats();
+            return ResponseEntity.ok(dailyStats);
+        } catch (Exception e) {
+            log.error("Error getting daily attendance statistics", e);
+            return ResponseEntity.internalServerError().build();
         }
     }
 
@@ -76,13 +102,28 @@ public class DashboardController {
             // Quick Stats - Frontend compatible structure
             Map<String, Object> quickStats = new HashMap<>();
             quickStats.put("totalMembers", totalPegawai);
-            quickStats.put("activeMembers", activePegawai); 
-            quickStats.put("totalNews", 0L); // Placeholder for news data
-            quickStats.put("totalProposals", 0L); // Placeholder for proposals data
-            quickStats.put("totalDocuments", 0L); // Placeholder for documents data
-            quickStats.put("monthlyLogins", 0L); // TODO: implement login statistics
-            quickStats.put("memberGrowthRate", 0.0); // Placeholder for growth rate
-            quickStats.put("newsGrowthRate", 0.0); // Placeholder for news growth rate
+            quickStats.put("activeMembers", activePegawai);
+            
+            // Calculate monthly login count for current month
+            LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+            long monthlyLogins = loginAuditRepository.countSuccessfulLoginsByYearAndMonth(
+                monthStart.getYear(), monthStart.getMonthValue());
+            quickStats.put("monthlyLogins", monthlyLogins);
+            
+            // Calculate growth rate for pegawai
+            LocalDateTime lastMonthStart = monthStart.minusMonths(1);
+            long lastMonthPegawai = pegawaiRepository.countByCreatedAtYearAndMonth(
+                lastMonthStart.getYear(), lastMonthStart.getMonthValue());
+            long currentMonthPegawai = pegawaiRepository.countByCreatedAtYearAndMonth(
+                monthStart.getYear(), monthStart.getMonthValue());
+            
+            double memberGrowthRate = lastMonthPegawai > 0 ? 
+                ((double)(currentMonthPegawai - lastMonthPegawai) / lastMonthPegawai) * 100 : 0.0;
+            quickStats.put("memberGrowthRate", memberGrowthRate);
+            
+            // Absensi statistics for current month
+            quickStats.put("totalAbsensiRecords", 0L); // Can be implemented with absensi data
+            quickStats.put("absensiGrowthRate", 0.0); // Can be calculated from absensi trends
             response.put("quickStats", quickStats);
             
             // Monthly Data (sample data for charts)
@@ -128,17 +169,14 @@ public class DashboardController {
                 .collect(Collectors.toList());
             response.put("recentLogins", recentLoginData);
             
-            // Basic stats
+            // Basic stats - focus on pegawai and login activity
             response.put("totalBiographies", pegawaiRepository.count());
-            response.put("monthlyNewsCount", 0L);
-            response.put("monthlyDocumentCount", 0L);
+            response.put("totalActivePegawai", pegawaiRepository.countByIsActive(true));
+            response.put("monthlyAbsensiCount", 0L); // Can be implemented with absensi statistics
             
-            // Empty arrays for now
+            // Empty arrays for removed functionality
             response.put("recentBiographies", new ArrayList<>());
-            response.put("popularNews", new ArrayList<>());
-            response.put("popularProposals", new ArrayList<>());
             response.put("recentComments", new ArrayList<>());
-            response.put("popularDocuments", new ArrayList<>());
             
             log.info("Dashboard stats data retrieved successfully");
             return ResponseEntity.ok(response);
@@ -151,21 +189,27 @@ public class DashboardController {
 
     private List<Map<String, Object>> createMonthlyData() {
         List<Map<String, Object>> monthlyData = new ArrayList<>();
-        String[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun"};
-        int[] logins = {50, 60, 70, 80, 90, 100};
-        int[] newMembers = {5, 6, 7, 8, 9, 10};
-        int[] newsPublished = {3, 4, 5, 3, 4, 5};
-        int[] proposalsSubmitted = {2, 3, 2, 3, 2, 3};
-        int[] documentsUploaded = {10, 12, 14, 16, 18, 20};
         
-        for (int i = 0; i < months.length; i++) {
+        // Get data for last 6 months
+        LocalDateTime now = LocalDateTime.now();
+        
+        for (int i = 5; i >= 0; i--) {
+            LocalDateTime monthStart = now.minusMonths(i).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+            int year = monthStart.getYear();
+            int month = monthStart.getMonthValue();
+            
+            // Get actual data from database
+            long monthlyLogins = loginAuditRepository.countSuccessfulLoginsByYearAndMonth(year, month);
+            long newPegawai = pegawaiRepository.countByCreatedAtYearAndMonth(year, month);
+            long totalLogins = loginAuditRepository.countByCreatedAtYearAndMonth(year, month);
+            
             Map<String, Object> monthData = new HashMap<>();
-            monthData.put("month", months[i]);
-            monthData.put("logins", logins[i]);
-            monthData.put("newMembers", newMembers[i]);
-            monthData.put("newsPublished", newsPublished[i]);
-            monthData.put("proposalsSubmitted", proposalsSubmitted[i]);
-            monthData.put("documentsUploaded", documentsUploaded[i]);
+            monthData.put("month", monthStart.getMonth().name().substring(0, 3));
+            monthData.put("logins", monthlyLogins);
+            monthData.put("newMembers", newPegawai);
+            monthData.put("totalLogins", totalLogins);
+            monthData.put("activePegawai", pegawaiRepository.countByIsActive(true));
+            
             monthlyData.add(monthData);
         }
         

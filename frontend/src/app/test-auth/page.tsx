@@ -22,7 +22,8 @@ export default function TestAuthPage() {
 
   const testTokenValidity = async () => {
     try {
-      const response = await fetch('http://localhost:8181/api/auth/me', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+      const response = await fetch(`${apiUrl}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

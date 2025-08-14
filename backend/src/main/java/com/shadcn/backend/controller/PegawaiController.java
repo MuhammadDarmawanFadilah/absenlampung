@@ -3,6 +3,7 @@ package com.shadcn.backend.controller;
 import com.shadcn.backend.dto.PegawaiRequest;
 import com.shadcn.backend.dto.PegawaiResponse;
 import com.shadcn.backend.dto.UpdatePegawaiRequest;
+import com.shadcn.backend.dto.SelfUpdatePegawaiRequest;
 import com.shadcn.backend.model.Pegawai;
 import com.shadcn.backend.service.PegawaiService;
 import com.shadcn.backend.service.AuthService;
@@ -26,7 +27,6 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/pegawai")
 @RequiredArgsConstructor
-@CrossOrigin(originPatterns = {"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3000"}, allowCredentials = "true")
 public class PegawaiController {
 
     private final PegawaiService pegawaiService;
@@ -311,6 +311,27 @@ public class PegawaiController {
         } catch (Exception e) {
             log.error("Error updating pegawai", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PutMapping("/{id}/self-update")
+    @PreAuthorize("hasRole('USER') and #id == authentication.principal.id")
+    public ResponseEntity<?> selfUpdatePegawai(
+            @PathVariable Long id, 
+            @Valid @RequestBody SelfUpdatePegawaiRequest request) {
+        try {
+            PegawaiResponse pegawai = pegawaiService.selfUpdatePegawai(id, request);
+            return ResponseEntity.ok(pegawai);
+        } catch (RuntimeException e) {
+            log.error("Error self-updating pegawai: {}", e.getMessage());
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            log.error("Error self-updating pegawai", e);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Terjadi kesalahan sistem");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 

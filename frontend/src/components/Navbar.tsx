@@ -20,6 +20,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { imageAPI } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import PWAInstallButton from "./PWAInstallButton";
 
 const Navbar = () => {
   const { setTheme } = useTheme();
@@ -174,7 +175,7 @@ const Navbar = () => {
       </div>
         {/* RIGHT */}
       <div className="flex items-center gap-4">
-
+        <PWAInstallButton />
         {/* THEME MENU */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -5,6 +5,7 @@ import com.shadcn.backend.model.Jabatan;
 import com.shadcn.backend.model.Lokasi;
 import com.shadcn.backend.dto.PegawaiRequest;
 import com.shadcn.backend.dto.UpdatePegawaiRequest;
+import com.shadcn.backend.dto.SelfUpdatePegawaiRequest;
 import com.shadcn.backend.dto.PegawaiResponse;
 import com.shadcn.backend.repository.PegawaiRepository;
 import com.shadcn.backend.repository.JabatanRepository;
@@ -601,5 +602,80 @@ public class PegawaiService {
         log.info("Password updated successfully for pegawai: {}", pegawaiId);
         
         return createPegawaiResponseWithLocationNames(updatedPegawai);
+    }
+
+    public PegawaiResponse selfUpdatePegawai(Long id, SelfUpdatePegawaiRequest request) {
+        log.info("Self-updating pegawai with id: {}", id);
+        
+        Pegawai pegawai = pegawaiRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pegawai not found with id: " + id));
+
+        // Check if email is being changed and already exists
+        if (request.getEmail() != null && !request.getEmail().equals(pegawai.getEmail())) {
+            if (pegawaiRepository.existsByEmail(request.getEmail())) {
+                throw new RuntimeException("Email already exists: " + request.getEmail());
+            }
+            pegawai.setEmail(request.getEmail());
+        }
+
+        // Update allowed fields for self-update
+        if (request.getNamaLengkap() != null) {
+            pegawai.setNamaLengkap(request.getNamaLengkap());
+        }
+        if (request.getNoTelp() != null) {
+            pegawai.setNoTelp(request.getNoTelp());
+        }
+        if (request.getNip() != null) {
+            pegawai.setNip(request.getNip());
+        }
+        if (request.getAlamat() != null) {
+            pegawai.setAlamat(request.getAlamat());
+        }
+        if (request.getProvinsi() != null) {
+            pegawai.setProvinsi(request.getProvinsi());
+        }
+        if (request.getKota() != null) {
+            pegawai.setKota(request.getKota());
+        }
+        if (request.getKecamatan() != null) {
+            pegawai.setKecamatan(request.getKecamatan());
+        }
+        if (request.getKelurahan() != null) {
+            pegawai.setKelurahan(request.getKelurahan());
+        }
+        if (request.getKodePos() != null) {
+            pegawai.setKodePos(request.getKodePos());
+        }
+        if (request.getLatitude() != null) {
+            pegawai.setLatitude(request.getLatitude());
+        }
+        if (request.getLongitude() != null) {
+            pegawai.setLongitude(request.getLongitude());
+        }
+        if (request.getPhotoUrl() != null) {
+            pegawai.setPhotoUrl(request.getPhotoUrl());
+        }
+        if (request.getTanggalLahir() != null) {
+            pegawai.setTanggalLahir(request.getTanggalLahir());
+        }
+        if (request.getTanggalMasuk() != null) {
+            pegawai.setTanggalMasuk(request.getTanggalMasuk());
+        }
+        if (request.getStatusNikah() != null) {
+            pegawai.setStatusNikah(request.getStatusNikah());
+        }
+        if (request.getJenisKelamin() != null) {
+            pegawai.setJenisKelamin(request.getJenisKelamin());
+        }
+        if (request.getRekening() != null) {
+            pegawai.setRekening(request.getRekening());
+        }
+
+        pegawai.setUpdatedAt(LocalDateTime.now());
+
+        Pegawai savedPegawai = pegawaiRepository.save(pegawai);
+        log.info("Pegawai self-updated successfully with id: {}", savedPegawai.getId());
+        
+        return createPegawaiResponseWithLocationNames(savedPegawai);
     }
 }

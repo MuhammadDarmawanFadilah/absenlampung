@@ -75,9 +75,13 @@ const PemotonganPage = () => {
   
   const [appliedFilters, setAppliedFilters] = useState(filters);
   
-  // Pegawai dropdown state
+  // Pegawai dropdown state for form
   const [pegawaiOpen, setPegawaiOpen] = useState(false);
   const [pegawaiSearch, setPegawaiSearch] = useState('');
+  
+  // Pegawai dropdown state for filter
+  const [filterPegawaiOpen, setFilterPegawaiOpen] = useState(false);
+  const [filterPegawaiSearch, setFilterPegawaiSearch] = useState('');
   
   // Form data
   const [formData, setFormData] = useState<PemotonganFormData>({
@@ -189,17 +193,31 @@ const PemotonganPage = () => {
   };
 
   const handlePegawaiChange = (pegawaiId: string) => {
+    const selectedPegawai = pegawaiList.find(p => p.id.toString() === pegawaiId);
+    
+    // Peringatan jika pegawai tidak memiliki tunjangan kinerja
+    if (selectedPegawai && (!selectedPegawai.tunjanganKinerja || selectedPegawai.tunjanganKinerja === 0)) {
+      toast.warning(`Pegawai ${selectedPegawai.namaLengkap} belum memiliki tunjangan kinerja. Pemotongan akan menjadi Rp 0.`);
+    }
+    
     setFormData({
       ...formData,
       pegawaiId
     });
+    setPegawaiSearch(''); // Reset search setelah memilih
     setPegawaiOpen(false);
   };
 
-  // Filter pegawai berdasarkan pencarian
+  // Filter pegawai berdasarkan pencarian untuk form
   const filteredPegawaiList = pegawaiList.filter(pegawai =>
     pegawai.namaLengkap.toLowerCase().includes(pegawaiSearch.toLowerCase()) ||
     pegawai.nip.toLowerCase().includes(pegawaiSearch.toLowerCase())
+  );
+
+  // Filter pegawai berdasarkan pencarian untuk filter
+  const filteredPegawaiListForFilter = pegawaiList.filter(pegawai =>
+    pegawai.namaLengkap.toLowerCase().includes(filterPegawaiSearch.toLowerCase()) ||
+    pegawai.nip.toLowerCase().includes(filterPegawaiSearch.toLowerCase())
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -363,17 +381,22 @@ const PemotonganPage = () => {
                         className="w-full justify-between h-11"
                       >
                         {formData.pegawaiId ? (
-                          <div className="flex flex-col items-start">
+                          <div className="flex flex-col items-start text-left">
                             <span className="font-medium">
                               {pegawaiList.find(p => p.id.toString() === formData.pegawaiId)?.namaLengkap}
                             </span>
                             <span className="text-sm text-gray-500">
                               NIP: {pegawaiList.find(p => p.id.toString() === formData.pegawaiId)?.nip}
                             </span>
+                            {pegawaiList.find(p => p.id.toString() === formData.pegawaiId)?.tunjanganKinerja && (
+                              <span className="text-xs text-green-600">
+                                Tunjangan Kinerja: Rp {pegawaiList.find(p => p.id.toString() === formData.pegawaiId)?.tunjanganKinerja?.toLocaleString('id-ID')}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-gray-500">
-                            {pegawaiList.length === 0 ? "Memuat pegawai..." : "Pilih pegawai..."}
+                            {pegawaiList.length === 0 ? "Memuat pegawai..." : "Pilih pegawai untuk melihat tunjangan kinerja..."}
                           </span>
                         )}
                         <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -388,23 +411,29 @@ const PemotonganPage = () => {
                         />
                         <CommandList>
                           <CommandEmpty>
-                            {pegawaiList.length === 0 ? 'Memuat data pegawai...' : 'Pegawai tidak ditemukan.'}
+                            {pegawaiList.length === 0 ? 'Memuat data pegawai...' : `Tidak ada pegawai dengan nama atau NIP "${pegawaiSearch}"`}
                           </CommandEmpty>
                           <CommandGroup>
                             {filteredPegawaiList.length > 0 ? filteredPegawaiList.map((pegawai) => (
                               <CommandItem
                                 key={pegawai.id}
-                                value={pegawai.id.toString()}
+                                value={pegawai.namaLengkap.toLowerCase()}
                                 onSelect={() => handlePegawaiChange(pegawai.id.toString())}
-                                className="flex flex-col items-start py-3"
+                                className="flex flex-col items-start py-3 cursor-pointer hover:bg-gray-50"
                               >
                                 <span className="font-medium">{pegawai.namaLengkap}</span>
                                 <span className="text-sm text-gray-500">NIP: {pegawai.nip}</span>
-                                {pegawai.gajiPokok && (
-                                  <span className="text-sm text-blue-600">
-                                    Gaji: Rp {pegawai.gajiPokok.toLocaleString('id-ID')}
-                                  </span>
-                                )}
+                                <div className="flex gap-4 text-xs">
+                                  {pegawai.tunjanganKinerja && pegawai.tunjanganKinerja > 0 ? (
+                                    <span className="text-green-600">
+                                      Tunjangan Kinerja: Rp {pegawai.tunjanganKinerja.toLocaleString('id-ID')}
+                                    </span>
+                                  ) : (
+                                    <span className="text-red-500 font-medium">
+                                      ⚠️ Belum ada tunjangan kinerja
+                                    </span>
+                                  )}
+                                </div>
                               </CommandItem>
                             )) : pegawaiList.length > 0 && (
                               <div className="p-2 text-center text-sm text-gray-500">
@@ -569,11 +598,80 @@ const PemotonganPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Nama Pegawai</Label>
-              <Input
-                value={filters.namaPegawai}
-                onChange={(e) => setFilters({ ...filters, namaPegawai: e.target.value })}
-                placeholder="Cari nama pegawai..."
-              />
+              <Popover open={filterPegawaiOpen} onOpenChange={setFilterPegawaiOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={filterPegawaiOpen}
+                    className="w-full justify-between h-11"
+                  >
+                    {filters.namaPegawai ? (
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">
+                          {pegawaiList.find(p => p.namaLengkap === filters.namaPegawai)?.namaLengkap || filters.namaPegawai}
+                        </span>
+                        {pegawaiList.find(p => p.namaLengkap === filters.namaPegawai)?.nip && (
+                          <span className="text-sm text-gray-500">
+                            NIP: {pegawaiList.find(p => p.namaLengkap === filters.namaPegawai)?.nip}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">
+                        {pegawaiList.length === 0 ? "Memuat pegawai..." : "Cari nama pegawai..."}
+                      </span>
+                    )}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" style={{ width: "var(--radix-popover-trigger-width)" }}>
+                  <Command>
+                    <CommandInput 
+                      placeholder="Cari pegawai..." 
+                      value={filterPegawaiSearch}
+                      onValueChange={setFilterPegawaiSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {pegawaiList.length === 0 ? 'Memuat data pegawai...' : 'Pegawai tidak ditemukan.'}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value=""
+                          onSelect={() => {
+                            setFilters({ ...filters, namaPegawai: '' });
+                            setFilterPegawaiSearch('');
+                            setFilterPegawaiOpen(false);
+                          }}
+                          className="flex items-center py-3"
+                        >
+                          <span className="text-gray-500">Semua Pegawai</span>
+                        </CommandItem>
+                        {filteredPegawaiListForFilter.length > 0 ? filteredPegawaiListForFilter.map((pegawai) => (
+                          <CommandItem
+                            key={pegawai.id}
+                            value={pegawai.namaLengkap}
+                            onSelect={() => {
+                              setFilters({ ...filters, namaPegawai: pegawai.namaLengkap });
+                              setFilterPegawaiSearch('');
+                              setFilterPegawaiOpen(false);
+                            }}
+                            className="flex flex-col items-start py-3"
+                          >
+                            <span className="font-medium">{pegawai.namaLengkap}</span>
+                            <span className="text-sm text-gray-500">NIP: {pegawai.nip}</span>
+                          </CommandItem>
+                        )) : pegawaiList.length > 0 && (
+                          <div className="p-2 text-center text-sm text-gray-500">
+                            Tidak ada pegawai yang sesuai dengan pencarian "{filterPegawaiSearch}"
+                          </div>
+                        )}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="space-y-2">

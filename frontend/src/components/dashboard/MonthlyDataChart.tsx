@@ -44,7 +44,7 @@ export default function MonthlyDataChart({ monthlyData }: MonthlyDataChartProps)
               Data Registrasi Bulanan
             </CardTitle>
             <p className="text-gray-600 dark:text-gray-400">
-              Visualisasi data pegawai dan pemilihan per bulan
+              Visualisasi data pegawai dan aktivitas login per bulan
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -56,18 +56,12 @@ export default function MonthlyDataChart({ monthlyData }: MonthlyDataChartProps)
       
       <CardContent className="relative">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
             <TabsTrigger 
               value="overview" 
               className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-blue-600 font-medium transition-all duration-200"
             >
               Data Pegawai
-            </TabsTrigger>
-            <TabsTrigger 
-              value="users"
-              className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-green-600 font-medium transition-all duration-200"
-            >
-              Data Pemilihan
             </TabsTrigger>
             <TabsTrigger 
               value="content"
@@ -117,60 +111,21 @@ export default function MonthlyDataChart({ monthlyData }: MonthlyDataChartProps)
                     <Legend />
                     <Area 
                       type="monotone" 
-                      dataKey="pegawai" 
+                      dataKey="logins" 
                       stackId="1" 
                       stroke={chartColors.primary}
                       fill="url(#colorLogins)"
-                      name="Data Pegawai"
+                      name="Total Login"
                     />
                     <Area 
                       type="monotone" 
-                      dataKey="pemilihan" 
+                      dataKey="newMembers" 
                       stackId="1" 
                       stroke={chartColors.secondary}
                       fill="url(#colorMembers)"
-                      name="Data Pemilihan"
+                      name="Pegawai Baru"
                     />
                   </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="users" className="space-y-4">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl p-4">
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="month" 
-                      tick={{ fontSize: 12 }}
-                      stroke="#6b7280"
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 12 }}
-                      stroke="#6b7280"
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
-                        border: 'none', 
-                        borderRadius: '12px', 
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' 
-                      }}
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="pemilihan" 
-                      stroke={chartColors.primary}
-                      strokeWidth={3}
-                      dot={{ fill: chartColors.primary, r: 6 }}
-                      activeDot={{ r: 8, fill: chartColors.primary }}
-                      name="Data Pemilihan"
-                    />
-                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>

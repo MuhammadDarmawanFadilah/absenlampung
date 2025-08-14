@@ -102,4 +102,23 @@ public interface CutiRepository extends JpaRepository<Cuti, Long> {
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );
+
+    // Dashboard table query - employees on leave today
+    @Query(value = """
+        SELECT p.id, p.name, j.nama_jabatan, jc.nama_cuti as jenis_cuti,
+               c.tanggal_cuti as tanggal_mulai, c.tanggal_cuti as tanggal_selesai,
+               c.alasan_cuti, p.photo_url
+        FROM cuti c
+        JOIN pegawai p ON c.pegawai_id = p.id
+        LEFT JOIN jabatan j ON p.jabatan_id = j.id
+        LEFT JOIN jenis_cuti jc ON c.jenis_cuti_id = jc.id
+        WHERE c.tanggal_cuti = :today 
+        AND c.status_approval = 'DISETUJUI'
+        ORDER BY c.created_at DESC
+        """, nativeQuery = true)
+    List<Object[]> findEmployeesOnLeaveToday(@Param("today") LocalDate today);
+
+    // Daily statistics query - count employees on leave today
+    @Query("SELECT COUNT(DISTINCT c.pegawai) FROM Cuti c WHERE c.tanggalCuti = :today AND c.statusApproval = 'DISETUJUI'")
+    long countEmployeesOnLeaveToday(@Param("today") LocalDate today);
 }

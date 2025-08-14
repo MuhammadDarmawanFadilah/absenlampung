@@ -1,7 +1,6 @@
 package com.shadcn.backend.service;
 
 import com.shadcn.backend.dto.response.DashboardTableResponse;
-import com.shadcn.backend.entity.Absensi;
 import com.shadcn.backend.repository.AbsensiRepository;
 import com.shadcn.backend.repository.CutiRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,33 +9,32 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.HashMap;
+import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional(readOnly = true)
-public class DashboardService {
+public class DashboardTableService {
 
     private final AbsensiRepository absensiRepository;
     private final CutiRepository cutiRepository;
 
     public DashboardTableResponse.DashboardTableData getDashboardTableData() {
         LocalDate today = LocalDate.now();
-        
-        // Untuk pegawai teladan bulan ini - ambil dari awal bulan hingga hari ini
-        LocalDate startOfCurrentMonth = today.withDayOfMonth(1);
-        LocalDate endOfCurrentMonth = today; // Hanya sampai hari ini, bukan sampai akhir bulan
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate startOfMonth = currentMonth.atDay(1);
+        LocalDate endOfMonth = currentMonth.atEndOfMonth();
 
         // 10 pegawai berangkat paling pagi hari ini
         List<DashboardTableResponse.EarlyEmployeeToday> earlyEmployees = getEarlyEmployeesToday(today);
 
-        // 10 pegawai teladan bulan ini (hanya dari 1 hingga 12 Agustus 2025)
+        // 10 pegawai teladan bulan ini (datang paling cepat rata-rata)
         List<DashboardTableResponse.ExemplaryEmployeeThisMonth> exemplaryEmployees = 
-                getExemplaryEmployeesThisMonth(startOfCurrentMonth, endOfCurrentMonth);
+                getExemplaryEmployeesThisMonth(startOfMonth, endOfMonth);
 
         // Pegawai yang cuti hari ini
         List<DashboardTableResponse.EmployeeOnLeaveToday> employeesOnLeave = 
@@ -49,27 +47,6 @@ public class DashboardService {
         );
     }
 
-    public Map<String, Object> getDailyAttendanceStats() {
-        LocalDate today = LocalDate.now();
-        Map<String, Object> stats = new HashMap<>();
-        
-        // Count pegawai hadir hari ini (yang sudah absen masuk)
-        long hadirHariIni = absensiRepository.countByTanggalAndType(today, Absensi.AbsensiType.MASUK);
-        
-        // Count pegawai terlambat hari ini
-        long terlambatHariIni = absensiRepository.countByTanggalAndTypeAndStatus(
-            today, Absensi.AbsensiType.MASUK, Absensi.AbsensiStatus.TERLAMBAT);
-        
-        // Count pegawai cuti hari ini
-        long cutiHariIni = cutiRepository.countEmployeesOnLeaveToday(today);
-        
-        stats.put("hadirHariIni", hadirHariIni);
-        stats.put("terlambatHariIni", terlambatHariIni);
-        stats.put("cutiHariIni", cutiHariIni);
-        
-        return stats;
-    }
-
     private List<DashboardTableResponse.EarlyEmployeeToday> getEarlyEmployeesToday(LocalDate today) {
         return absensiRepository.findTop10EarliestArrivalsToday(today)
                 .stream()
@@ -77,7 +54,7 @@ public class DashboardService {
                         (Long) result[0],    // pegawaiId
                         (String) result[1],  // namaLengkap
                         (String) result[2],  // jabatan
-                        ((java.sql.Time) result[3]).toLocalTime(), // jamMasuk
+                        ((LocalTime) result[3]), // jamMasuk
                         (String) result[4],  // status
                         (String) result[5]   // photoUrl
                 ))
@@ -93,7 +70,7 @@ public class DashboardService {
                         (String) result[1],   // namaLengkap
                         (String) result[2],   // jabatan
                         (Long) result[3],     // totalHadirBulan
-                        ((java.math.BigDecimal) result[4]).doubleValue(),   // rataRataKedatangan
+                        (Double) result[4],   // rataRataKedatangan
                         (String) result[5],   // tingkatKetepatan
                         (String) result[6]    // photoUrl
                 ))

@@ -86,4 +86,53 @@ public interface AbsensiRepository extends JpaRepository<Absensi, Long> {
     
     Page<Absensi> findByTanggalBetweenAndTypeAndStatusOrderByTanggalDescWaktuDesc(
         LocalDate startDate, LocalDate endDate, Absensi.AbsensiType type, Absensi.AbsensiStatus status, Pageable pageable);
+
+    // Dashboard table queries
+    @Query(value = """
+        SELECT p.id, p.name, j.nama_jabatan, a.waktu, a.status, p.photo_url
+        FROM absensi a
+        JOIN pegawai p ON a.pegawai_id = p.id
+        LEFT JOIN jabatan j ON p.jabatan_id = j.id
+        WHERE a.tanggal = :today 
+        AND a.type = 'MASUK'
+        AND a.status != 'ALPHA'
+        ORDER BY a.waktu ASC
+        LIMIT 10
+        """, nativeQuery = true)
+    List<Object[]> findTop10EarliestArrivalsToday(@Param("today") LocalDate today);
+
+    @Query(value = """
+        SELECT p.id, p.name, j.nama_jabatan, 
+               COUNT(a.id) as total_hadir,
+               AVG(CASE WHEN a.type = 'MASUK' THEN 
+                   HOUR(a.waktu) * 60 + MINUTE(a.waktu) 
+                   ELSE NULL END) as avg_arrival_minutes,
+               CONCAT(
+                   ROUND(
+                       (COUNT(CASE WHEN a.type = 'MASUK' AND a.status = 'HADIR' THEN 1 END) * 100.0 / 
+                        COUNT(CASE WHEN a.type = 'MASUK' THEN 1 END)), 1
+                   ), '%'
+               ) as ketepatan_rate,
+               p.photo_url
+        FROM pegawai p
+        LEFT JOIN jabatan j ON p.jabatan_id = j.id
+        LEFT JOIN absensi a ON p.id = a.pegawai_id 
+                             AND a.tanggal BETWEEN :startDate AND :endDate
+        WHERE p.is_active = true
+        GROUP BY p.id, p.name, j.nama_jabatan, p.photo_url
+        HAVING COUNT(CASE WHEN a.type = 'MASUK' THEN 1 END) > 0
+        ORDER BY avg_arrival_minutes ASC, ketepatan_rate DESC
+        LIMIT 10
+        """, nativeQuery = true)
+    List<Object[]> findTop10ExemplaryEmployeesThisMonth(@Param("startDate") LocalDate startDate, 
+                                                        @Param("endDate") LocalDate endDate);
+
+    // Daily statistics queries
+    @Query("SELECT COUNT(DISTINCT a.pegawai) FROM Absensi a WHERE a.tanggal = :today AND a.type = :type")
+    long countByTanggalAndType(@Param("today") LocalDate today, @Param("type") Absensi.AbsensiType type);
+
+    @Query("SELECT COUNT(DISTINCT a.pegawai) FROM Absensi a WHERE a.tanggal = :today AND a.type = :type AND a.status = :status")
+    long countByTanggalAndTypeAndStatus(@Param("today") LocalDate today, 
+                                       @Param("type") Absensi.AbsensiType type, 
+                                       @Param("status") Absensi.AbsensiStatus status);
 }

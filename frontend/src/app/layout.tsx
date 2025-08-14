@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientSidebarWrapper from "@/components/ClientSidebarWrapper";
@@ -23,15 +23,44 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tren-Silapor - Sistem Pelaporan dan Pengawasan Pemilihan",
-  description: "Sistem Informasi Alumni Fakultas Kedokteran Universitas Jenderal Soedirman",
+  title: {
+    default: "Absensi Lampung",
+    template: "%s | Absensi Lampung"
+  },
+  description: "Aplikasi Absensi Online Pemerintah Provinsi Lampung - Sistem manajemen kehadiran pegawai yang modern dan efisien",
+  manifest: "/manifest.json",
+  keywords: ["absensi", "lampung", "pemerintah", "kehadiran", "pegawai"],
+  authors: [{ name: "Pemerintah Provinsi Lampung" }],
+  creator: "Pemerintah Provinsi Lampung",
+  publisher: "Pemerintah Provinsi Lampung",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   icons: {
     icon: [
-      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-16x16.png", sizes: "16x16", type: "image/png" },
     ],
-    shortcut: "/logo.svg",
-    apple: "/logo.svg",
+    shortcut: "/icons/favicon.ico",
+    apple: [
+      { url: "/icons/icon-180x180.png", sizes: "180x180", type: "image/png" },
+    ],
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Absensi Lampung",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f69435",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({
@@ -43,11 +72,23 @@ export default async function RootLayout({
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true"
   
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="id" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-        <link rel="shortcut icon" href="/logo.svg" />
-        <link rel="apple-touch-icon" href="/logo.svg" />
+        <meta name="application-name" content="Absensi Lampung" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Absensi Lampung" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
+        <meta name="msapplication-TileColor" content="#f69435" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+        <link rel="mask-icon" href="/icons/icon-base.svg" color="#f69435" />
+        <link rel="shortcut icon" href="/icons/favicon.ico" />
+        
         <link 
           rel="stylesheet" 
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"

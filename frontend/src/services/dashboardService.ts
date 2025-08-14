@@ -5,12 +5,9 @@ interface DashboardStats {
   recentLogins: UserInfo[];
   totalBiographies: number;
   recentBiographies: UserInfo[];
-  monthlyNewsCount: number;
-  popularNews: NewsStats[];
-  popularProposals: ProposalStats[];
+  totalActivePegawai: number;
+  monthlyAbsensiCount: number;
   recentComments: RecentComment[];
-  monthlyDocumentCount: number;
-  popularDocuments: DocumentStats[];
 }
 
 interface DashboardOverview {
@@ -18,6 +15,42 @@ interface DashboardOverview {
   quickStats: QuickStats;
   monthlyData: MonthlyData[];
   activityFeed: ActivityFeed[];
+}
+
+interface DashboardTableData {
+  pegawaiDatangPagi: EarlyEmployeeToday[];
+  pegawaiTeladan: ExemplaryEmployeeThisMonth[];
+  pegawaiCuti: EmployeeOnLeaveToday[];
+}
+
+interface EarlyEmployeeToday {
+  pegawaiId: number;
+  namaLengkap: string;
+  jabatan: string;
+  jamMasuk: string;
+  status: string;
+  photoUrl?: string;
+}
+
+interface ExemplaryEmployeeThisMonth {
+  pegawaiId: number;
+  namaLengkap: string;
+  jabatan: string;
+  totalHadirBulan: number;
+  rataRataKedatangan: number;
+  tingkatKetepatan: string;
+  photoUrl?: string;
+}
+
+interface EmployeeOnLeaveToday {
+  pegawaiId: number;
+  namaLengkap: string;
+  jabatan: string;
+  jenisCuti: string;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  keterangan: string;
+  photoUrl?: string;
 }
 
 interface UserInfo {
@@ -80,21 +113,24 @@ interface OrganizationInfo {
 interface QuickStats {
   totalMembers: number;
   activeMembers: number;
-  totalNews: number;
-  totalProposals: number;
-  totalDocuments: number;
+  totalAbsensiRecords: number;
   monthlyLogins: number;
   memberGrowthRate: number;
-  newsGrowthRate: number;
+  absensiGrowthRate: number;
+}
+
+interface DailyAttendanceStats {
+  hadirHariIni: number;
+  cutiHariIni: number;
+  terlambatHariIni: number;
 }
 
 interface MonthlyData {
   month: string;
   logins: number;
   newMembers: number;
-  newsPublished: number;
-  proposalsSubmitted: number;
-  documentsUploaded: number;
+  totalLogins: number;
+  activePegawai: number;
 }
 
 interface ActivityFeed {
@@ -110,6 +146,50 @@ interface ActivityFeed {
 }
 
 export class DashboardService {
+  static async getDashboardTableData(): Promise<DashboardTableData> {
+    try {
+      const url = getApiUrl('dashboard/table-data');
+      console.log('Fetching dashboard table data from:', url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching dashboard table data:', error);
+      throw error;
+    }
+  }
+
+  static async getDailyAttendanceStats(): Promise<DailyAttendanceStats> {
+    try {
+      const url = getApiUrl('dashboard/daily-stats');
+      console.log('Fetching daily attendance stats from:', url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching daily attendance stats:', error);
+      throw error;
+    }
+  }
+
   static async getDashboardStats(): Promise<DashboardStats> {
     try {
       const url = getApiUrl('dashboard/stats');
@@ -158,6 +238,10 @@ export class DashboardService {
 export type {
   DashboardStats,
   DashboardOverview,
+  DashboardTableData,
+  EarlyEmployeeToday,
+  ExemplaryEmployeeThisMonth,
+  EmployeeOnLeaveToday,
   UserInfo,
   NewsStats,
   ProposalStats,
@@ -167,4 +251,5 @@ export type {
   QuickStats,
   MonthlyData,
   ActivityFeed,
+  DailyAttendanceStats,
 };
