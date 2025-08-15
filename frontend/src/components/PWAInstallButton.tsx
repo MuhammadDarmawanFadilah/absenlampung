@@ -36,13 +36,15 @@ const PWAInstallButton = () => {
     // Check PWA support
     const checkPWASupport = () => {
       const hasServiceWorker = 'serviceWorker' in navigator;
-      const hasManifest = 'manifest' in document.createElement('link');
+      const hasManifest = document.querySelector('link[rel="manifest"]') !== null;
       
+      // More lenient PWA support - just need service worker and manifest
       setIsSupported(hasServiceWorker && hasManifest);
       
       console.log('PWA Support Check:', {
         serviceWorker: hasServiceWorker,
         manifest: hasManifest,
+        manifestElement: document.querySelector('link[rel="manifest"]'),
         userAgent: navigator.userAgent
       });
     };
