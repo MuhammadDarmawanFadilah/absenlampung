@@ -11,7 +11,7 @@
     <groupId>com.shadcn</groupId>    <artifactId>shadcn-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Silapor</name>
-    <description>Backend API for Tren-Silapor</description>
+    <description>Backend API for Absensi Lampung</description>
     <packaging>war</packaging>
 
     <properties>

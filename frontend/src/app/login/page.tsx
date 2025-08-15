@@ -83,7 +83,7 @@ function LoginForm() {
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="w-40 h-40 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Image src="/logo.svg" alt="Tren-Silapor" width={120} height={120} className="text-white" />
+              <Image src="/logo.svg" alt="Absensi Lampung" width={120} height={120} className="text-white" />
             </div>
           </div>
           <div>

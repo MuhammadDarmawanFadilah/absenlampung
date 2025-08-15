@@ -15,6 +15,7 @@ import QuickStatsCards from '@/components/dashboard/QuickStatsCards';
 import MonthlyDataChart from '@/components/dashboard/MonthlyDataChart';
 import ActivityFeedCard from '@/components/dashboard/ActivityFeedCard';
 import DashboardTables from '@/components/dashboard/DashboardTables';
+import DataAbsensiSistem from '@/components/DataAbsensiSistem';
 import { TrendingUp, Eye, MessageCircle, ThumbsUp, Download, FileText, Users, Calendar, CalendarClock, Clock, Briefcase } from 'lucide-react';
 
 const Dashboard = () => {
@@ -195,7 +196,7 @@ const Dashboard = () => {
   }
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 md:space-y-8">        {/* Enhanced Header Section */}
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 md:space-y-8">        {/* Enhanced Header Section */}
         <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 fade-in">
           <div className="absolute inset-0 bg-gradient-to-r from-red-600/10 via-white/5 to-blue-600/10"></div>
           <div className="relative p-4 sm:p-6 lg:p-8">
@@ -205,11 +206,11 @@ const Dashboard = () => {
                   Dashboard Sistem Absensi Lampung
                 </h1>
                 <p className="text-gray-600 dark:text-gray-300 text-base sm:text-lg">
-                  Sistem Informasi Manajemen Absensi dan Data Pegawai - Provinsi Lampung
+                  Sistem Informasi Absensi dan Monitoring Kehadiran Pegawai Provinsi Lampung
                 </p>
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                   <div className="w-2 h-2 bg-green-500 rounded-full pulse"></div>
-                  <span>Sistem berjalan normal • Monitoring aktif</span>
+                  <span>Sistem aktif • Data real-time • Monitoring 24/7</span>
                 </div>
               </div>
               <div className="flex flex-col gap-2">
@@ -231,17 +232,75 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Vision and Mission Section */}
+        <div className="space-y-6 fade-in-delay-1">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Visi dan Misi Bawaslu Lampung
+            </h2>
+          </div>
+          
+          <div className="bg-gradient-to-r from-blue-50 via-white to-red-50 dark:from-blue-950/20 dark:via-gray-800 dark:to-red-950/20 rounded-xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 md:p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <Eye className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Visi</h3>
+                </div>
+                <div className="bg-white/70 dark:bg-gray-700/30 rounded-lg p-4 border border-blue-200/50 dark:border-blue-700/50">
+                  <p className="text-gray-700 dark:text-gray-200 leading-relaxed">
+                    Menjadi lembaga pengawas pemilu yang terpercaya untuk mewujudkan pemilu yang demokratis, 
+                    berkualitas, dan berintegritas di Provinsi Lampung.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Misi</h3>
+                </div>
+                <div className="bg-white/70 dark:bg-gray-700/30 rounded-lg p-4 border border-red-200/50 dark:border-red-700/50">
+                  <ul className="text-gray-700 dark:text-gray-200 space-y-2">
+                    <li className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>Mengawasi tahapan pemilu secara komprehensif</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>Memastikan penegakan peraturan pemilu</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>Meningkatkan partisipasi masyarakat dalam pengawasan</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>Membangun tata kelola organisasi yang baik</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Organization Info Section */}
-        <div className="space-y-4 fade-in-delay-1">
+        <div className="space-y-4 fade-in-delay-2">
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-gradient-to-b from-green-500 to-green-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Informasi Sistem
+              Informasi Organisasi
             </h2>
           </div>
           <OrganizationInfoCard organizationInfo={overview.organizationInfo} />
         </div>        {/* Quick Stats Section */}
-        <div className="space-y-4 fade-in-delay-2">
+        <div className="space-y-4 fade-in-delay-3">
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -250,7 +309,7 @@ const Dashboard = () => {
           </div>
           <QuickStatsCards quickStats={overview.quickStats} />
         </div>        {/* Analytics Section */}
-        <div className="space-y-4 fade-in-delay-3">
+        <div className="space-y-4 fade-in-delay-4">
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-gradient-to-b from-purple-500 to-purple-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -259,7 +318,7 @@ const Dashboard = () => {
           </div>
           <MonthlyDataChart monthlyData={overview.monthlyData} />
         </div>        {/* Dashboard Attendance Tables Section */}
-        <div className="space-y-4 fade-in-delay-4">
+        <div className="space-y-4 fade-in-delay-5">
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-gradient-to-b from-teal-500 to-teal-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -442,7 +501,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-gradient-to-b from-teal-500 to-teal-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Laporan dan Aktivitas Pengawasan
+              Informasi dan Aktivitas Sistem
             </h2>
           </div>
           
@@ -461,7 +520,7 @@ const Dashboard = () => {
             
             <CardContent className="relative">
               <Tabs defaultValue="pegawai" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
                   <TabsTrigger 
                     value="pegawai"
                     className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-red-600 font-medium transition-all duration-200"
@@ -479,6 +538,12 @@ const Dashboard = () => {
                     className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-green-600 font-medium transition-all duration-200"
                   >
                     Master Data
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="absensi"
+                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-cyan-600 font-medium transition-all duration-200"
+                  >
+                    Data Absensi
                   </TabsTrigger>
                 </TabsList>
                 
@@ -642,6 +707,10 @@ const Dashboard = () => {
                     )}
                   </div>
                 </TabsContent>
+                
+                <TabsContent value="absensi" className="space-y-4">
+                  <DataAbsensiSistem />
+                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>          {/* Side by Side: Activity Feed and System Statistics */}
@@ -731,28 +800,35 @@ const Dashboard = () => {
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center">
                 <div className="w-6 h-6 bg-red-600 rounded mr-3"></div>
-                Tentang Bawaslu
+                Tentang Bawaslu Lampung
               </h3>
               <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                Badan Pengawas Pemilihan Umum (Bawaslu) adalah lembaga negara yang bertugas mengawasi 
-                penyelenggaraan pemilihan umum di seluruh Indonesia untuk menjamin pemilu yang demokratis, berintegritas, dan adil.
+                Badan Pengawas Pemilihan Umum (Bawaslu) Provinsi Lampung adalah lembaga negara yang bertugas mengawasi 
+                penyelenggaraan pemilihan umum di Provinsi Lampung. Melayani masyarakat dengan integritas, profesional, dan transparan.
               </p>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                <p>📍 Jl. ZA. Pagar Alam No. 1A, Bandar Lampung</p>
+                <p>🏢 Gedung Bawaslu Provinsi Lampung</p>
+              </div>
             </div>
             
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center">
                 <div className="w-6 h-6 bg-blue-600 rounded mr-3"></div>
-                Layanan Pengaduan
+                Kontak & Media Sosial
               </h3>
               <div className="space-y-2 text-sm">
                 <p className="text-gray-600 dark:text-gray-400">
-                  <a href="tel:1500991" className="hover:text-blue-600">📞 Call Center: 1500-991</a>
+                  <a href="tel:0721703441" className="hover:text-blue-600">📞 Telepon: (0721) 703-441</a>
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  <a href="mailto:pengaduan@bawaslu.go.id" className="hover:text-blue-600">📧 Email: pengaduan@bawaslu.go.id</a>
+                  <a href="https://www.instagram.com/bawaslulampung/" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">� Instagram: @bawaslulampung</a>
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  <a href="https://www.bawaslu.go.id" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">🌐 Website: www.bawaslu.go.id</a>
+                  <a href="https://bawaslu-lampungprov.go.id" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">🌐 Website: bawaslu-lampungprov.go.id</a>
+                </p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  <a href="mailto:info@bawaslu-lampungprov.go.id" className="hover:text-blue-600">📧 Email: info@bawaslu-lampungprov.go.id</a>
                 </p>
               </div>
             </div>
@@ -764,13 +840,16 @@ const Dashboard = () => {
               </h3>
               <div className="space-y-2 text-sm">
                 <p className="text-gray-600 dark:text-gray-400">
-                  Senin - Jumat: 08:00 - 17:00 WIB
+                  <span className="font-medium">Senin - Kamis:</span> 07:30 - 16:00 WIB
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Sabtu: 08:00 - 12:00 WIB
+                  <span className="font-medium">Jumat:</span> 07:30 - 16:30 WIB
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Minggu & Hari Libur: Tutup
+                  <span className="font-medium">Istirahat:</span> 12:00 - 13:00 WIB
+                </p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">Sabtu & Minggu:</span> Tutup
                 </p>
               </div>
             </div>

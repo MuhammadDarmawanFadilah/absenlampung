@@ -234,7 +234,7 @@ const AppSidebar = () => {
           <SidebarMenuItem>            <SidebarMenuButton asChild className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md">
               <Link href="/" onClick={handleMenuClick} className="flex items-center gap-2 md:gap-3">
                 <Image src="/logo.svg" alt="logo" width={24} height={24} className="md:w-8 md:h-8 flex-shrink-0" />
-                <span className="font-semibold text-sm md:text-base group-data-[collapsible=icon]:group-data-[state=collapsed]:hidden">Tren-Silapor</span>
+                <span className="font-semibold text-sm md:text-base group-data-[collapsible=icon]:group-data-[state=collapsed]:hidden">Absensi Lampung</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -74,7 +74,7 @@ export function WhatsAppMessagePreview({ title, message, image, recipientCount }
               AL
             </AvatarFallback>
           </Avatar>          <div className="flex-1">
-            <div className="font-medium text-sm">Tren-Silapor</div>
+            <div className="font-medium text-sm">Absensi Lampung</div>
             <div className="text-xs text-green-100">online</div>
           </div>
         </div>

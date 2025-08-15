@@ -7,63 +7,101 @@ import { Download } from 'lucide-react';
 const PWAInstallButton = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
 
   useEffect(() => {
+    // Check PWA support
+    const checkPWASupport = () => {
+      const hasServiceWorker = 'serviceWorker' in navigator;
+      const hasManifest = 'manifest' in document.createElement('link');
+      const hasBeforeInstallPrompt = 'BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window;
+      
+      const supported = hasServiceWorker && (hasManifest || hasBeforeInstallPrompt);
+      setIsSupported(supported);
+      
+      console.log('PWA Support Check:', {
+        serviceWorker: hasServiceWorker,
+        manifest: hasManifest,
+        beforeInstallPrompt: hasBeforeInstallPrompt,
+        supported
+      });
+    };
+
     // Check if app is already installed
     const checkIfInstalled = () => {
       // Check if running in standalone mode (installed)
-      if (window.matchMedia('(display-mode: standalone)').matches || 
-          (window.navigator as any).standalone === true) {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                          (window.navigator as any).standalone === true ||
+                          document.referrer.includes('android-app://');
+      
+      setIsInstalled(isStandalone);
+      console.log('PWA: Install check - isStandalone:', isStandalone);
+      return isStandalone;
+    };
+
+    checkPWASupport();
+    const installed = checkIfInstalled();
+
+    // Only add event listeners if not installed and PWA is supported
+    if (!installed && isSupported) {
+      const handleBeforeInstallPrompt = (e: Event) => {
+        console.log('PWA: beforeinstallprompt event fired');
+        // Prevent browser from showing default prompt
+        e.preventDefault();
+        // Save event for later use
+        setDeferredPrompt(e);
+      };
+
+      const handleAppInstalled = () => {
+        console.log('PWA: App was installed');
         setIsInstalled(true);
-        console.log('PWA: App is already installed');
-        return;
-      }
-    };
+        setDeferredPrompt(null);
+      };
 
-    checkIfInstalled();
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.addEventListener('appinstalled', handleAppInstalled);
 
-    const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('PWA: beforeinstallprompt event fired');
-      // Mencegah browser menampilkan prompt default
-      e.preventDefault();
-      // Simpan event untuk digunakan nanti
-      setDeferredPrompt(e);
-    };
+      // Fallback: Check periodically if app becomes installable
+      const checkInstallability = setInterval(() => {
+        if (!deferredPrompt && !isInstalled) {
+          console.log('PWA: Periodic installability check');
+        }
+      }, 5000);
 
-    const handleAppInstalled = () => {
-      console.log('PWA: App was installed');
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.removeEventListener('appinstalled', handleAppInstalled);
+        clearInterval(checkInstallability);
+      };
+    }
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    // Debug: Log current state
-    console.log('PWA: Install button component mounted');
-    console.log('PWA: Service Worker registration:', 'serviceWorker' in navigator);
-    console.log('PWA: Display mode:', window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser');
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
+    // Debug logging
+    console.log('PWA: Install button component mounted', {
+      isInstalled: installed,
+      isSupported,
+      userAgent: navigator.userAgent
+    });
+  }, [isSupported]);
 
   const handleInstallClick = async () => {
     console.log('PWA: Install button clicked');
     
     if (!deferredPrompt) {
       console.log('PWA: No deferred prompt available');
+      // Fallback: Show manual installation instructions
+      alert('Untuk menginstall aplikasi ini:\n\n' +
+            '1. Chrome/Edge: Klik menu (⋮) > "Install Absensi Lampung"\n' +
+            '2. Firefox: Klik ikon rumah di address bar\n' +
+            '3. Safari: Share > "Add to Home Screen"');
       return;
     }
 
     try {
-      // Tampilkan prompt instalasi
+      // Show install prompt
       console.log('PWA: Showing install prompt');
       deferredPrompt.prompt();
       
-      // Tunggu respons pengguna
+      // Wait for user response
       const { outcome } = await deferredPrompt.userChoice;
       console.log('PWA: User choice:', outcome);
       
@@ -73,10 +111,12 @@ const PWAInstallButton = () => {
         console.log('PWA: User dismissed the install prompt');
       }
       
-      // Prompt hanya bisa digunakan sekali
+      // Prompt can only be used once
       setDeferredPrompt(null);
     } catch (error) {
       console.error('PWA: Error during installation:', error);
+      // Fallback message
+      alert('Terjadi kesalahan saat installasi. Silahkan coba install manual melalui menu browser.');
     }
   };
 
@@ -86,13 +126,18 @@ const PWAInstallButton = () => {
     return null;
   }
 
-  // Don't show button if no install prompt is available
-  if (!deferredPrompt) {
-    console.log('PWA: Button hidden - no deferred prompt');
+  // Don't show button if PWA is not supported
+  if (!isSupported) {
+    console.log('PWA: Button hidden - PWA not supported');
     return null;
   }
 
-  console.log('PWA: Rendering install button');
+  // Show button even without deferred prompt (for manual fallback)
+  console.log('PWA: Rendering install button', { 
+    hasDeferredPrompt: !!deferredPrompt,
+    isSupported,
+    isInstalled 
+  });
 
   return (
     <Button
@@ -100,7 +145,7 @@ const PWAInstallButton = () => {
       size="icon"
       onClick={handleInstallClick}
       className="flex"
-      title="Install App"
+      title={deferredPrompt ? "Install App" : "Install App (Manual)"}
     >
       <Download className="h-[1.2rem] w-[1.2rem]" />
       <span className="sr-only">Install App</span>

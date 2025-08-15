@@ -121,7 +121,7 @@ export function WhatsAppMobilePreview({ title, message, image, recipientCount }:
                 </svg>
               </div>              {/* Contact info */}
               <div className="flex-1">
-                <div className="text-white text-base font-medium">Tren-Silapor</div>
+                <div className="text-white text-base font-medium">Absensi Lampung</div>
                 <div className="text-green-200 text-xs">online</div>
               </div>
               

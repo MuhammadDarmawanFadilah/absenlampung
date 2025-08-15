@@ -84,10 +84,23 @@ export default async function RootLayout({
         <meta name="msapplication-TileColor" content="#f69435" />
         <meta name="msapplication-tap-highlight" content="no" />
         
+        {/* PWA Meta Tags */}
+        <meta name="theme-color" content="#f69435" />
+        <meta name="color-scheme" content="light dark" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
         <link rel="mask-icon" href="/icons/icon-base.svg" color="#f69435" />
         <link rel="shortcut icon" href="/icons/favicon.ico" />
+        
+        {/* Apple Touch Icons */}
+        <link rel="apple-touch-icon" href="/icons/icon-180x180.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
+        
+        {/* Manifest */}
+        <link rel="manifest" href="/manifest.json" />
         
         <link 
           rel="stylesheet" 
@@ -98,6 +111,21 @@ export default async function RootLayout({
         {process.env.NODE_ENV === 'development' && (
           <script src="/network-filter.js" defer></script>
         )}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                  .then(function(registration) {
+                    console.log('SW registered with scope: ', registration.scope);
+                  })
+                  .catch(function(error) {
+                    console.log('SW registration failed: ', error);
+                  });
+              });
+            }
+          `
+        }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex`}
