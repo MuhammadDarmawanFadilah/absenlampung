@@ -232,23 +232,29 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Vision and Mission Section */}
-        <div className="space-y-6 fade-in-delay-1">
+        {/* Organization Info Section */}
+        <div className="space-y-4 fade-in-delay-2">
           <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
+            <div className="w-1 h-8 bg-gradient-to-b from-green-500 to-green-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Visi dan Misi Bawaslu Lampung
+              Informasi Organisasi & Visi Misi
             </h2>
           </div>
           
-          <div className="bg-gradient-to-r from-blue-50 via-white to-red-50 dark:from-blue-950/20 dark:via-gray-800 dark:to-red-950/20 rounded-xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 md:p-8">
+          {/* Vision and Mission Section within Organization Info */}
+          <div className="bg-gradient-to-r from-blue-50 via-white to-red-50 dark:from-blue-950/20 dark:via-gray-800 dark:to-red-950/20 rounded-xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 md:p-8 mb-6">
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-center">
+                Visi dan Misi Bawaslu Lampung
+              </h3>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                     <Eye className="w-4 h-4 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Visi</h3>
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100">Visi</h4>
                 </div>
                 <div className="bg-white/70 dark:bg-gray-700/30 rounded-lg p-4 border border-blue-200/50 dark:border-blue-700/50">
                   <p className="text-gray-700 dark:text-gray-200 leading-relaxed">
@@ -263,7 +269,7 @@ const Dashboard = () => {
                   <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center">
                     <TrendingUp className="w-4 h-4 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Misi</h3>
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100">Misi</h4>
                 </div>
                 <div className="bg-white/70 dark:bg-gray-700/30 rounded-lg p-4 border border-red-200/50 dark:border-red-700/50">
                   <ul className="text-gray-700 dark:text-gray-200 space-y-2">
@@ -288,16 +294,7 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Organization Info Section */}
-        <div className="space-y-4 fade-in-delay-2">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-green-500 to-green-600 rounded-full"></div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Informasi Organisasi
-            </h2>
-          </div>
+          
           <OrganizationInfoCard organizationInfo={overview.organizationInfo} />
         </div>        {/* Quick Stats Section */}
         <div className="space-y-4 fade-in-delay-3">
