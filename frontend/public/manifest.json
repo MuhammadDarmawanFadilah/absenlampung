@@ -7,8 +7,15 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "scope": "/",
-  "start_url": "/",
+  "start_url": "/?utm_source=pwa&utm_medium=pwa&utm_campaign=pwa",
   "lang": "id",
+  "dir": "ltr",
+  "id": "absensi-lampung-pwa",
+  "categories": ["productivity", "business"],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
@@ -59,21 +66,35 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "business"],
-  "prefer_related_applications": false,
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop-screenshot.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard Absensi Lampung"
+    },
+    {
+      "src": "/screenshots/mobile-screenshot.png", 
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Absensi Mobile"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "Go to Dashboard",
-      "url": "/",
+      "url": "/?utm_source=pwa_shortcut&utm_medium=pwa&utm_campaign=dashboard",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Absensi",
       "short_name": "Absensi",
       "description": "Absensi Hari Ini",
-      "url": "/pegawai",
+      "url": "/pegawai?utm_source=pwa_shortcut&utm_medium=pwa&utm_campaign=absensi",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
