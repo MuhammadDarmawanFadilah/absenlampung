@@ -68,10 +68,29 @@ const PWAInstallButton = () => {
     if (!installed && isSupported) {
       const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
         console.log('PWA: beforeinstallprompt event fired');
+        
+        // Validate the event has required methods
+        if (typeof e.prompt !== 'function') {
+          console.log('PWA: Invalid beforeinstallprompt event - missing prompt method');
+          return;
+        }
+
         // Prevent browser from showing default prompt
         e.preventDefault();
+        
         // Save event for later use
         setDeferredPrompt(e);
+        
+        // Set timeout to clear the prompt if it becomes stale
+        setTimeout(() => {
+          setDeferredPrompt(prevPrompt => {
+            if (prevPrompt === e) {
+              console.log('PWA: Clearing stale deferred prompt');
+              return null;
+            }
+            return prevPrompt;
+          });
+        }, 300000); // Clear after 5 minutes
       };
 
       const handleAppInstalled = () => {
@@ -125,6 +144,14 @@ const PWAInstallButton = () => {
     
     if (deferredPrompt) {
       try {
+        // Validate prompt is still valid
+        if (typeof deferredPrompt.prompt !== 'function') {
+          console.log('PWA: Deferred prompt is invalid, clearing and showing manual instructions');
+          setDeferredPrompt(null);
+          setShowManualDialog(true);
+          return;
+        }
+
         // Show install prompt immediately
         console.log('PWA: Showing native install prompt');
         await deferredPrompt.prompt();
@@ -145,7 +172,8 @@ const PWAInstallButton = () => {
         return;
       } catch (error) {
         console.error('PWA: Error during native installation:', error);
-        // Fall through to manual instructions
+        // Clear invalid prompt and fall through to manual instructions
+        setDeferredPrompt(null);
       }
     }
 
