@@ -219,7 +219,7 @@ const nextConfig: NextConfig = {
       },
       // Workbox files
       {
-        source: '/workbox-*.js',
+        source: '/workbox-:path*.js',
         headers: [
           {
             key: 'Content-Type',
