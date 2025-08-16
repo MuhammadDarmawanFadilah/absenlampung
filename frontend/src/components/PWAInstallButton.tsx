@@ -2,15 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Smartphone, Monitor } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Download, X } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -23,313 +15,258 @@ interface BeforeInstallPromptEvent extends Event {
 
 const PWAInstallButton = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [isSupported, setIsSupported] = useState(false);
-  const [showManualDialog, setShowManualDialog] = useState(false);
-  const [deviceType, setDeviceType] = useState<'mobile' | 'desktop'>('desktop');
 
   useEffect(() => {
-    // Detect device type
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    setDeviceType(isMobile ? 'mobile' : 'desktop');
+    console.log('PWA: Component mounted, checking install criteria');
 
-    // Check PWA support
-    const checkPWASupport = () => {
-      const hasServiceWorker = 'serviceWorker' in navigator;
-      const hasManifest = document.querySelector('link[rel="manifest"]') !== null;
-      
-      // More lenient PWA support - just need service worker and manifest
-      setIsSupported(hasServiceWorker && hasManifest);
-      
-      console.log('PWA Support Check:', {
-        serviceWorker: hasServiceWorker,
-        manifest: hasManifest,
-        manifestElement: document.querySelector('link[rel="manifest"]'),
-        userAgent: navigator.userAgent
-      });
-    };
+    // Check if app is already installed (standalone mode)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         (window.navigator as any).standalone ||
+                         document.referrer.includes('android-app://');
 
-    // Check if app is already installed
-    const checkIfInstalled = () => {
-      // Check if running in standalone mode (installed)
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                          (window.navigator as any).standalone === true ||
-                          document.referrer.includes('android-app://');
-      
-      setIsInstalled(isStandalone);
-      console.log('PWA: Install check - isStandalone:', isStandalone);
-      return isStandalone;
-    };
-
-    checkPWASupport();
-    const installed = checkIfInstalled();
-
-    // Only add event listeners if not installed and PWA is supported
-    if (!installed && isSupported) {
-      const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
-        console.log('PWA: beforeinstallprompt event fired');
-        
-        // Validate the event has required methods
-        if (typeof e.prompt !== 'function') {
-          console.log('PWA: Invalid beforeinstallprompt event - missing prompt method');
-          return;
-        }
-
-        // Prevent browser from showing default prompt
-        e.preventDefault();
-        
-        // Save event for later use
-        setDeferredPrompt(e);
-        
-        // Set timeout to clear the prompt if it becomes stale
-        setTimeout(() => {
-          setDeferredPrompt(prevPrompt => {
-            if (prevPrompt === e) {
-              console.log('PWA: Clearing stale deferred prompt');
-              return null;
-            }
-            return prevPrompt;
-          });
-        }, 300000); // Clear after 5 minutes
-      };
-
-      const handleAppInstalled = () => {
-        console.log('PWA: App was installed');
-        setIsInstalled(true);
-        setDeferredPrompt(null);
-      };
-
-      // Type assertion for event listeners
-      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
-      window.addEventListener('appinstalled', handleAppInstalled);
-
-      // More aggressive installation criteria checking
-      const checkInstallCriteria = () => {
-        // Force service worker registration if not already done
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(registrations => {
-            if (registrations.length === 0) {
-              console.log('PWA: No service worker found, may affect installability');
-            } else {
-              console.log('PWA: Service worker registered, checking install criteria');
-              // Dispatch a custom event to potentially trigger beforeinstallprompt
-              setTimeout(() => {
-                const event = new CustomEvent('pwa-check-install');
-                window.dispatchEvent(event);
-              }, 1000);
-            }
-          });
-        }
-      };
-
-      // Check install criteria after a delay to allow page to fully load
-      setTimeout(checkInstallCriteria, 2000);
-
-      return () => {
-        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
-        window.removeEventListener('appinstalled', handleAppInstalled);
-      };
+    if (isStandalone) {
+      console.log('PWA: App already running in standalone mode');
+      setIsInstalled(true);
+      return;
     }
 
-    console.log('PWA: Install button component mounted', {
-      isInstalled: installed,
-      isSupported,
-      deviceType,
-      userAgent: navigator.userAgent
-    });
-  }, [isSupported]);
+    // Check for service worker support
+    if (!('serviceWorker' in navigator)) {
+      console.log('PWA: Service Worker not supported');
+      return;
+    }
+
+    let promptEvent: BeforeInstallPromptEvent | null = null;
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('PWA: beforeinstallprompt event fired', e);
+      
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      
+      // Cast to our interface
+      const installEvent = e as BeforeInstallPromptEvent;
+      
+      // Validate the event properly
+      if (installEvent && 
+          typeof installEvent.prompt === 'function' && 
+          installEvent.userChoice instanceof Promise) {
+        
+        console.log('PWA: Valid install prompt event detected');
+        promptEvent = installEvent;
+        setDeferredPrompt(installEvent);
+        setShowInstallBanner(true);
+        
+        // Log event details for debugging
+        console.log('PWA: Event details', {
+          platforms: installEvent.platforms,
+          hasPrompt: typeof installEvent.prompt === 'function',
+          hasUserChoice: installEvent.userChoice instanceof Promise
+        });
+      } else {
+        console.warn('PWA: Invalid beforeinstallprompt event received', {
+          hasPrompt: installEvent && typeof installEvent.prompt === 'function',
+          hasUserChoice: installEvent && installEvent.userChoice instanceof Promise,
+          event: installEvent
+        });
+      }
+    };
+
+    const handleAppInstalled = () => {
+      console.log('PWA: App successfully installed');
+      setIsInstalled(true);
+      setShowInstallBanner(false);
+      setDeferredPrompt(null);
+      promptEvent = null;
+    };
+
+    // Add event listeners
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Force check for install criteria after a delay
+    const checkInstallCriteria = async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          console.log('PWA: Service Worker registrations:', registrations.length);
+          
+          if (registrations.length > 0) {
+            console.log('PWA: Service Worker is registered');
+            
+            // Check if manifest is properly linked
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+              console.log('PWA: Manifest is linked');
+            } else {
+              console.warn('PWA: Manifest not found in document');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('PWA: Error checking install criteria:', error);
+      }
+    };
+
+    // Delay check to ensure everything is loaded
+    setTimeout(checkInstallCriteria, 3000);
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
 
   const handleInstallClick = async () => {
-    console.log('PWA: Install button clicked', { hasDeferredPrompt: !!deferredPrompt });
+    console.log('PWA: Install button clicked');
     
-    if (deferredPrompt) {
-      try {
-        // Validate prompt is still valid
-        if (typeof deferredPrompt.prompt !== 'function') {
-          console.log('PWA: Deferred prompt is invalid, clearing and showing manual instructions');
-          setDeferredPrompt(null);
-          setShowManualDialog(true);
-          return;
-        }
-
-        // Show install prompt immediately
-        console.log('PWA: Showing native install prompt');
-        await deferredPrompt.prompt();
-        
-        // Wait for user response
-        const choiceResult = await deferredPrompt.userChoice;
-        console.log('PWA: User choice:', choiceResult.outcome);
-        
-        if (choiceResult.outcome === 'accepted') {
-          console.log('PWA: User accepted the install prompt');
-          setIsInstalled(true);
-        } else {
-          console.log('PWA: User dismissed the install prompt');
-        }
-        
-        // Prompt can only be used once
-        setDeferredPrompt(null);
-        return;
-      } catch (error) {
-        console.error('PWA: Error during native installation:', error);
-        // Clear invalid prompt and fall through to manual instructions
-        setDeferredPrompt(null);
-      }
+    if (!deferredPrompt) {
+      console.log('PWA: No deferred prompt available');
+      showManualInstructions();
+      return;
     }
 
-    // Check if we can trigger install through other means
-    const isChrome = /Chrome/i.test(navigator.userAgent) && !/Edge/i.test(navigator.userAgent);
-    const isEdge = /Edge|Edg/i.test(navigator.userAgent);
-    
-    if ((isChrome || isEdge) && !deferredPrompt) {
-      // Try to trigger the browser's install mechanism
-      try {
-        // Force check for install criteria
-        setTimeout(() => {
-          console.log('PWA: Attempting to trigger browser install detection');
-          // This helps trigger the beforeinstallprompt event in some cases
-          window.dispatchEvent(new Event('beforeinstallprompt'));
-        }, 100);
-        
-        // Show instructions after a brief delay
-        setTimeout(() => {
-          setShowManualDialog(true);
-        }, 200);
-      } catch (error) {
-        console.error('PWA: Error triggering install detection:', error);
-        setShowManualDialog(true);
+    // Double-check the prompt method exists
+    if (typeof deferredPrompt.prompt !== 'function') {
+      console.error('PWA: Deferred prompt missing prompt() method');
+      showManualInstructions();
+      return;
+    }
+
+    try {
+      console.log('PWA: Triggering install prompt');
+      
+      // Show the install prompt
+      await deferredPrompt.prompt();
+      
+      // Wait for the user to respond to the prompt
+      const choiceResult = await deferredPrompt.userChoice;
+      
+      console.log('PWA: User choice result:', choiceResult);
+      
+      if (choiceResult.outcome === 'accepted') {
+        console.log('PWA: User accepted the install');
+        setIsInstalled(true);
+      } else {
+        console.log('PWA: User dismissed the install');
       }
-    } else {
-      // For other browsers or as fallback, show manual instructions
-      console.log('PWA: No native prompt available, showing manual instructions');
-      setShowManualDialog(true);
+      
+      // Clear the deferredPrompt as it can only be used once
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+      
+    } catch (error) {
+      console.error('PWA: Error during installation:', error);
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+      showManualInstructions();
     }
   };
 
-  const getManualInstructions = () => {
-    const isChrome = /Chrome/i.test(navigator.userAgent);
-    const isFirefox = /Firefox/i.test(navigator.userAgent);
-    const isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
-    const isEdge = /Edge|Edg/i.test(navigator.userAgent);
-
-    if (deviceType === 'mobile') {
-      if (isChrome || isEdge) {
-        return {
-          title: "Install Absensi Lampung",
-          steps: [
-            "1. Klik menu tiga titik (⋮) di pojok kanan atas browser",
-            "2. Pilih 'Install app' atau 'Add to Home screen'",
-            "3. Ketuk 'Install' untuk menambahkan ke layar utama"
-          ]
-        };
-      } else if (isFirefox) {
-        return {
-          title: "Install Absensi Lampung",
-          steps: [
-            "1. Klik ikon 'Home' di address bar",
-            "2. Pilih 'Add to Home Screen'",
-            "3. Ketuk 'Add' untuk install aplikasi"
-          ]
-        };
-      } else if (isSafari) {
-        return {
-          title: "Install Absensi Lampung",
-          steps: [
-            "1. Ketuk tombol 'Share' (ikon persegi dengan panah ke atas)",
-            "2. Scroll ke bawah dan pilih 'Add to Home Screen'",
-            "3. Ketuk 'Add' untuk install aplikasi"
-          ]
-        };
+  const showManualInstructions = () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+    
+    let instructions = '';
+    
+    if (isMobile) {
+      if (userAgent.includes('chrome')) {
+        instructions = '1. Ketuk menu ⋮ (tiga titik)\n2. Pilih "Install app" atau "Add to Home screen"\n3. Ketuk "Install"';
+      } else if (userAgent.includes('firefox')) {
+        instructions = '1. Ketuk ikon rumah di address bar\n2. Pilih "Add to Home Screen"\n3. Ketuk "Add"';
+      } else if (userAgent.includes('safari')) {
+        instructions = '1. Ketuk tombol Share (⎋)\n2. Pilih "Add to Home Screen"\n3. Ketuk "Add"';
+      } else {
+        instructions = '1. Gunakan menu browser\n2. Cari opsi "Add to Home Screen" atau "Install app"\n3. Ikuti petunjuk yang muncul';
       }
     } else {
-      if (isChrome || isEdge) {
-        return {
-          title: "Install Absensi Lampung",
-          steps: [
-            "1. Klik menu tiga titik (⋮) di pojok kanan atas browser",
-            "2. Pilih 'Install Absensi Lampung...'",
-            "3. Klik 'Install' pada dialog yang muncul"
-          ]
-        };
-      } else if (isFirefox) {
-        return {
-          title: "Install Absensi Lampung",
-          steps: [
-            "1. Klik ikon '+' di address bar (jika tersedia)",
-            "2. Atau bookmark halaman ini untuk akses cepat",
-            "3. Firefox akan mengingat aplikasi ini"
-          ]
-        };
+      if (userAgent.includes('chrome') || userAgent.includes('edg')) {
+        instructions = '1. Klik menu ⋮ (tiga titik) di browser\n2. Pilih "Install Absensi Lampung..."\n3. Klik "Install" pada dialog';
+      } else if (userAgent.includes('firefox')) {
+        instructions = '1. Klik ikon + di address bar (jika tersedia)\n2. Atau bookmark halaman ini\n3. Firefox akan mengingatnya sebagai app';
+      } else {
+        instructions = '1. Bookmark halaman ini untuk akses cepat\n2. Atau cari menu "Install app" di browser\n3. Ikuti petunjuk browser Anda';
       }
     }
 
-    return {
-      title: "Install Absensi Lampung",
-      steps: [
-        "1. Bookmark halaman ini untuk akses cepat",
-        "2. Atau tambahkan shortcut ke desktop/home screen",
-        "3. Browser Anda mendukung penggunaan aplikasi web ini"
-      ]
-    };
+    alert(`Install Aplikasi Absensi Lampung:\n\n${instructions}\n\nCatatan: Pastikan Anda menggunakan HTTPS untuk semua fitur PWA.`);
   };
 
-  // Don't show button if app is already installed
+  const handleDismiss = () => {
+    setShowInstallBanner(false);
+    console.log('PWA: Install banner dismissed');
+    
+    // Remember dismissal for 24 hours
+    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+  };
+
+  // Don't show if already installed
   if (isInstalled) {
-    console.log('PWA: Button hidden - app is installed');
     return null;
   }
 
-  // Don't show button if PWA is not supported
-  if (!isSupported) {
-    console.log('PWA: Button hidden - PWA not supported');
+  // Don't show if no install prompt available
+  if (!showInstallBanner) {
     return null;
   }
 
-  const instructions = getManualInstructions();
+  // Check if recently dismissed
+  const lastDismissed = localStorage.getItem('pwa-install-dismissed');
+  if (lastDismissed) {
+    const dismissTime = parseInt(lastDismissed);
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    if (Date.now() - dismissTime < twentyFourHours) {
+      return null;
+    }
+  }
 
   return (
-    <>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={handleInstallClick}
-        className="flex"
-        title="Install Aplikasi"
-      >
-        <Download className="h-[1.2rem] w-[1.2rem]" />
-        <span className="sr-only">Install App</span>
-      </Button>
-
-      <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {deviceType === 'mobile' ? (
-                <Smartphone className="h-5 w-5" />
-              ) : (
-                <Monitor className="h-5 w-5" />
-              )}
-              {instructions.title}
-            </DialogTitle>
-            <DialogDescription>
-              Ikuti langkah-langkah berikut untuk menginstall aplikasi:
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {instructions.steps.map((step, index) => (
-              <div key={index} className="text-sm text-muted-foreground">
-                {step}
-              </div>
-            ))}
+    <div className="fixed bottom-4 right-4 z-[9999] max-w-sm animate-in slide-in-from-bottom-2 duration-300">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center">
+            <Download className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" />
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+              Install Aplikasi
+            </h3>
           </div>
-          <div className="flex justify-end">
-            <Button onClick={() => setShowManualDialog(false)}>
-              Mengerti
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDismiss}
+            className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
+          Install aplikasi untuk akses lebih cepat, notifikasi push, dan penggunaan offline
+        </p>
+        
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleInstallClick}
+            size="sm"
+            className="flex-1 text-sm"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Install
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleDismiss}
+            className="text-sm"
+          >
+            Nanti
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 

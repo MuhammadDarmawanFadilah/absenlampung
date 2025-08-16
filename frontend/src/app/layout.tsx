@@ -118,6 +118,7 @@ export default async function RootLayout({
                 navigator.serviceWorker.register('/sw.js')
                   .then(function(registration) {
                     console.log('SW registered with scope: ', registration.scope);
+                    console.log('PWA: Service worker registered, checking install criteria');
                   })
                   .catch(function(error) {
                     console.log('SW registration failed: ', error);
