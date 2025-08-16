@@ -93,6 +93,8 @@ public class DashboardController {
             Map<String, Object> organizationInfo = new HashMap<>();
             organizationInfo.put("name", "Sistem Absensi Lampung");
             organizationInfo.put("description", "Sistem informasi untuk mengelola absensi dan data pegawai");
+            organizationInfo.put("vision", "Menjadi lembaga pengawas pemilu yang terpercaya untuk mewujudkan pemilu yang demokratis, berkualitas, dan berintegritas di Provinsi Lampung.");
+            organizationInfo.put("mission", "Mengawasi tahapan pemilu secara komprehensif\nMemastikan penegakan peraturan pemilu\nMeningkatkan partisipasi masyarakat dalam pengawasan\nMembangun tata kelola organisasi yang baik");
             organizationInfo.put("establishedYear", "2024");
             organizationInfo.put("totalEmployees", totalPegawai);
             organizationInfo.put("totalDepartments", 5L);
