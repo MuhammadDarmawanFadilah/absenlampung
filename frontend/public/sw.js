@@ -1,1 +1,179 @@
-if(!self.define){let e,a={};const s=(s,i)=>(s=new URL(s+".js",i).href,a[s]||new Promise(a=>{if("document"in self){const e=document.createElement("script");e.src=s,e.onload=a,document.head.appendChild(e)}else e=s,importScripts(s),a()}).then(()=>{let e=a[s];if(!e)throw new Error(`Module ${s} didn’t register its module`);return e}));self.define=(i,n)=>{const t=e||("document"in self?document.currentScript.src:"")||location.href;if(a[t])return;let c={};const r=e=>s(e,t),u={module:{uri:t},exports:c,require:r};a[t]=Promise.all(i.map(e=>u[e]||r(e))).then(e=>(n(...e),c))}}define(["./workbox-3c9d0171"],function(e){"use strict";importScripts("/fallback-ce627215c0e4a9af.js"),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/static/X9--QABLibruw_Hck3sNT/_buildManifest.js",revision:"3e1226cb2d7952f4b647e6ad8b2c69f1"},{url:"/_next/static/X9--QABLibruw_Hck3sNT/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/_next/static/chunks/1781.d01373189973b890.js",revision:"d01373189973b890"},{url:"/_next/static/chunks/1849-81b39d31ade811b6.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/2119-c8bbe66eebc5f5d8.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/2319-6a2821a5b4c6f721.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/3269.f248bfa42af18212.js",revision:"f248bfa42af18212"},{url:"/_next/static/chunks/3358-9a30b5b0f0aa3686.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/3367-eb34200296dbb6a4.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/4081-8fcd4d914c153b86.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/4189-e7d836d3acec1283.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/4405-4c988aa91db71a64.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/4553-635a7f164f56e1a3.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/4686-d2cd707a1fabd0c5.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/4936-1a74b6b735108a76.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/5743-7ee1bbe1f004ef64.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/6701-cf17399e1aeef040.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/8783-2a779ab621ffbf4c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/914-2299d17a23d63302.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/9216-2e4c1079013509b8.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/9746.9a17cb7568e13fe5.js",revision:"9a17cb7568e13fe5"},{url:"/_next/static/chunks/9942.d7831b4dde230e04.js",revision:"d7831b4dde230e04"},{url:"/_next/static/chunks/app/_not-found/page-553c019abd176d56.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/layout-82426c1184766d70.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/cuti/page-fa489e1f7809b375.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/daftar-cuti/page-ce28149a73aca572.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/file-kategori/page-9f6a3a4d4af08df3.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/hari-libur/page-c67868a2342a814a.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/histori-absensi/page-55261e5d9884b263.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/jabatan/%5Bid%5D/edit/page-c47d7139b1d3d7b8.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/jabatan/%5Bid%5D/page-1f3e8b0e752f939f.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/jabatan/page-b3d6298a42d61b36.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/jabatan/tambah/page-e0c5c81d8729b3b7.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/jenis-cuti/page-5bb0cf056201b852.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/kota/page-3eece1f0e828ac54.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/laporan-tukin/%5Bid%5D/detail/page-492434ec66d4814f.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/laporan-tukin/%5Bid%5D/page-f52224b6334d4ed7.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/laporan-tukin/page-830cd873dfd48b32.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/layout-4d272f7e3652875c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/lokasi-kantor/%5Bid%5D/edit/page-68dfb144b105d477.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/lokasi-kantor/%5Bid%5D/page-f02a64c0c8c2120f.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/lokasi-kantor/page-226e9f16bee413dd.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/lokasi-kantor/tambah/page-1854d0944c5ad0e0.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/pegawai/%5Bid%5D/edit/page-5282e8f6841bef1b.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/pegawai/%5Bid%5D/page-e6d0aae87eb7380c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/pegawai/lokasi/page-e69c8caf99c5c62d.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/pegawai/page-0dc87a58b95e2d2b.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/pegawai/tambah/page-df5c9b6833ec266b.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/pemotongan-absen/page-fba280094ca449a2.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/pemotongan/page-1986493bfb625c26.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/posisi-jabatan/page-301da8a3eb9a727c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/provinsi/page-759adca5389824c6.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/role/page-06fdcb2e6e72cdbc.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/shift/%5Bid%5D/edit/page-bae31fc61eff6989.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/shift/%5Bid%5D/page-343caaeb6a4a34e0.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/shift/page-3a35ef908dc75477.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/shift/tambah/page-f40851a2d3579987.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/wilayah-kecamatan/page-7ba6fd15059b3d47.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/wilayah-kelurahan/page-5be1887fb702970e.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/wilayah-kota/page-b6574efa092c299a.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/master-data/wilayah-provinsi/page-91b03b439563243a.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/admin/page-f7d9e50adfed5bbf.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/dashboard/page-5f3eacebfdc33216.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/debug-image/page-fc3edceef4077513.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/layout-eaef0fe9de316b3f.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/login/page-5e909e63ba7bc732.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/master-data/laporan-tukin/page-c833cf983d646177.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/offline/page-0f706a328707ec91.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/page-9060ba1e09d2f890.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/pegawai/absensi/page-f9a92de6d8aaa00f.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/pegawai/cuti/page-9b3435c39ef52417.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/pegawai/edit/page-0866297a1816dd77.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/pegawai/histori-absensi/page-6193dddc6bd41c67.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/pegawai/layout-dcff4039b83b119f.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/pemilihan/create/page-1467e1bc94e382d3.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/register/invitation/page-8266d25c11117d1c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/register/public/page-e37edcb662a49ddb.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/reset-password/page-38dff0d205e64bf5.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-auth/page-a8025afaa5f94ea7.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-delete/page-766c86c816e7fca1.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-features/page-98d3d36fdd8fa149.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-lookup/page-f3e8384a95f1a601.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-participants/page-7dab2012f2f90ee4.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-pwa/page-4e9b2a5bb55a743c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-stepper/page-00d9fa718553f06c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-wilayah-cache/page-be8aaaa4f2dcdf65.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-wilayah-form/page-7c0757748ad66056.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/test-wilayah/page-2cef24c7331190d6.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/unauthorized/page-a12a51026b12a9a3.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/users/%5Busername%5D/page-c8400b824155303c.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/app/users/page-c27568ba2b77a808.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/main-6128473e12e25653.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/main-app-7c32ac72633eb978.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/pages/_app-3f671d2a120f5bb1.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/pages/_error-30ca18690168c9a8.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/polyfills-42372ed130431b0a.js",revision:"846118c33b2c0e922d7b3a7676f81f6f"},{url:"/_next/static/chunks/vendors-7d6d55aa898f1f68.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/chunks/webpack-c5b19daeef1a4deb.js",revision:"X9--QABLibruw_Hck3sNT"},{url:"/_next/static/css/0fa50dd0d4e9774e.css",revision:"0fa50dd0d4e9774e"},{url:"/_next/static/css/d81b6173d4a70242.css",revision:"d81b6173d4a70242"},{url:"/_next/static/media/569ce4b8f30dc480-s.p.woff2",revision:"ef6cefb32024deac234e82f932a95cbd"},{url:"/_next/static/media/747892c23ea88013-s.woff2",revision:"a0761690ccf4441ace5cec893b82d4ab"},{url:"/_next/static/media/8d697b304b401681-s.woff2",revision:"cc728f6c0adb04da0dfcb0fc436a8ae5"},{url:"/_next/static/media/93f479601ee12b01-s.p.woff2",revision:"da83d5f06d825c5ae65b7cca706cb312"},{url:"/_next/static/media/9610d9e46709d722-s.woff2",revision:"7b7c0ef93df188a852344fc272fc096b"},{url:"/_next/static/media/ba015fad6dcf6784-s.woff2",revision:"8ea4f719af3312a055caf09f34c89a77"},{url:"/_next/static/media/layers-2x.9859cd12.png",revision:"9859cd12"},{url:"/_next/static/media/layers.ef6db872.png",revision:"ef6db872"},{url:"/_next/static/media/marker-icon.d577052a.png",revision:"d577052a"},{url:"/browserconfig.xml",revision:"218da01b6bcb51cfd6f4f165e33f78a8"},{url:"/fallback-ce627215c0e4a9af.js",revision:"6b8681362484b553b4c9d3591a7b1511"},{url:"/favicon.ico",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/favicon.ico",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-128x128.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-144x144.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-152x152.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-16x16.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-180x180.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-192x192.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-32x32.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-384x384.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-512x512.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-72x72.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-96x96.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/icons/icon-base.svg",revision:"0cfa843325f8050c9fb473f62fd7ea37"},{url:"/icons/logo.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/images/default-avatar.svg",revision:"492d716f58ef9bbc1625d51f86ca4ef6"},{url:"/images/default-profile.jpg",revision:"492d716f58ef9bbc1625d51f86ca4ef6"},{url:"/images/marker-icon-2x.png",revision:"401d815dc206b8dc1b17cd0e37695975"},{url:"/images/marker-icon.png",revision:"2273e3d8ad9264b7daa5bdbf8e6b47f8"},{url:"/images/marker-shadow.png",revision:"44a526eed258222515aa21eaffd14a96"},{url:"/logo.png",revision:"c0aa720ee22f719c0c98321b41fe535a"},{url:"/logo.svg",revision:"0cfa843325f8050c9fb473f62fd7ea37"},{url:"/manifest.json",revision:"ae3ec3a20d8570300627b4cf9831f79e"},{url:"/network-filter.js",revision:"13e13d30a3c1106568e7780ad0497fae"},{url:"/offline.html",revision:"f820de2d6262a6f14986f6d139cb8c63"},{url:"/pwa-enhanced.js",revision:"1fa7f6e0cf456d8d4427df3ffb402fc8"},{url:"/pwa-init.js",revision:"d41d8cd98f00b204e9800998ecf8427e"},{url:"/screenshots/desktop-screenshot.png",revision:"d41d8cd98f00b204e9800998ecf8427e"},{url:"/screenshots/mobile-screenshot.png",revision:"d41d8cd98f00b204e9800998ecf8427e"}],{ignoreURLParametersMatching:[/^utm_/,/^fbclid$/]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:function(e){return _ref.apply(this,arguments)}},{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts-webfonts",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:googleapis)\.com\/.*/i,new e.StaleWhileRevalidate({cacheName:"google-fonts-stylesheets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,new e.StaleWhileRevalidate({cacheName:"static-font-assets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.StaleWhileRevalidate({cacheName:"static-image-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:2592e3}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\/_next\/static.+\.js$/i,new e.CacheFirst({cacheName:"next-static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\/_next\/image\?url=.+$/i,new e.StaleWhileRevalidate({cacheName:"next-image",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\.(?:mp3|wav|ogg)$/i,new e.CacheFirst({cacheName:"static-audio-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\.(?:mp4|webm)$/i,new e.CacheFirst({cacheName:"static-video-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\.(?:js)$/i,new e.StaleWhileRevalidate({cacheName:"static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:48,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\.(?:css|less)$/i,new e.StaleWhileRevalidate({cacheName:"static-style-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\/_next\/data\/.+\/.+\.json$/i,new e.StaleWhileRevalidate({cacheName:"next-data",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/\.(?:json|xml|csv)$/i,new e.NetworkFirst({cacheName:"static-data-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(function(e){var a=e.sameOrigin,s=e.url.pathname;return!(!a||s.startsWith("/api/auth/callback")||!s.startsWith("/api/"))},new e.NetworkFirst({cacheName:"apis",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:16,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(function(e){var a=e.request,s=e.url.pathname,i=e.sameOrigin;return"1"===a.headers.get("RSC")&&"1"===a.headers.get("Next-Router-Prefetch")&&i&&!s.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages-rsc-prefetch",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(function(e){var a=e.request,s=e.url.pathname,i=e.sameOrigin;return"1"===a.headers.get("RSC")&&i&&!s.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages-rsc",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(function(e){var a=e.url.pathname;return e.sameOrigin&&!a.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(function(e){return!e.sameOrigin},new e.NetworkFirst({cacheName:"cross-origin",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:3600}),{handlerDidError:function(e){return _ref.apply(this,arguments)}}]}),"GET"),self.__WB_DISABLE_DEV_LOGS=!0});
+// Simple Service Worker for PWA
+// Generated manually to avoid _ref undefined errors
+
+const CACHE_NAME = 'absensi-lampung-v1';
+const OFFLINE_URL = '/offline';
+
+// Files to cache immediately
+const STATIC_CACHE_URLS = [
+  '/',
+  '/offline',
+  '/manifest.json',
+  '/logo.png',
+  '/logo.svg',
+  '/favicon.ico'
+];
+
+// Install event - cache static files
+self.addEventListener('install', (event) => {
+  console.log('Service Worker: Install event');
+  
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Service Worker: Caching static files');
+        return cache.addAll(STATIC_CACHE_URLS);
+      })
+      .catch((error) => {
+        console.error('Service Worker: Error caching static files:', error);
+      })
+  );
+  
+  // Force the service worker to take control immediately
+  self.skipWaiting();
+});
+
+// Activate event - cleanup old caches
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activate event');
+  
+  event.waitUntil(
+    caches.keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cache) => {
+            if (cache !== CACHE_NAME) {
+              console.log('Service Worker: Deleting old cache:', cache);
+              return caches.delete(cache);
+            }
+          })
+        );
+      })
+      .then(() => {
+        // Take control of all open clients
+        return self.clients.claim();
+      })
+  );
+});
+
+// Fetch event - serve files from cache or network
+self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  
+  // Skip API requests
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+  
+  // Skip Chrome extension requests
+  if (event.request.url.startsWith('chrome-extension://')) {
+    return;
+  }
+  
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Return cached version if available
+        if (response) {
+          return response;
+        }
+        
+        // Fetch from network
+        return fetch(event.request)
+          .then((response) => {
+            // Don't cache non-successful responses
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+            
+            // Clone the response before caching
+            const responseToCache = response.clone();
+            
+            // Cache GET requests to same origin
+            if (event.request.url.startsWith(self.location.origin)) {
+              caches.open(CACHE_NAME)
+                .then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+            }
+            
+            return response;
+          })
+          .catch(() => {
+            // Network failed, try to serve offline page for navigation requests
+            if (event.request.mode === 'navigate') {
+              return caches.match(OFFLINE_URL);
+            }
+            
+            // For other requests, try to find any suitable cached response
+            return caches.match('/');
+          });
+      })
+  );
+});
+
+// Handle push notifications (optional)
+self.addEventListener('push', (event) => {
+  console.log('Service Worker: Push event received');
+  
+  if (event.data) {
+    const data = event.data.json();
+    
+    const options = {
+      body: data.body || 'New notification from Absensi Lampung',
+      icon: '/logo.png',
+      badge: '/logo.png',
+      vibrate: [100, 50, 100],
+      data: {
+        dateOfArrival: Date.now(),
+        primaryKey: data.primaryKey || 1
+      },
+      actions: [
+        {
+          action: 'explore',
+          title: 'Open App',
+          icon: '/logo.png'
+        },
+        {
+          action: 'close',
+          title: 'Close',
+          icon: '/logo.png'
+        }
+      ]
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Absensi Lampung', options)
+    );
+  }
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+  console.log('Service Worker: Notification click received');
+  
+  event.notification.close();
+  
+  if (event.action === 'explore') {
+    event.waitUntil(
+      clients.openWindow('/')
+    );
+  }
+});
+
+// Background sync (optional)
+self.addEventListener('sync', (event) => {
+  console.log('Service Worker: Background sync event');
+  
+  if (event.tag === 'background-sync') {
+    event.waitUntil(
+      // Perform background sync operations
+      console.log('Performing background sync')
+    );
+  }
+});
+
+console.log('Service Worker: Loaded successfully');

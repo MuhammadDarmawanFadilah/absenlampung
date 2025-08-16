@@ -11,27 +11,6 @@ interface OrganizationInfoCardProps {
 }
 
 export default function OrganizationInfoCard({ organizationInfo }: OrganizationInfoCardProps) {
-  // Debug: Log the received data
-  console.log('OrganizationInfoCard received data:', organizationInfo);
-  
-  // Predefined mission items for consistent display
-  const defaultMissionItems = [
-    "Mengawasi tahapan pemilu secara komprehensif",
-    "Memastikan penegakan peraturan pemilu", 
-    "Meningkatkan partisipasi masyarakat dalam pengawasan",
-    "Membangun tata kelola organisasi yang baik"
-  ];
-
-  // Format mission text into array if it's a string, otherwise use default
-  const missionItems = typeof organizationInfo.mission === 'string' 
-    ? organizationInfo.mission.split(/[•\n]/).filter(item => item.trim()).map(item => item.trim()) || defaultMissionItems
-    : Array.isArray(organizationInfo.mission) 
-    ? organizationInfo.mission 
-    : defaultMissionItems;
-
-  console.log('Processed mission items:', missionItems);
-  console.log('Vision data:', organizationInfo.vision);
-
   return (
     <Card className="relative overflow-hidden bg-white dark:bg-gray-800 border-0 shadow-xl">
       {/* Background gradient overlay */}
@@ -72,7 +51,7 @@ export default function OrganizationInfoCard({ organizationInfo }: OrganizationI
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="bg-white/50 dark:bg-gray-700/50 rounded-xl p-6 backdrop-blur-sm space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
                 <Eye className="w-5 h-5 text-white" />
               </div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100">Visi</h4>
@@ -84,21 +63,14 @@ export default function OrganizationInfoCard({ organizationInfo }: OrganizationI
           
           <div className="bg-white/50 dark:bg-gray-700/50 rounded-xl p-6 backdrop-blur-sm space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
                 <Target className="w-5 h-5 text-white" />
               </div>
               <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100">Misi</h4>
             </div>
-            <div className="space-y-3">
-              {missionItems.map((item, index) => (
-                <div key={index} className="flex items-start gap-3 group">
-                  <div className="w-2 h-2 bg-gradient-to-r from-red-500 to-red-600 rounded-full mt-2 flex-shrink-0 group-hover:scale-110 transition-transform duration-200"></div>
-                  <span className="text-gray-600 dark:text-gray-400 leading-relaxed group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors duration-200">
-                    {item.replace(/^[•\-\*]\s*/, '').trim()}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+              {organizationInfo.mission}
+            </p>
           </div>
         </div>
       </CardContent>
