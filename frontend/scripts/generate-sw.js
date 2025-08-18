@@ -1,11 +1,20 @@
-// Service Worker for PWA - Auto-generated
-// Generated at: 2025-08-18T01:21:34.713Z
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+
+const isDev = process.env.NODE_ENV === 'development';
+const buildTime = new Date().getTime();
+const version = require('../package.json').version || '1.0.0';
+
+const swTemplate = `// Service Worker for PWA - Auto-generated
+// Generated at: ${new Date().toISOString()}
 
 // Dynamic cache name with timestamp for development
-const VERSION = '0.1.0';
-const BUILD_TIME = 1755480094712;
+const VERSION = '${version}';
+const BUILD_TIME = ${buildTime};
 const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const CACHE_NAME = isDev ? `absensi-lampung-dev-${BUILD_TIME}` : `absensi-lampung-v${VERSION}`;
+const CACHE_NAME = isDev ? \`absensi-lampung-dev-\${BUILD_TIME}\` : \`absensi-lampung-v\${VERSION}\`;
 const OFFLINE_URL = '/offline';
 
 // Files to cache immediately
@@ -224,3 +233,13 @@ console.log('Service Worker: Loaded successfully');
 console.log('Environment:', isDev ? 'Development' : 'Production');
 console.log('Cache Name:', CACHE_NAME);
 console.log('Build Time:', new Date(BUILD_TIME).toLocaleString());
+`;
+
+// Write the service worker file
+const swPath = path.join(__dirname, '../public/sw.js');
+fs.writeFileSync(swPath, swTemplate);
+
+console.log('✅ Service worker generated successfully!');
+console.log('📁 Path:', swPath);
+console.log('🏗️  Environment:', isDev ? 'Development' : 'Production');
+console.log('⏰ Build time:', new Date(buildTime).toLocaleString());

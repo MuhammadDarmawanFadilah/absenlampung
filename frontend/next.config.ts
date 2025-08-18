@@ -3,15 +3,10 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: false, // Enable PWA
+  disable: true, // Disable auto generation, use manual service worker
   register: true,
   fallbacks: {
     document: '/offline',
-  },
-  workboxOptions: {
-    disableDevLogs: true,
-    skipWaiting: true,
-    clientsClaim: true,
   },
 });
 

@@ -109,7 +109,10 @@ export default async function RootLayout({
           crossOrigin=""
         />
         {process.env.NODE_ENV === 'development' && (
-          <script src="/network-filter.js" defer></script>
+          <>
+            <script src="/network-filter.js" defer></script>
+            <script src="/pwa-utils.js" defer></script>
+          </>
         )}
         <script dangerouslySetInnerHTML={{
           __html: `
@@ -118,7 +121,35 @@ export default async function RootLayout({
                 navigator.serviceWorker.register('/sw.js')
                   .then(function(registration) {
                     console.log('SW registered with scope: ', registration.scope);
-                    console.log('PWA: Service worker registered, checking install criteria');
+                    
+                    // Handle service worker updates
+                    registration.addEventListener('updatefound', () => {
+                      const newWorker = registration.installing;
+                      if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New service worker installed, show update notification
+                            console.log('New service worker available, refreshing...');
+                            if (${process.env.NODE_ENV === 'development'}) {
+                              // Auto-refresh in development
+                              window.location.reload();
+                            } else {
+                              // In production, you might want to show a notification to the user
+                              if (confirm('Aplikasi telah diperbarui. Refresh halaman untuk menggunakan versi terbaru?')) {
+                                window.location.reload();
+                              }
+                            }
+                          }
+                        });
+                      }
+                    });
+
+                    // Check for updates periodically in development
+                    if (${process.env.NODE_ENV === 'development'}) {
+                      setInterval(() => {
+                        registration.update();
+                      }, 3000); // Check every 3 seconds in development
+                    }
                   })
                   .catch(function(error) {
                     console.log('SW registration failed: ', error);

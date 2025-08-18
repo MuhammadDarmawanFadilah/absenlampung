@@ -15,8 +15,7 @@ import QuickStatsCards from '@/components/dashboard/QuickStatsCards';
 import MonthlyDataChart from '@/components/dashboard/MonthlyDataChart';
 import ActivityFeedCard from '@/components/dashboard/ActivityFeedCard';
 import DashboardTables from '@/components/dashboard/DashboardTables';
-import DataAbsensiSistem from '@/components/DataAbsensiSistem';
-import { TrendingUp, Eye, MessageCircle, ThumbsUp, Download, FileText, Users, Calendar, CalendarClock, Clock, Briefcase } from 'lucide-react';
+import { TrendingUp, MessageCircle, ThumbsUp, Download, FileText, Users, Calendar, CalendarClock, Clock, Briefcase, Edit, Key, Calculator, Building, MapPin, Database, LogIn } from 'lucide-react';
 
 const Dashboard = () => {
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
@@ -235,9 +234,9 @@ const Dashboard = () => {
         {/* Organization Info Section */}
         <div className="space-y-4 fade-in-delay-1">
           <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
+            <div className="w-1 h-8 bg-gradient-to-b from-green-500 to-green-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Informasi Organisasi & Visi Misi
+              Informasi Organisasi
             </h2>
           </div>
           <OrganizationInfoCard organizationInfo={overview.organizationInfo} />
@@ -264,7 +263,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-gradient-to-b from-teal-500 to-teal-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Data Absensi Sistem
+              Data Kehadiran Pegawai
             </h2>
           </div>
           <DashboardTables
@@ -275,179 +274,15 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* Quick Actions for Employee System */}
+        {/* Quick Access Menu */}
         <div className="space-y-4 fade-in-delay-5">
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-gradient-to-b from-indigo-500 to-indigo-600 rounded-full"></div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Aksi Cepat Sistem Absensi
-            </h2>
-          </div>
-          {/* Desktop Grid */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card 
-              className="relative overflow-hidden bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/20 dark:to-red-900/20 border-red-200 dark:border-red-800 hover:shadow-lg transition-all duration-200 cursor-pointer group"
-              onClick={() => router.push('/pegawai/absensi')}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-red-700 dark:text-red-300 mb-2">Absensi Harian</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Catat kehadiran dan absensi pegawai</p>
-                  </div>
-                  <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center group-hover:bg-red-500/30 transition-colors">
-                    <CalendarClock className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 hover:shadow-lg transition-all duration-200 cursor-pointer group"
-              onClick={() => router.push('/admin/master-data/histori-absensi')}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">Laporan Absensi</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Monitor dan analisis kehadiran</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-                    <TrendingUp className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 border-green-200 dark:border-green-800 hover:shadow-lg transition-all duration-200 cursor-pointer group"
-              onClick={() => router.push('/admin/master-data/pegawai')}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-green-700 dark:text-green-300 mb-2">Data Pegawai</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Kelola informasi pegawai</p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
-                    <Users className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="relative overflow-hidden bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 border-purple-200 dark:border-purple-800 hover:shadow-lg transition-all duration-200 cursor-pointer group"
-              onClick={() => router.push('/admin/master-data/cuti')}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">Manajemen Cuti</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Kelola pengajuan dan persetujuan cuti</p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
-                    <Calendar className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Mobile Slideshow */}
-          <div className="md:hidden">
-            <div className="relative overflow-hidden rounded-xl">
-              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-                <div className="flex-none w-72 snap-start">
-                  <Card 
-                    className="relative overflow-hidden bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/20 dark:to-red-900/20 border-red-200 dark:border-red-800 hover:shadow-lg transition-all duration-200 cursor-pointer group h-full"
-                    onClick={() => router.push('/pegawai/absensi')}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-red-700 dark:text-red-300 mb-2">Absensi Harian</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Catat kehadiran dan absensi pegawai</p>
-                        </div>
-                        <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center group-hover:bg-red-500/30 transition-colors">
-                          <CalendarClock className="w-6 h-6 text-red-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="flex-none w-72 snap-start">
-                  <Card 
-                    className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 hover:shadow-lg transition-all duration-200 cursor-pointer group h-full"
-                    onClick={() => router.push('/admin/master-data/histori-absensi')}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">Laporan Absensi</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Monitor dan analisis kehadiran</p>
-                        </div>
-                        <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-                          <TrendingUp className="w-6 h-6 text-blue-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="flex-none w-72 snap-start">
-                  <Card 
-                    className="relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 border-green-200 dark:border-green-800 hover:shadow-lg transition-all duration-200 cursor-pointer group h-full"
-                    onClick={() => router.push('/admin/master-data/pegawai')}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-green-700 dark:text-green-300 mb-2">Data Pegawai</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Kelola informasi pegawai</p>
-                        </div>
-                        <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
-                          <Users className="w-6 h-6 text-green-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="flex-none w-72 snap-start">
-                  <Card 
-                    className="relative overflow-hidden bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 border-purple-200 dark:border-purple-800 hover:shadow-lg transition-all duration-200 cursor-pointer group h-full"
-                    onClick={() => router.push('/admin/master-data/cuti')}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">Manajemen Cuti</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Kelola pengajuan dan persetujuan cuti</p>
-                        </div>
-                        <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
-                          <Calendar className="w-6 h-6 text-purple-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Content and Activity Section */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-gradient-to-b from-teal-500 to-teal-600 rounded-full"></div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Informasi dan Aktivitas Sistem
+              Menu Cepat Akses
             </h2>
           </div>
           
-          {/* Popular Content - Full Width */}
           <Card className="relative overflow-hidden bg-white dark:bg-gray-800 border-0 shadow-xl">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-orange-400/10 to-red-400/10 rounded-full -translate-y-16 translate-x-16"></div>
             
@@ -456,13 +291,13 @@ const Dashboard = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-600 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">Menu Cepat Akses</span>
+                <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">Akses Cepat Sistem Absensi</span>
               </CardTitle>
             </CardHeader>
             
             <CardContent className="relative">
               <Tabs defaultValue="pegawai" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
                   <TabsTrigger 
                     value="pegawai"
                     className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-red-600 font-medium transition-all duration-200"
@@ -481,114 +316,245 @@ const Dashboard = () => {
                   >
                     Master Data
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="absensi"
-                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-cyan-600 font-medium transition-all duration-200"
-                  >
-                    Data Absensi
-                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="pegawai" className="space-y-4">
                   <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-xl p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      <div 
-                        className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
-                        onClick={() => router.push('/pegawai/absensi')}
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <CalendarClock className="h-5 w-5 text-red-600" />
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-red-600 dark:hover:text-red-400">
-                            Absensi
-                          </h4>
+                    {isAuthenticated ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/pegawai/absensi')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <CalendarClock className="h-5 w-5 text-red-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-red-600 dark:hover:text-red-400">
+                              Absensi
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Catat kehadiran harian Anda
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Catat kehadiran harian Anda
-                        </p>
-                      </div>
-                      
-                      <div 
-                        className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
-                        onClick={() => router.push('/pegawai/histori-absensi')}
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <Clock className="h-5 w-5 text-orange-600" />
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-400">
-                            Histori Absensi
-                          </h4>
+                        
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/pegawai/histori-absensi')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Clock className="h-5 w-5 text-orange-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-400">
+                              Histori Absensi
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Lihat riwayat kehadiran Anda
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Lihat riwayat kehadiran Anda
-                        </p>
-                      </div>
-                      
-                      <div 
-                        className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
-                        onClick={() => router.push('/pegawai/cuti')}
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <Calendar className="h-5 w-5 text-green-600" />
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-green-600 dark:hover:text-green-400">
-                            Pengajuan Cuti
-                          </h4>
+                        
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/pegawai/cuti')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Calendar className="h-5 w-5 text-green-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-green-600 dark:hover:text-green-400">
+                              Pengajuan Cuti
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Ajukan dan kelola cuti Anda
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Ajukan dan kelola cuti Anda
-                        </p>
+
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/pegawai/edit')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Edit className="h-5 w-5 text-purple-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400">
+                              Edit Profil
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Perbarui data profil pegawai
+                          </p>
+                        </div>
+
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-red-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/reset-password')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Key className="h-5 w-5 text-indigo-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400">
+                              Ganti Password
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Ubah kata sandi akun
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">
+                          Masuk untuk mengakses menu pegawai
+                        </p>
+                        <Button 
+                          onClick={() => router.push('/login')}
+                          className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700"
+                        >
+                          <LogIn className="w-4 h-4 mr-2" />
+                          Masuk ke Sistem
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="admin" className="space-y-4">
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl p-4">
                     {!isAuthenticated || !isAdmin ? (
-                      <p className="text-center text-gray-500 py-8">Anda perlu login sebagai admin untuk mengakses menu ini</p>
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">
+                          Anda perlu login sebagai admin untuk mengakses menu ini
+                        </p>
+                        <Button 
+                          onClick={() => router.push('/login')}
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                        >
+                          <LogIn className="w-4 h-4 mr-2" />
+                          Masuk sebagai Admin
+                        </Button>
+                      </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        <div 
-                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
-                          onClick={() => router.push('/admin/master-data/pegawai')}
-                        >
-                          <div className="flex items-center gap-3 mb-2">
-                            <Users className="h-5 w-5 text-blue-600" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
-                              Data Pegawai
-                            </h4>
+                      <div>
+                        <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Menu Laporan Absensi</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/histori-absensi')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <Clock className="h-5 w-5 text-blue-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
+                                Histori Absensi
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Laporan kehadiran semua pegawai
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Kelola data pegawai sistem
-                          </p>
+
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/cuti')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <Calendar className="h-5 w-5 text-teal-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-teal-600 dark:hover:text-teal-400">
+                                Pengajuan Cuti
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Kelola pengajuan cuti pegawai
+                            </p>
+                          </div>
+
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/pemotongan')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <Calculator className="h-5 w-5 text-cyan-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-cyan-600 dark:hover:text-cyan-400">
+                                Pemotongan
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Kelola pemotongan gaji
+                            </p>
+                          </div>
+
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/laporan-tukin')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <FileText className="h-5 w-5 text-emerald-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-emerald-600 dark:hover:text-emerald-400">
+                                Laporan Tukin
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Laporan tunjangan kinerja
+                            </p>
+                          </div>
                         </div>
-                        
-                        <div 
-                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
-                          onClick={() => router.push('/admin/master-data/histori-absensi')}
-                        >
-                          <div className="flex items-center gap-3 mb-2">
-                            <Clock className="h-5 w-5 text-purple-600" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400">
-                              Laporan Absensi
-                            </h4>
+
+                        <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Menu Administrasi Pegawai</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/pegawai')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <Users className="h-5 w-5 text-rose-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-rose-600 dark:hover:text-rose-400">
+                                Data Pegawai
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Kelola data pegawai sistem
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Monitor absensi semua pegawai
-                          </p>
-                        </div>
-                        
-                        <div 
-                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
-                          onClick={() => router.push('/admin/master-data/cuti')}
-                        >
-                          <div className="flex items-center gap-3 mb-2">
-                            <FileText className="h-5 w-5 text-green-600" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-green-600 dark:hover:text-green-400">
-                              Persetujuan Cuti
-                            </h4>
+
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/shift')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <Clock className="h-5 w-5 text-amber-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-amber-600 dark:hover:text-amber-400">
+                                Shift
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Kelola jadwal shift kerja
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Kelola pengajuan cuti pegawai
-                          </p>
+
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/lokasi-kantor')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <Building className="h-5 w-5 text-lime-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-lime-600 dark:hover:text-lime-400">
+                                Lokasi Kantor
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Kelola lokasi kantor
+                            </p>
+                          </div>
+
+                          <div 
+                            className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600"
+                            onClick={() => router.push('/admin/master-data/pegawai/lokasi')}
+                          >
+                            <div className="flex items-center gap-3 mb-2">
+                              <MapPin className="h-5 w-5 text-violet-600" />
+                              <h5 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-violet-600 dark:hover:text-violet-400">
+                                Lokasi Pegawai
+                              </h5>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Kelola lokasi penugasan pegawai
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -598,31 +564,42 @@ const Dashboard = () => {
                 <TabsContent value="master" className="space-y-4">
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-xl p-4">
                     {!isAuthenticated || !isAdmin ? (
-                      <p className="text-center text-gray-500 py-8">Anda perlu login sebagai admin untuk mengakses menu ini</p>
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">
+                          Anda perlu login sebagai admin untuk mengakses menu ini
+                        </p>
+                        <Button 
+                          onClick={() => router.push('/login')}
+                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                        >
+                          <LogIn className="w-4 h-4 mr-2" />
+                          Masuk sebagai Admin
+                        </Button>
+                      </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div 
                           className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-green-50 dark:hover:bg-gray-600"
-                          onClick={() => router.push('/admin/master-data/shift')}
+                          onClick={() => router.push('/admin/master-data/daftar-cuti')}
                         >
                           <div className="flex items-center gap-3 mb-2">
-                            <Users className="h-5 w-5 text-green-600" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-green-600 dark:hover:text-green-400">
-                              Shift Kerja
+                            <FileText className="h-5 w-5 text-slate-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-slate-600 dark:hover:text-slate-400">
+                              Daftar Cuti
                             </h4>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Atur jadwal kerja pegawai
+                            Kelola jenis cuti
                           </p>
                         </div>
-                        
+
                         <div 
                           className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-green-50 dark:hover:bg-gray-600"
                           onClick={() => router.push('/admin/master-data/hari-libur')}
                         >
                           <div className="flex items-center gap-3 mb-2">
-                            <Calendar className="h-5 w-5 text-blue-600" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
+                            <Calendar className="h-5 w-5 text-stone-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-stone-600 dark:hover:text-stone-400">
                               Hari Libur
                             </h4>
                           </div>
@@ -630,14 +607,29 @@ const Dashboard = () => {
                             Kelola kalender hari libur
                           </p>
                         </div>
-                        
+
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-green-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/admin/master-data/pemotongan-absen')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Calculator className="h-5 w-5 text-orange-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-400">
+                              Pemotongan Absen
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Kelola aturan pemotongan absen
+                          </p>
+                        </div>
+
                         <div 
                           className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-green-50 dark:hover:bg-gray-600"
                           onClick={() => router.push('/admin/master-data/jabatan')}
                         >
                           <div className="flex items-center gap-3 mb-2">
-                            <Briefcase className="h-5 w-5 text-purple-600" />
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400">
+                            <Briefcase className="h-5 w-5 text-zinc-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-zinc-600 dark:hover:text-zinc-400">
                               Jabatan
                             </h4>
                           </div>
@@ -645,17 +637,55 @@ const Dashboard = () => {
                             Kelola data jabatan
                           </p>
                         </div>
+
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-green-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/admin/master-data/role')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <Database className="h-5 w-5 text-purple-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400">
+                              Role
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Kelola role pengguna
+                          </p>
+                        </div>
+
+                        <div 
+                          className="bg-white dark:bg-gray-700 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-green-50 dark:hover:bg-gray-600"
+                          onClick={() => router.push('/admin/master-data/wilayah-provinsi')}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <MapPin className="h-5 w-5 text-blue-600" />
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
+                              Wilayah
+                            </h4>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Kelola data wilayah
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
                 </TabsContent>
-                
-                <TabsContent value="absensi" className="space-y-4">
-                  <DataAbsensiSistem />
-                </TabsContent>
               </Tabs>
             </CardContent>
-          </Card>          {/* Side by Side: Activity Feed and System Statistics */}
+          </Card>
+        </div>
+
+        {/* Content and Activity Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 bg-gradient-to-b from-teal-500 to-teal-600 rounded-full"></div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Informasi dan Aktivitas Sistem
+            </h2>
+          </div>
+          
+          {/* Side by Side: Activity Feed and System Statistics */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="order-1 lg:order-1">
               <ActivityFeedCard activityFeed={overview.activityFeed} />

@@ -27,6 +27,5 @@
     "terminal.integrated.enableMultiLinePasteWarning": "always",
     "terminal.integrated.confirmOnExit": "always",
     "terminal.integrated.confirmOnKill": "always",
-    "debug.terminal.clearBeforeReusing": false,
-    "task.allowAutomaticTasks": "off"
+    "debug.terminal.clearBeforeReusing": false
 }

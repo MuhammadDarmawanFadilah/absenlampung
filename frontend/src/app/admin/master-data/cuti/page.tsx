@@ -85,6 +85,11 @@ export default function AdminCutiPage() {
   const [catatanApproval, setCatatanApproval] = useState('')
   const [isApproving, setIsApproving] = useState(false)
 
+  // Image preview modal states
+  const [showImagePreview, setShowImagePreview] = useState(false)
+  const [previewImageUrl, setPreviewImageUrl] = useState('')
+  const [previewImageName, setPreviewImageName] = useState('')
+
   // Bulk approval states
   const [selectedCutiIds, setSelectedCutiIds] = useState<number[]>([])
   const [showBulkApprovalDialog, setShowBulkApprovalDialog] = useState(false)
@@ -355,6 +360,31 @@ export default function AdminCutiPage() {
     setShowApprovalDialog(true)
   }
 
+  const openImagePreview = async (cutiId: number, fileName: string) => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(getApiUrl(`api/cuti/${cutiId}/download-attachment`), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const blob = await response.blob()
+        const imageUrl = window.URL.createObjectURL(blob)
+        setPreviewImageUrl(imageUrl)
+        setPreviewImageName(fileName)
+        setShowImagePreview(true)
+      } else {
+        toast.error('Gagal memuat gambar untuk preview')
+      }
+    } catch (error) {
+      console.error('Error loading image for preview:', error)
+      toast.error('Terjadi kesalahan saat memuat gambar')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 p-2 md:p-6">
       <div className="container mx-auto space-y-4 md:space-y-8">
@@ -611,7 +641,8 @@ export default function AdminCutiPage() {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => window.open(getApiUrl(`api/upload/cuti/${cuti.lampiranCuti}`), '_blank')}
+                                      onClick={() => openImagePreview(cuti.id, cuti.lampiranCuti!)}
+                                      title="Preview gambar"
                                     >
                                       <Eye className="w-4 h-4" />
                                     </Button>
@@ -620,6 +651,7 @@ export default function AdminCutiPage() {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleDownloadAttachment(cuti.id, cuti.lampiranCuti!)}
+                                      title="Download lampiran"
                                     >
                                       <Download className="w-4 h-4" />
                                     </Button>
@@ -754,6 +786,70 @@ export default function AdminCutiPage() {
               </Button>
               <Button onClick={handleBulkApproval} disabled={isBulkApproving || !bulkApprovalStatus}>
                 {isBulkApproving ? 'Memproses...' : `Proses ${selectedCutiIds.length} Item`}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Image Preview Modal */}
+        <Dialog open={showImagePreview} onOpenChange={(open) => {
+          setShowImagePreview(open)
+          // Clean up blob URL when modal is closed
+          if (!open && previewImageUrl.startsWith('blob:')) {
+            window.URL.revokeObjectURL(previewImageUrl)
+            setPreviewImageUrl('')
+          }
+        }}>
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Preview Lampiran Cuti
+              </DialogTitle>
+              <DialogDescription>
+                {previewImageName}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-center items-center max-h-[70vh] overflow-hidden">
+              {previewImageUrl && (
+                <img 
+                  src={previewImageUrl} 
+                  alt="Preview lampiran cuti"
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                  onError={(e) => {
+                    console.error('Error loading image:', e)
+                    toast.error('Gagal memuat gambar')
+                  }}
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowImagePreview(false)
+                  if (previewImageUrl.startsWith('blob:')) {
+                    window.URL.revokeObjectURL(previewImageUrl)
+                    setPreviewImageUrl('')
+                  }
+                }}
+              >
+                Tutup
+              </Button>
+              <Button 
+                onClick={() => {
+                  // Create a download link for the blob
+                  const a = document.createElement('a')
+                  a.href = previewImageUrl
+                  a.download = previewImageName
+                  document.body.appendChild(a)
+                  a.click()
+                  document.body.removeChild(a)
+                }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download
               </Button>
             </div>
           </DialogContent>
