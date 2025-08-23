@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { flushSync } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
@@ -660,19 +659,14 @@ export default function CreateFaceRecognitionPage() {
       ? captureSteps[currentStepIndexRef.current] 
       : null
     
-    if (!currentStepFromRef) {
-      console.log('❌ No valid step found for countdown')
-      return
-    }
-    
     console.log('🎬 FIXED Starting countdown for step:', currentStepFromRef?.name, '| Index:', currentStepIndexRef.current)
     let count = 3
     setCaptureCountdown(count)
     
     countdownIntervalRef.current = setInterval(() => {
       count -= 1
-      console.log('⏰ Countdown:', count)
       setCaptureCountdown(count)
+      console.log('⏰ Countdown:', count)
       
       if (count <= 0) {
         // Clear interval first
@@ -683,7 +677,7 @@ export default function CreateFaceRecognitionPage() {
         setCaptureCountdown(null)
         
         // Execute capture immediately
-        console.log('📸 Countdown finished, executing capture...')
+        console.log('📸 Countdown finished, capturing photo...')
         executeCapture()
       }
     }, 1000)
@@ -691,8 +685,6 @@ export default function CreateFaceRecognitionPage() {
   
   // Execute actual photo capture (FIXED: Use ref for immediate access)
   const executeCapture = async () => {
-    console.log('🎯 executeCapture called')
-    
     // FIXED: Use ref for immediate access to current step
     const currentStepFromRef = currentStepIndexRef.current >= 0 && currentStepIndexRef.current < captureSteps.length 
       ? captureSteps[currentStepIndexRef.current] 
@@ -714,7 +706,6 @@ export default function CreateFaceRecognitionPage() {
       return
     }
 
-    console.log('📷 Starting capture for step:', currentStepFromRef.name, '| Index:', currentStepIndexRef.current)
     isCapturingRef.current = true // Set guard
     
     try {
@@ -759,6 +750,15 @@ export default function CreateFaceRecognitionPage() {
           const descriptor = extractFaceDescriptor(landmarks)
           setAllDescriptors(prev => [...prev, descriptor])
 
+          // Mark step as completed
+          setCaptureSteps(prev => 
+            prev.map(step => 
+              step.id === currentStepFromRef.id 
+                ? { ...step, completed: true }
+                : step
+            )
+          )
+
           // Success feedback
           toast.success(`✅ ${currentStepFromRef.name} berhasil diambil!`, {
             duration: 2000,
@@ -766,52 +766,44 @@ export default function CreateFaceRecognitionPage() {
           })
           
           // SIMPLE STEP ADVANCEMENT - INDEX BASED
-          console.log('🚀 Advancing from step:', currentStepIndexRef.current, currentStepFromRef.name)
+          console.log('� Advancing from step:', currentStepIndex)
+          
+          // Mark current step as completed
+          setCaptureSteps(prev => 
+            prev.map(step => 
+              step.id === currentStepFromRef.id 
+                ? { ...step, completed: true }
+                : step
+            )
+          )
           
           // Move to next step
           const nextIndex = currentStepIndexRef.current + 1
           
           if (nextIndex < captureSteps.length) {
-            // Mark current step as completed and advance to next
-            flushSync(() => {
-              setCaptureSteps(prev => 
-                prev.map(step => 
-                  step.id === currentStepFromRef.id 
-                    ? { ...step, completed: true }
-                    : step
-                )
-              )
-              setCurrentStepIndex(nextIndex)
-              setRecentStepChange(true) // Prevent immediate capture
-            })
-            
-            // Immediate ref update
-            currentStepIndexRef.current = nextIndex
-            
-            console.log('✅ Advanced to step:', nextIndex, captureSteps[nextIndex].name)
-            toast.info(`📸 Selanjutnya: ${captureSteps[nextIndex].name}`, { duration: 3000 })
-            
-            // Resume detection after delay
+            // SYNCHRONOUS UPDATE - Use flushSync to ensure immediate state update
             setTimeout(() => {
-              setIsProcessingCapture(false)
-              isCapturingRef.current = false
-              setRecentStepChange(false) // Allow capture again
-              console.log('🔄 Detection resumed')
-            }, 2500)
+              flushSync(() => {
+                setCurrentStepIndex(nextIndex)
+                setRecentStepChange(true) // Prevent immediate capture
+                currentStepIndexRef.current = nextIndex // Immediate ref update
+              })
+              
+              console.log('✅ Advanced to step:', nextIndex, captureSteps[nextIndex].name)
+              toast.info(`📸 Selanjutnya: ${captureSteps[nextIndex].name}`, { duration: 3000 })
+              
+              // Resume detection after delay
+              setTimeout(() => {
+                setIsProcessingCapture(false)
+                isCapturingRef.current = false
+                setRecentStepChange(false) // Allow capture again
+                console.log('� Detection resumed')
+              }, 2500)
+            }, 500)
           } else {
-            // All steps completed - Mark last step and go to preview
-            flushSync(() => {
-              setCaptureSteps(prev => 
-                prev.map(step => 
-                  step.id === currentStepFromRef.id 
-                    ? { ...step, completed: true }
-                    : step
-                )
-              )
-              setPreviewStep(true)
-            })
-            
+            // All steps completed - Go to preview
             console.log('🎉 All steps completed! Moving to preview...')
+            setPreviewStep(true)
             toast.success('🎉 Semua foto berhasil diambil! Silakan review hasil...', { duration: 4000 })
             setIsProcessingCapture(false)
             isCapturingRef.current = false
@@ -1292,63 +1284,29 @@ export default function CreateFaceRecognitionPage() {
 
   // Reset all data
   const resetAllData = () => {
-    // Clear any existing countdown
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current)
-      countdownIntervalRef.current = null
-    }
-    
-    flushSync(() => {
-      setSelectedPegawai(null)
-      setSearchQuery('')
-      setCurrentStep(1)
-      setCaptureSteps(prev => prev.map(step => ({ ...step, completed: false })))
-      setAllDescriptors([])
-      setCapturedImages([])
-      setCurrentStepIndex(-1)
-      setNotes('')
-      setTestResult(null)
-      setPreviewStep(false)
-      setTestStep(false)
-      setCaptureCountdown(null)
-      setRecentStepChange(false)
-      setIsProcessingCapture(false)
-    })
-    
-    // Reset refs
-    currentStepIndexRef.current = -1
-    isCapturingRef.current = false
-    
+    setSelectedPegawai(null)
+    setSearchQuery('')
+    setCurrentStep(1)
+    setCaptureSteps(prev => prev.map(step => ({ ...step, completed: false })))
+    setAllDescriptors([])
+    setCurrentStepIndex(-1)
+    setNotes('')
+    setTestResult(null)
+    setPreviewStep(false)
+    setTestStep(false)
     stopCamera()
-    
-    toast.success('🔄 Data berhasil direset', { duration: 2000 })
   }
 
   // Preview step functions
   const handleCaptureUlang = () => {
     console.log('🔄 User requested capture ulang, resetting...')
-    
-    // Reset all state in correct order
-    flushSync(() => {
-      setCaptureSteps(prev => prev.map(step => ({ ...step, completed: false })))
-      setAllDescriptors([])
-      setCapturedImages([])
-      setCurrentStepIndex(0)
-      setPreviewStep(false)
-      setRecentStepChange(true)
-      setIsProcessingCapture(false)
-    })
-    
-    // Update ref immediately
+    setCaptureSteps(prev => prev.map(step => ({ ...step, completed: false })))
+    setAllDescriptors([])
+    setCapturedImages([]) // Reset captured images
+    setCurrentStepIndex(0)
     currentStepIndexRef.current = 0
-    isCapturingRef.current = false
-    
-    // Clear any existing countdown
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current)
-      countdownIntervalRef.current = null
-    }
-    setCaptureCountdown(null)
+    setPreviewStep(false)
+    setRecentStepChange(true)
     
     // Restart camera for new capture session
     startCamera()
@@ -1356,7 +1314,6 @@ export default function CreateFaceRecognitionPage() {
     // Allow capture after delay
     setTimeout(() => {
       setRecentStepChange(false)
-      console.log('✅ Capture ulang ready, detection enabled')
     }, 1500)
     
     toast.info('🔄 Memulai capture ulang dari awal...', { duration: 3000 })
