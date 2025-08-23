@@ -15,6 +15,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import dynamic from 'next/dynamic'
 import LocationMapDesktop from '@/components/LocationMapDesktop'
 import LocationMapMobile from '@/components/LocationMapMobile'
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
 import { 
   MapPin, 
   Clock, 
@@ -29,7 +30,10 @@ import {
   Eye,
   Home,
   Building2,
-  Smartphone
+  Smartphone,
+  Scan,
+  UserCheck,
+  UserX
 } from 'lucide-react'
 import { getApiUrl } from "@/lib/config"
 import { config } from "@/lib/config"
@@ -145,6 +149,23 @@ export default function AbsensiPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [isRetakingPhoto, setIsRetakingPhoto] = useState(false)
+  
+  // Face Recognition States - MediaPipe 2024-2025
+  const [faceLandmarker, setFaceLandmarker] = useState<FaceLandmarker | null>(null)
+  const [mediapipiLoaded, setMediapipeLoaded] = useState(false)
+  const [mediapipiLoading, setMediapipeLoading] = useState(false)
+  const [recognizedUser, setRecognizedUser] = useState<string | null>(null)
+  const [faceRecognitionProcessing, setFaceRecognitionProcessing] = useState(false)
+  const [faceValidationResult, setFaceValidationResult] = useState<{
+    isValid: boolean,
+    recognizedName: string | null,
+    confidence: number,
+    message: string
+  } | null>(null)
+  const [faceDetected, setFaceDetected] = useState(false)
+  const [faceOrientation, setFaceOrientation] = useState<string>('')
+  const [orientationValid, setOrientationValid] = useState(false)
+  const [realTimeFaceDetection, setRealTimeFaceDetection] = useState<NodeJS.Timeout | null>(null)
 
   // Timer untuk update waktu real-time
   useEffect(() => {
@@ -163,6 +184,7 @@ export default function AbsensiPage() {
       loadTodayAbsensi()
       checkHariLibur()
       checkApprovedLeaveToday()
+      loadMediaPipeModels() // Load MediaPipe face recognition models
     }
   }, [user])
 
@@ -257,6 +279,272 @@ export default function AbsensiPage() {
     } finally {
       setLoadingLeaveCheck(false)
     }
+  }
+
+  // Load MediaPipe Models - Latest 2024-2025 Technology
+  const loadMediaPipeModels = async () => {
+    try {
+      setMediapipeLoading(true)
+      console.log('🤖 Loading MediaPipe models for attendance...')
+      
+      // Try multiple CDN sources for better reliability
+      const cdnUrls = [
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.15/wasm",
+        "https://unpkg.com/@mediapipe/tasks-vision/wasm"
+      ]
+      
+      let vision = null
+      let lastError = null
+      
+      for (const url of cdnUrls) {
+        try {
+          console.log(`Trying MediaPipe CDN: ${url}`)
+          vision = await FilesetResolver.forVisionTasks(url)
+          console.log(`✅ Successfully loaded from: ${url}`)
+          break
+        } catch (error) {
+          console.warn(`Failed to load from ${url}:`, error)
+          lastError = error
+          continue
+        }
+      }
+      
+      if (!vision) {
+        throw lastError || new Error('All CDN sources failed')
+      }
+      
+      // Create FaceLandmarker with latest model
+      const landmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          delegate: "GPU"
+        },
+        outputFaceBlendshapes: true,
+        outputFacialTransformationMatrixes: true,
+        runningMode: "VIDEO", // Changed to VIDEO for real-time detection
+        numFaces: 1
+      })
+      
+      setFaceLandmarker(landmarker)
+      setMediapipeLoaded(true)
+      console.log('✅ MediaPipe FaceLandmarker loaded successfully for attendance')
+      
+      // Auto-start real-time detection if camera is already active
+      setTimeout(() => {
+        if (cameraStream && videoRef.current && videoRef.current.readyState >= 2) {
+          console.log('🎬 Auto-starting real-time detection...')
+          startRealTimeFaceDetection()
+        }
+      }, 1000) // Give more time for video to be ready
+      
+    } catch (error) {
+      console.error('Error loading MediaPipe models:', error)
+      // Don't show error toast as face recognition is optional for attendance
+    } finally {
+      setMediapipeLoading(false)
+    }
+  }
+
+  const processFaceRecognition = async (imageData: string) => {
+    if (!mediapipiLoaded || !faceLandmarker) {
+      console.log('MediaPipe not loaded, skipping face recognition')
+      setFaceValidationResult({
+        isValid: false,
+        recognizedName: null,
+        confidence: 0,
+        message: 'Face recognition tidak tersedia'
+      })
+      return
+    }
+
+    try {
+      setFaceRecognitionProcessing(true)
+      
+      // Create image element
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = imageData
+      })
+      
+      // Create a new FaceLandmarker for IMAGE mode
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm")
+      const imageLandmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          delegate: "GPU"
+        },
+        outputFaceBlendshapes: true,
+        outputFacialTransformationMatrixes: true,
+        runningMode: "IMAGE",
+        numFaces: 1
+      })
+      
+      // Detect face using MediaPipe
+      const faceLandmarkerResult = imageLandmarker.detect(img)
+      
+      if (faceLandmarkerResult.faceLandmarks && faceLandmarkerResult.faceLandmarks.length > 0) {
+        // Extract face descriptor using SAME method as admin panel
+        const landmarks = faceLandmarkerResult.faceLandmarks[0]
+        const faceDescriptor = extractFaceDescriptor(landmarks)
+        
+        console.log('✅ Face detected, descriptor extracted:', faceDescriptor.length, 'features')
+        
+        // STEP 1: Test against ALL face recognitions to identify who is in the photo
+        console.log('Step 1: Testing against all face recognitions to identify person in photo...')
+        const allTestResponse = await fetch(getApiUrl('api/face-recognition/test'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          },
+          body: JSON.stringify({
+            // No pegawaiId = test against all face recognitions
+            faceDescriptor: Array.from(faceDescriptor) // Convert Float32Array to regular array
+          })
+        })
+        
+        if (allTestResponse.ok) {
+          const allTestResult = await allTestResponse.json()
+          console.log('All face recognition test result:', allTestResult)
+          
+          if (allTestResult.success && allTestResult.data && allTestResult.data.isMatch) {
+            const detectedPerson = allTestResult.data.pegawai
+            const currentUserName = user?.fullName || user?.email || 'Unknown'
+            const detectedName = detectedPerson?.namaLengkap || detectedPerson?.fullName || 'Unknown'
+            
+            console.log('Detected person:', detectedName)
+            console.log('Current user:', currentUserName)
+            console.log('Detected pegawai ID:', detectedPerson?.id)
+            console.log('Current user ID:', user?.id)
+            
+            // STEP 2: Check if detected person matches current logged-in user
+            const isCurrentUser = detectedPerson?.id === user?.id || 
+                                  detectedName.toLowerCase().includes(currentUserName.toLowerCase()) ||
+                                  currentUserName.toLowerCase().includes(detectedName.toLowerCase())
+            
+            if (isCurrentUser) {
+              // SUCCESS: Detected person matches current user
+              setFaceValidationResult({
+                isValid: true,
+                recognizedName: detectedName,
+                confidence: allTestResult.data.confidence,
+                message: `Wajah terverifikasi sebagai ${detectedName} (${(allTestResult.data.confidence * 100).toFixed(1)}%)`
+              })
+              setRecognizedUser(detectedName)
+              console.log('✅ Face verification SUCCESS: Detected person matches current user')
+            } else {
+              // WARNING: Detected person is different from current user
+              setFaceValidationResult({
+                isValid: false,
+                recognizedName: detectedName,
+                confidence: allTestResult.data.confidence,
+                message: `⚠️ PERINGATAN: Terdeteksi wajah ${detectedName}, namun Anda login sebagai ${currentUserName}. Silakan gunakan wajah Anda sendiri untuk absensi.`
+              })
+              setRecognizedUser(detectedName)
+              console.log('⚠️ Face verification WARNING: Detected person does not match current user')
+              console.log(`Detected: ${detectedName}, Current user: ${currentUserName}`)
+            }
+          } else {
+            // No face recognized in system
+            console.log('No face recognized in system, testing against current user specifically...')
+            
+            // STEP 3: Test specifically against current user's face recognition as fallback
+            const userTestResponse = await fetch(getApiUrl('api/face-recognition/test'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              },
+              body: JSON.stringify({
+                pegawaiId: user?.id,
+                faceDescriptor: Array.from(faceDescriptor)
+              })
+            })
+            
+            if (userTestResponse.ok) {
+              const userTestResult = await userTestResponse.json()
+              if (userTestResult.success && userTestResult.data) {
+                const isValid = userTestResult.data.isMatch && userTestResult.data.confidence >= 0.7
+                const recognizedName = isValid ? (user?.fullName || user?.email || 'User') : null
+                
+                setFaceValidationResult({
+                  isValid,
+                  recognizedName,
+                  confidence: userTestResult.data.confidence,
+                  message: isValid 
+                    ? `Wajah terverifikasi sebagai ${recognizedName} (${(userTestResult.data.confidence * 100).toFixed(1)}%)`
+                    : `Wajah tidak cocok dengan ${user?.fullName || user?.email}. Confidence: ${(userTestResult.data.confidence * 100).toFixed(1)}%`
+                })
+                setRecognizedUser(isValid ? recognizedName : 'Unknown')
+              } else {
+                setFaceValidationResult({
+                  isValid: false,
+                  recognizedName: null,
+                  confidence: 0,
+                  message: 'Gagal memverifikasi wajah terhadap data Anda'
+                })
+                setRecognizedUser('Unknown')
+              }
+            } else {
+              setFaceValidationResult({
+                isValid: false,
+                recognizedName: null,
+                confidence: 0,
+                message: 'Gagal terhubung ke server untuk verifikasi'
+              })
+              setRecognizedUser('Unknown')
+            }
+          }
+        } else {
+          setFaceValidationResult({
+            isValid: false,
+            recognizedName: null,
+            confidence: 0,
+            message: 'Gagal terhubung ke server'
+          })
+          setRecognizedUser('Unknown')
+        }
+      } else {
+        console.log('No face detected in image')
+        setFaceValidationResult({
+          isValid: false,
+          recognizedName: null,
+          confidence: 0,
+          message: 'Tidak ada wajah yang terdeteksi'
+        })
+        setRecognizedUser(null)
+      }
+    } catch (error) {
+      console.error('Error processing face recognition:', error)
+      setFaceValidationResult({
+        isValid: false,
+        recognizedName: null,
+        confidence: 0,
+        message: 'Terjadi kesalahan saat memproses wajah'
+      })
+      setRecognizedUser(null)
+    } finally {
+      setFaceRecognitionProcessing(false)
+    }
+  }
+
+  // Extract face descriptor using SAME method as admin panel
+  const extractFaceDescriptor = (landmarks: any[]): Float32Array => {
+    // Convert key landmarks to feature vector - SAME as admin panel
+    const keyLandmarks = [1, 33, 263, 175, 10, 152, 148, 172] // Nose, eyes, chin, forehead, etc.
+    const features: number[] = []
+    
+    keyLandmarks.forEach(index => {
+      if (landmarks[index]) {
+        features.push(landmarks[index].x, landmarks[index].y, landmarks[index].z)
+      }
+    })
+    
+    return new Float32Array(features)
   }
 
   const loadTodayAbsensi = async () => {
@@ -605,6 +893,7 @@ export default function AbsensiPage() {
         cameraStream.getTracks().forEach(track => track.stop())
       }
       
+      console.log('📷 Starting camera for attendance...')
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -616,14 +905,182 @@ export default function AbsensiPage() {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        // Ensure video plays
-        await videoRef.current.play()
+        
+        // Wait for video to be ready and play
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play().then(() => {
+                console.log('✅ Camera started and video playing')
+                resolve(true)
+              })
+            }
+          }
+        })
+        
+        // Start real-time face detection with proper timing
+        setTimeout(() => {
+          if (mediapipiLoaded && faceLandmarker) {
+            console.log('🎬 Starting real-time detection after camera ready...')
+            startRealTimeFaceDetection()
+          } else {
+            console.log('⏳ MediaPipe not ready yet, will auto-start when loaded')
+          }
+        }, 1500) // Give extra time for video to stabilize
       }
     } catch (error) {
       console.error('Camera error:', error)
       showErrorToast('Gagal mengakses kamera')
     }
   }
+
+  // Real-time face detection for attendance preview
+  const startRealTimeFaceDetection = () => {
+    if (!mediapipiLoaded || !faceLandmarker || !videoRef.current) {
+      console.log('MediaPipe not ready for real-time detection')
+      return
+    }
+
+    // Clear existing detection interval
+    if (realTimeFaceDetection) {
+      clearInterval(realTimeFaceDetection)
+    }
+
+    console.log('✅ Starting real-time face detection for attendance...')
+
+    const detectionInterval = setInterval(async () => {
+      if (!videoRef.current || !mediapipiLoaded || !faceLandmarker) {
+        return
+      }
+
+      try {
+        // Ensure video is ready and playing
+        if (videoRef.current.readyState < 2) {
+          console.log('Video not ready yet...')
+          return
+        }
+
+        // Detect face using MediaPipe with error handling
+        const results = await faceLandmarker.detectForVideo(videoRef.current, performance.now())
+        
+        if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+          const landmarks = results.faceLandmarks[0]
+          
+          // Calculate face orientation with better error handling
+          let orientation = 'front'
+          try {
+            orientation = calculateFaceOrientation(landmarks)
+          } catch (error) {
+            console.warn('Error calculating orientation:', error)
+            orientation = 'front' // Default to front if calculation fails
+          }
+          
+          setFaceOrientation(orientation)
+          
+          // More permissive validation - accept more orientations for attendance
+          const validOrientations = ['front', 'left', 'right', 'up', 'down']
+          const isValidOrientation = validOrientations.includes(orientation)
+          
+          setFaceDetected(true)
+          setOrientationValid(isValidOrientation)
+          
+          // Log detection success (throttled)
+          const now = Date.now()
+          if (!window.lastFaceLogTime || now - window.lastFaceLogTime > 3000) {
+            console.log('✅ Face detected:', orientation, 'Valid:', isValidOrientation)
+            window.lastFaceLogTime = now
+          }
+        } else {
+          setFaceDetected(false)
+          setFaceOrientation('')
+          setOrientationValid(false)
+          
+          // Log detection failure (throttled)
+          const now = Date.now()
+          if (!window.lastNoFaceLogTime || now - window.lastNoFaceLogTime > 3000) {
+            console.log('❌ No face detected in real-time')
+            window.lastNoFaceLogTime = now
+          }
+        }
+      } catch (error) {
+        console.error('Error in real-time face detection:', error)
+        // Don't reset face detection state on error to avoid flickering
+      }
+    }, 500) // Increased interval to 500ms for better stability
+
+    setRealTimeFaceDetection(detectionInterval)
+  }
+
+  // Calculate face orientation from landmarks with improved accuracy
+  const calculateFaceOrientation = (landmarks: any[]) => {
+    try {
+      // Key facial landmarks for orientation detection (more robust selection)
+      const noseTip = landmarks[1]        // Nose tip
+      const leftEyeCenter = landmarks[33] // Left eye center  
+      const rightEyeCenter = landmarks[263] // Right eye center
+      const leftEar = landmarks[234]      // Left ear
+      const rightEar = landmarks[454]     // Right ear
+      const forehead = landmarks[10]      // Forehead center
+      const chin = landmarks[175]         // Chin center
+      
+      if (!noseTip || !leftEyeCenter || !rightEyeCenter || !forehead || !chin) {
+        console.warn('Missing key landmarks for orientation calculation')
+        return 'front' // Default to front if landmarks missing
+      }
+      
+      // Calculate face center and dimensions
+      const eyeCenterX = (leftEyeCenter.x + rightEyeCenter.x) / 2
+      const eyeCenterY = (leftEyeCenter.y + rightEyeCenter.y) / 2
+      const faceWidth = Math.abs(leftEyeCenter.x - rightEyeCenter.x)
+      const faceHeight = Math.abs(forehead.y - chin.y)
+      
+      // Calculate nose position relative to eye center
+      const noseOffsetX = noseTip.x - eyeCenterX
+      const noseOffsetY = noseTip.y - eyeCenterY
+      
+      // Normalize offsets by face dimensions
+      const offsetRatioX = noseOffsetX / faceWidth
+      const offsetRatioY = noseOffsetY / faceHeight
+      
+      // Check ear visibility for left/right detection
+      const leftEarVisible = leftEar && leftEar.z > -0.05
+      const rightEarVisible = rightEar && rightEar.z > -0.05
+      
+      // More permissive thresholds for attendance (less strict than admin capture)
+      const horizontalThreshold = 0.2  // Increased from 0.15
+      const verticalThreshold = 0.25   // Increased from 0.15
+      
+      // Determine orientation with improved logic
+      if (Math.abs(offsetRatioX) < horizontalThreshold && Math.abs(offsetRatioY) < verticalThreshold) {
+        return 'front'
+      } else if (offsetRatioX > horizontalThreshold * 0.7 || !rightEarVisible) {
+        return 'left'
+      } else if (offsetRatioX < -horizontalThreshold * 0.7 || !leftEarVisible) {
+        return 'right'
+      } else if (offsetRatioY < -verticalThreshold * 0.8) {
+        return 'up'
+      } else if (offsetRatioY > verticalThreshold * 0.8) {
+        return 'down'
+      } else {
+        return 'front' // Default to front for borderline cases
+      }
+    } catch (error) {
+      console.warn('Error in face orientation calculation:', error)
+      return 'front' // Safe fallback
+    }
+  }
+
+  // Additional effect to ensure face detection starts when conditions are met
+  useEffect(() => {
+    if (mediapipiLoaded && cameraStream && videoRef.current && !realTimeFaceDetection) {
+      console.log('🔄 Ensuring real-time detection is running...')
+      setTimeout(() => {
+        if (videoRef.current && videoRef.current.readyState >= 2) {
+          startRealTimeFaceDetection()
+        }
+      }, 1000)
+    }
+  }, [mediapipiLoaded, cameraStream, realTimeFaceDetection])
 
   const stopCamera = () => {
     if (cameraStream) {
@@ -633,9 +1090,22 @@ export default function AbsensiPage() {
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
+    
+    // Clear real-time face detection
+    if (realTimeFaceDetection) {
+      clearInterval(realTimeFaceDetection)
+      setRealTimeFaceDetection(null)
+    }
+    
+    // Reset face detection states
+    setFaceDetected(false)
+    setFaceOrientation('')
+    setOrientationValid(false)
+    
+    console.log('📷 Camera stopped and detection cleared')
   }
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current
       const canvas = canvasRef.current
@@ -648,6 +1118,15 @@ export default function AbsensiPage() {
         context.drawImage(video, 0, 0, canvas.width, canvas.height)
         const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8)
         setCapturedPhoto(photoDataUrl)
+        
+        // Process face recognition
+        await processFaceRecognition(photoDataUrl)
+        
+        // Stop real-time detection when photo is captured
+        if (realTimeFaceDetection) {
+          clearInterval(realTimeFaceDetection)
+          setRealTimeFaceDetection(null)
+        }
       }
     }
   }
@@ -655,6 +1134,8 @@ export default function AbsensiPage() {
   const retakePhoto = async () => {
     setIsRetakingPhoto(true)
     setCapturedPhoto(null)
+    setRecognizedUser(null) // Reset face recognition
+    setFaceValidationResult(null) // Reset validation result
     try {
       // Small delay to ensure UI updates
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -706,6 +1187,11 @@ export default function AbsensiPage() {
         showErrorToast('Anda berada di luar jangkauan lokasi yang diizinkan')
         return
       }
+      // Check face recognition validation
+      if (faceValidationResult && !faceValidationResult.isValid) {
+        showErrorToast(faceValidationResult.message || 'Wajah tidak terverifikasi. Silakan ambil foto ulang.')
+        return
+      }
       setCurrentStep(3)
     }
   }
@@ -722,6 +1208,12 @@ export default function AbsensiPage() {
       return
     }
 
+    // Check face recognition validation
+    if (faceValidationResult && faceValidationResult.message.includes('PERINGATAN')) {
+      showErrorToast('Tidak dapat melakukan absensi! Terdeteksi wajah orang lain. Silakan gunakan wajah Anda sendiri untuk absensi.')
+      return
+    }
+
     try {
       setLoading(true)
       
@@ -731,7 +1223,11 @@ export default function AbsensiPage() {
         shiftId: selectedShift.id,
         latitude: currentLocation.lat,
         longitude: currentLocation.lng,
-        photoBase64: capturedPhoto.split(',')[1] // Remove data:image/jpeg;base64, prefix
+        photoBase64: capturedPhoto.split(',')[1], // Remove data:image/jpeg;base64, prefix
+        faceRecognition: recognizedUser !== null ? {
+          recognizedName: recognizedUser === 'Unknown' ? null : recognizedUser,
+          isRecognized: recognizedUser !== 'Unknown'
+        } : null
       }
 
       const response = await fetch(getApiUrl('api/absensi'), {
@@ -754,6 +1250,8 @@ export default function AbsensiPage() {
         setSelectedShift(null)
         setCapturedPhoto(null)
         setCurrentLocation(null)
+        setRecognizedUser(null) // Reset face recognition
+        setFaceValidationResult(null) // Reset validation result
         
         // Auto-update for next absensi type if needed
         setTimeout(() => {
@@ -1407,38 +1905,104 @@ export default function AbsensiPage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>                {/* Camera Section - Mobile Optimized */}
-                <Card className="border-2 border-gray-200 dark:border-gray-700">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base sm:text-lg flex items-center justify-center">
-                      <Camera className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
-                      Ambil Foto Selfie
+                </Card>                {/* Camera Section - Efficient & Professional Design */}
+                <Card className="border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <CardHeader className="pb-3 border-b border-gray-100 dark:border-gray-800">
+                    <CardTitle className="text-lg flex items-center justify-center space-x-2">
+                      <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-gray-900 dark:text-gray-100">Ambil Foto Selfie</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="px-3 sm:px-6">
+                  
+                  <CardContent className="p-4">
                     <div className="space-y-4">
                       {capturedPhoto ? (
-                        <div className="flex flex-col items-center">
+                        /* Photo Preview - Compact Layout */
+                        <div className="flex flex-col items-center space-y-3">
                           <div className="relative">
                             <img 
                               src={capturedPhoto} 
-                              alt="Captured" 
-                              className="w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 object-cover rounded-xl border-4 border-white dark:border-gray-700 shadow-lg"
+                              alt="Captured Selfie" 
+                              className="w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700 shadow-md"
                             />
-                            <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-2 border-white dark:border-gray-700 flex items-center justify-center">
+                            <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
                               <CheckCircle className="w-4 h-4 text-white" />
                             </div>
                           </div>
+                          
+                          {/* Face Recognition Status - Compact */}
+                          {faceRecognitionProcessing ? (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3 w-full max-w-xs">
+                              <div className="flex items-center justify-center space-x-2 text-blue-600 dark:text-blue-400 text-sm">
+                                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                <span>Memverifikasi wajah...</span>
+                              </div>
+                            </div>
+                          ) : faceValidationResult ? (
+                            <div className={`rounded-md p-3 border w-full max-w-xs ${
+                              faceValidationResult.isValid 
+                                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                                : faceValidationResult.message.includes('PERINGATAN')
+                                  ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+                                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                            }`}>
+                              <div className="flex items-center space-x-2">
+                                {faceValidationResult.isValid ? (
+                                  <UserCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                ) : faceValidationResult.message.includes('PERINGATAN') ? (
+                                  <div className="w-4 h-4 text-orange-600 flex-shrink-0 text-center font-bold">⚠️</div>
+                                ) : (
+                                  <UserX className="w-4 h-4 text-red-600 flex-shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className={`font-medium text-xs ${
+                                    faceValidationResult.isValid 
+                                      ? 'text-green-800 dark:text-green-200' 
+                                      : faceValidationResult.message.includes('PERINGATAN')
+                                        ? 'text-orange-800 dark:text-orange-200'
+                                        : 'text-red-800 dark:text-red-200'
+                                  }`}>
+                                    {faceValidationResult.isValid 
+                                      ? 'Terverifikasi' 
+                                      : faceValidationResult.message.includes('PERINGATAN')
+                                        ? 'Wajah Berbeda!'
+                                        : 'Gagal Verifikasi'
+                                    }
+                                  </div>
+                                  {faceValidationResult.recognizedName && (
+                                    <div className={`text-xs mt-1 ${
+                                      faceValidationResult.isValid 
+                                        ? 'text-green-700 dark:text-green-300' 
+                                        : faceValidationResult.message.includes('PERINGATAN')
+                                          ? 'text-orange-700 dark:text-orange-300'
+                                          : 'text-red-700 dark:text-red-300'
+                                    }`}>
+                                      {faceValidationResult.message.includes('PERINGATAN') 
+                                        ? `Terdeteksi: ${faceValidationResult.recognizedName}`
+                                        : faceValidationResult.recognizedName
+                                      }
+                                    </div>
+                                  )}
+                                  {faceValidationResult.message.includes('PERINGATAN') && (
+                                    <div className="text-xs mt-1 text-orange-700 dark:text-orange-300 font-medium">
+                                      Gunakan wajah Anda sendiri!
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                          
                           <Button 
                             variant="outline" 
                             onClick={retakePhoto}
                             disabled={isRetakingPhoto}
-                            className="mt-4 w-full sm:w-auto hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            className="w-full max-w-xs text-sm"
                           >
                             {isRetakingPhoto ? (
                               <>
-                                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
-                                Memulai Kamera...
+                                <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2" />
+                                Memulai...
                               </>
                             ) : (
                               <>
@@ -1449,42 +2013,103 @@ export default function AbsensiPage() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center">
+                        /* Camera Preview - Efficient Layout */
+                        <div className="flex flex-col items-center space-y-4">
                           <div className="relative">
                             <video 
                               ref={videoRef}
                               autoPlay
                               playsInline
                               muted
-                              className="w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-96 lg:h-96 object-cover rounded-xl border-4 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                              className="w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
                             />
+                            
+                            {/* Camera Loading State */}
                             {!cameraStream && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl">
-                                <div className="text-center">
-                                  <Camera className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
-                                  <p className="text-sm text-gray-500 dark:text-gray-400">Mengakses kamera...</p>
+                              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+                                <div className="text-center space-y-2">
+                                  <Camera className="w-8 h-8 mx-auto text-gray-400" />
+                                  <p className="text-sm text-gray-500">Memuat kamera...</p>
                                 </div>
                               </div>
                             )}
+                            
+                            {/* Face Detection Status - Minimalist */}
+                            {cameraStream && (
+                              <div className="absolute top-2 left-2 right-2">
+                                <div className={`flex items-center justify-center space-x-2 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm ${
+                                  faceDetected 
+                                    ? 'bg-green-500/90 text-white' 
+                                    : 'bg-red-500/90 text-white'
+                                }`}>
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    faceDetected ? 'bg-white' : 'bg-white/70'
+                                  }`} />
+                                  <span>
+                                    {!mediapipiLoaded ? 'Memuat AI...' : faceDetected ? 'Wajah OK' : 'Posisikan Wajah'}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Simple Guide Circle */}
+                            {cameraStream && (
+                              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                                <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 lg:w-44 lg:h-44 border-2 border-dashed border-white/60 rounded-full"></div>
+                              </div>
+                            )}
                           </div>
+                          
+                          {/* Quick Instructions */}
+                          <div className="text-center max-w-xs">
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              Posisikan wajah di dalam lingkaran dan pastikan pencahayaan cukup
+                            </p>
+                          </div>
+                          
+                          {/* Capture Button - Clean Design */}
                           <Button 
                             onClick={capturePhoto}
-                            className="mt-4 w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                            className={`w-full max-w-xs py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
+                              !cameraStream 
+                                ? 'bg-gray-400 hover:bg-gray-500 cursor-not-allowed' 
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
                             disabled={!cameraStream}
                           >
                             <Camera className="w-4 h-4 mr-2" />
-                            Ambil Foto
+                            {!cameraStream ? 'Tunggu...' : 'Ambil Foto'}
                           </Button>
                         </div>
                       )}
+                      
+                      {/* Hidden Canvas for Photo Capture */}
                       <canvas ref={canvasRef} className="hidden" />
                       
+                      {/* Status Alerts - Compact */}
+                      {mediapipiLoading && (
+                        <Alert className="py-2">
+                          <Scan className="h-4 w-4 animate-pulse" />
+                          <AlertDescription className="text-sm">
+                            Memuat MediaPipe AI...
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      {!mediapipiLoaded && !mediapipiLoading && (
+                        <Alert className="py-2">
+                          <UserX className="h-4 w-4" />
+                          <AlertDescription className="text-sm">
+                            Face recognition tidak tersedia. Foto akan tetap disimpan.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
                       {!isLocationAllowed && (
-                        <Alert variant="destructive">
+                        <Alert variant="destructive" className="py-2">
                           <MapPin className="h-4 w-4" />
                           <AlertDescription className="text-sm">
-                            Anda berada di luar jangkauan lokasi yang diizinkan. 
-                            Silakan pindah ke lokasi yang sesuai untuk melanjutkan absensi.
+                            Lokasi tidak sesuai. Silakan pindah ke area yang diizinkan.
                           </AlertDescription>
                         </Alert>
                       )}
@@ -1629,12 +2254,12 @@ export default function AbsensiPage() {
                     disabled={
                       todayAbsensi?.isComplete ||
                       (currentStep === 1 && !selectedShift) ||
-                      (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed))
+                      (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed || (faceValidationResult?.isValid === false)))
                     }
                     className={`min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-sm sm:text-base transition-all duration-300 ${
                       todayAbsensi?.isComplete ||
                       (currentStep === 1 && !selectedShift) ||
-                      (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed))
+                      (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed || (faceValidationResult?.isValid === false)))
                         ? 'opacity-50 cursor-not-allowed'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
                     }`}

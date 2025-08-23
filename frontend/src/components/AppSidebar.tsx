@@ -30,6 +30,7 @@ import {
   History, // Added for Histori Absensi
   Calendar, // Added for Cuti
   Calculator, // Added for Pemotongan
+  Scan, // Added for Face Recognition
 } from "lucide-react";
 import {
   Sidebar,
@@ -152,6 +153,11 @@ const AppSidebar = () => {
       title: "Data Pegawai",
       url: "/admin/master-data/pegawai",
       icon: Users,
+    },
+    {
+      title: "Face Recognition",
+      url: "/admin/master-data/face-recognition",
+      icon: Scan,
     },
     {
       title: "Shift",

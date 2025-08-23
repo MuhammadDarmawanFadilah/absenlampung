@@ -1,9 +1,9 @@
 // Service Worker for PWA - Auto-generated
-// Generated at: 2025-08-18T01:21:34.713Z
+// Generated at: 2025-08-23T09:13:26.961Z
 
 // Dynamic cache name with timestamp for development
 const VERSION = '0.1.0';
-const BUILD_TIME = 1755480094712;
+const BUILD_TIME = 1755940406960;
 const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const CACHE_NAME = isDev ? `absensi-lampung-dev-${BUILD_TIME}` : `absensi-lampung-v${VERSION}`;
 const OFFLINE_URL = '/offline';
