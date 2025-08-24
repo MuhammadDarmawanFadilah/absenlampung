@@ -120,6 +120,23 @@ const nextConfig: NextConfig = {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization',
           },
+          // Content Security Policy for WebAssembly support (MediaPipe)
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self' 'unsafe-eval' http: https: data: blob: 'unsafe-inline'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:",
+              "worker-src 'self' blob: data:",
+              "child-src 'self' blob: data:",
+              "object-src 'none'",
+              "img-src 'self' data: blob: https: http:",
+              "style-src 'self' 'unsafe-inline' https:",
+              "font-src 'self' data: https:",
+              "connect-src 'self' https: http: ws: wss:",
+              "media-src 'self' blob: data:",
+              "frame-src 'self'"
+            ].join('; ')
+          },
         ],
       },
       // CSS files
@@ -189,6 +206,42 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Type',
             value: 'application/javascript; charset=utf-8',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // WebAssembly files for MediaPipe
+      {
+        source: '/:path*.wasm',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/wasm',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+        ],
+      },
+      // MediaPipe model files
+      {
+        source: '/models/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
           },
           {
             key: 'Cache-Control',

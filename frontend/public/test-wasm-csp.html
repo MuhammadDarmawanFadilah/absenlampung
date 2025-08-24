@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WebAssembly CSP - Absensi Lampung</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-box { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .warning { background: #fff3e0; color: #ef6c00; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test WebAssembly CSP Configuration</h1>
+        <p><strong>URL Production:</strong> https://absenkantor.my.id/test-wasm-csp.html</p>
+        
+        <div class="test-box">
+            <h3>1. CSP Header Check</h3>
+            <button onclick="checkCSPHeaders()">Check CSP Headers</button>
+            <div id="csp-result"></div>
+        </div>
+        
+        <div class="test-box">
+            <h3>2. WebAssembly Support Test</h3>
+            <button onclick="testWebAssembly()">Test WebAssembly</button>
+            <div id="wasm-result"></div>
+        </div>
+        
+        <div class="test-box">
+            <h3>3. MediaPipe Models Test</h3>
+            <button onclick="testMediaPipeModels()">Test MediaPipe Models</button>
+            <div id="mediapipe-result"></div>
+        </div>
+
+        <div class="test-box">
+            <h3>4. Face Recognition Create Page Test</h3>
+            <button onclick="testFaceRecognitionPage()">Test Page</button>
+            <div id="page-result"></div>
+        </div>
+
+        <div class="test-box">
+            <h3>5. Browser Console Logs</h3>
+            <p class="warning">Check browser developer console for detailed error messages.</p>
+            <button onclick="clearConsole()">Clear Console</button>
+        </div>
+    </div>
+
+    <script>
+        function checkCSPHeaders() {
+            const resultDiv = document.getElementById('csp-result');
+            resultDiv.innerHTML = '<p>Checking CSP headers...</p>';
+            
+            // Check CSP meta tag
+            const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+            const cspHeaderViaScript = checkCSPViaFetch();
+            
+            resultDiv.innerHTML = `
+                <div>
+                    <p><strong>CSP Meta Tag:</strong> ${cspMeta ? 'Found' : 'Not found'}</p>
+                    <p><strong>Browser WebAssembly Support:</strong> ${typeof WebAssembly !== 'undefined' ? '✅ Supported' : '❌ Not supported'}</p>
+                    <p><strong>Worker Support:</strong> ${typeof Worker !== 'undefined' ? '✅ Supported' : '❌ Not supported'}</p>
+                    <p><strong>Blob Support:</strong> ${typeof Blob !== 'undefined' ? '✅ Supported' : '❌ Not supported'}</p>
+                    <p><strong>Current Origin:</strong> ${window.location.origin}</p>
+                </div>
+            `;
+        }
+        
+        function checkCSPViaFetch() {
+            fetch(window.location.href)
+                .then(response => {
+                    const csp = response.headers.get('Content-Security-Policy');
+                    console.log('CSP Header:', csp);
+                    return csp;
+                })
+                .catch(err => console.error('Error checking CSP:', err));
+        }
+        
+        async function testWebAssembly() {
+            const resultDiv = document.getElementById('wasm-result');
+            resultDiv.innerHTML = '<p>Testing WebAssembly...</p>';
+            
+            try {
+                // Simple WebAssembly test
+                const wasmCode = new Uint8Array([
+                    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b
+                ]);
+                
+                const wasmModule = await WebAssembly.instantiate(wasmCode);
+                const result = wasmModule.instance.exports.add(5, 3);
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ WebAssembly Test Passed</h4>
+                        <p>Simple WASM module loaded and executed successfully</p>
+                        <p>Test result: 5 + 3 = ${result}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ WebAssembly Test Failed</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Error Type:</strong> ${error.constructor.name}</p>
+                        <details>
+                            <summary>Full Error</summary>
+                            <pre>${error.stack}</pre>
+                        </details>
+                    </div>
+                `;
+                console.error('WebAssembly Test Error:', error);
+            }
+        }
+        
+        async function testMediaPipeModels() {
+            const resultDiv = document.getElementById('mediapipe-result');
+            resultDiv.innerHTML = '<p>Testing MediaPipe models availability...</p>';
+            
+            try {
+                const modelUrls = [
+                    '/models/face_landmarker.task',
+                    '/models/vision_wasm_internal.js',
+                    '/models/vision_wasm_internal.wasm'
+                ];
+                
+                const results = await Promise.allSettled(
+                    modelUrls.map(async url => {
+                        const response = await fetch(url);
+                        return {
+                            url,
+                            status: response.status,
+                            ok: response.ok,
+                            size: response.headers.get('content-length')
+                        };
+                    })
+                );
+                
+                let html = '<div>';
+                results.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        const data = result.value;
+                        html += `<p>${data.url}: ${data.ok ? '✅' : '❌'} (${data.status}) - Size: ${data.size || 'Unknown'} bytes</p>`;
+                    } else {
+                        html += `<p>${modelUrls[index]}: ❌ ${result.reason.message}</p>`;
+                    }
+                });
+                html += '</div>';
+                
+                const allOk = results.every(r => r.status === 'fulfilled' && r.value.ok);
+                resultDiv.innerHTML = `
+                    <div class="${allOk ? 'success' : 'warning'}">
+                        <h4>${allOk ? '✅' : '⚠️'} MediaPipe Models Test</h4>
+                        ${html}
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ MediaPipe Models Test Failed</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function testFaceRecognitionPage() {
+            const resultDiv = document.getElementById('page-result');
+            const testUrl = '/admin/master-data/face-recognition/create?pegawaiId=1';
+            
+            resultDiv.innerHTML = `
+                <div>
+                    <p><strong>Test URL:</strong> <a href="${testUrl}" target="_blank">${testUrl}</a></p>
+                    <p>Click the link above to test the face recognition page.</p>
+                    <p>If MediaPipe loads without CSP errors, the fix is working!</p>
+                </div>
+            `;
+        }
+        
+        function clearConsole() {
+            console.clear();
+            console.log('🧪 CSP WebAssembly Test Console Cleared');
+            console.log('Testing URL:', window.location.href);
+        }
+        
+        // Auto-run basic tests on load
+        window.onload = function() {
+            console.log('🧪 CSP WebAssembly Test Page Loaded');
+            console.log('Testing configuration for MediaPipe in production');
+            checkCSPHeaders();
+        };
+        
+        // Log any CSP violations
+        document.addEventListener('securitypolicyviolation', (e) => {
+            console.error('🚨 CSP Violation:', {
+                blockedURI: e.blockedURI,
+                violatedDirective: e.violatedDirective,
+                originalPolicy: e.originalPolicy,
+                disposition: e.disposition
+            });
+        });
+    </script>
+</body>
+</html>

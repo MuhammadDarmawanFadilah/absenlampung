@@ -86,9 +86,6 @@ export default async function RootLayout({
         <meta name="msapplication-TileColor" content="#f69435" />
         <meta name="msapplication-tap-highlight" content="no" />
         
-        {/* Content Security Policy untuk WebAssembly */}
-        <meta httpEquiv="Content-Security-Policy" content="default-src 'self' http: https: data: blob: 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https://cdn.jsdelivr.net; worker-src 'self' blob: data:; img-src 'self' data: blob: https: http:; media-src 'self' blob: data:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline' data:; object-src 'none'; base-uri 'self';" />
-        
         {/* PWA Meta Tags */}
         <meta name="theme-color" content="#f69435" />
         <meta name="color-scheme" content="light dark" />
