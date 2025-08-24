@@ -120,23 +120,7 @@ const nextConfig: NextConfig = {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization',
           },
-          // Content Security Policy for WebAssembly support (MediaPipe)
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self' 'unsafe-eval' http: https: data: blob: 'unsafe-inline'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:",
-              "worker-src 'self' blob: data:",
-              "child-src 'self' blob: data:",
-              "object-src 'none'",
-              "img-src 'self' data: blob: https: http:",
-              "style-src 'self' 'unsafe-inline' https:",
-              "font-src 'self' data: https:",
-              "connect-src 'self' https: http: ws: wss:",
-              "media-src 'self' blob: data:",
-              "frame-src 'self'"
-            ].join('; ')
-          },
+          // CSP removed - handled by middleware.ts to avoid duplicate headers
         ],
       },
       // CSS files
