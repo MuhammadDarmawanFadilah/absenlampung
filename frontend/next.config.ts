@@ -120,6 +120,11 @@ const nextConfig: NextConfig = {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization',
           },
+          // CSP untuk mendukung WebAssembly MediaPipe
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self' http: https: data: blob: 'unsafe-inline'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https: data: blob:; worker-src 'self' blob: data:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https: wss: ws:; font-src 'self' data: https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; upgrade-insecure-requests;",
+          },
         ],
       },
       // CSS files
