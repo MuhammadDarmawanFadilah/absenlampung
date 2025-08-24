@@ -125,6 +125,15 @@ export default function PhotoUpload({ value, onChange, preview, onPreviewChange 
       // For all other cases (filename or path), construct the full backend URL
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
       
+      // Debug logging for production issues
+      if (process.env.NODE_ENV === 'production') {
+        console.debug('PhotoUpload URL construction:', {
+          value,
+          backendUrl,
+          fullUrl: `${backendUrl}/api/upload/photos/${value}`
+        });
+      }
+      
       // If value starts with /api, append to backend URL
       if (value.startsWith('/api')) {
         return `${backendUrl}${value}`;

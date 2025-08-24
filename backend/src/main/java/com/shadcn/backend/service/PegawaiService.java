@@ -151,6 +151,7 @@ public class PegawaiService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .namaLengkap(request.getNamaLengkap())
                 .fotoKaryawan(request.getFotoKaryawan())
+                .photoUrl(request.getFotoKaryawan()) // Sync both photo fields
                 .fotoFaceRecognition(request.getFotoFaceRecognition())
                 .email(request.getEmail())
                 .noTelp(request.getNoTelp())
@@ -194,6 +195,7 @@ public class PegawaiService {
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .photoUrl(request.getPhotoUrl())
+                .fotoKaryawan(request.getPhotoUrl()) // Sync both photo fields
                 .build();
 
         // Pemilihan functionality has been removed - no longer setting pemilihan or totalTps
@@ -277,6 +279,8 @@ public class PegawaiService {
         }
         if (request.getPhotoUrl() != null) {
             pegawai.setPhotoUrl(request.getPhotoUrl());
+            // Also update fotoKaryawan for backward compatibility
+            pegawai.setFotoKaryawan(request.getPhotoUrl());
         }
 
         // Update salary and benefit fields
@@ -654,6 +658,8 @@ public class PegawaiService {
         }
         if (request.getPhotoUrl() != null) {
             pegawai.setPhotoUrl(request.getPhotoUrl());
+            // Also update fotoKaryawan for backward compatibility
+            pegawai.setFotoKaryawan(request.getPhotoUrl());
         }
         if (request.getTanggalLahir() != null) {
             pegawai.setTanggalLahir(request.getTanggalLahir());

@@ -110,8 +110,15 @@ public class PegawaiResponse {
         this.username = pegawai.getUsername();
         this.namaLengkap = pegawai.getNamaLengkap();
         this.fullName = pegawai.getNamaLengkap(); // Set fullName for frontend compatibility
-        this.fotoKaryawan = pegawai.getFotoKaryawan();
+        // Use photoUrl as primary, fallback to fotoKaryawan for backward compatibility
+        String finalPhotoUrl = pegawai.getPhotoUrl() != null ? pegawai.getPhotoUrl() : pegawai.getFotoKaryawan();
+        this.fotoKaryawan = finalPhotoUrl;
         this.fotoFaceRecognition = pegawai.getFotoFaceRecognition();
+        
+        // Debug logging for photo field sync
+        if (pegawai.getId() != null && pegawai.getId() == 4L) {
+            System.out.println("DEBUG: Pegawai ID 4 photo fields - photoUrl: " + pegawai.getPhotoUrl() + ", fotoKaryawan: " + pegawai.getFotoKaryawan() + ", final: " + finalPhotoUrl);
+        }
         this.email = pegawai.getEmail();
         this.noTelp = pegawai.getNoTelp();
         this.phoneNumber = pegawai.getNoTelp(); // Set phoneNumber for frontend compatibility

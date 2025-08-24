@@ -87,19 +87,26 @@ public class FileUploadController {
     public ResponseEntity<byte[]> getPhoto(@PathVariable String filename) {
         try {
             Path filePath = Paths.get(uploadDir, "photos", filename);
+            log.info("Attempting to serve photo: {} from path: {}", filename, filePath.toString());
+            
             if (!Files.exists(filePath)) {
+                log.warn("Photo file not found: {}", filePath.toString());
                 return ResponseEntity.notFound().build();
             }
 
             byte[] fileContent = Files.readAllBytes(filePath);
             String contentType = Files.probeContentType(filePath);
             
+            log.info("Photo served successfully: {} (size: {} bytes, type: {})", 
+                    filename, fileContent.length, contentType);
+            
             return ResponseEntity.ok()
                     .header("Content-Type", contentType != null ? contentType : "application/octet-stream")
+                    .header("Cache-Control", "public, max-age=3600")
                     .body(fileContent);
 
         } catch (IOException e) {
-            log.error("Error retrieving photo: {}", e.getMessage());
+            log.error("Error retrieving photo: {} from uploadDir: {}", filename, uploadDir, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

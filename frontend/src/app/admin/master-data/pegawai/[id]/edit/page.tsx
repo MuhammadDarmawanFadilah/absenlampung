@@ -390,6 +390,7 @@ export default function EditPegawaiPage() {
         })
 
         // Set preview image if exists
+        console.log('DEBUG: Pegawai photo data - fotoKaryawan:', data.fotoKaryawan, 'photoUrl:', data.photoUrl)
         if (data.fotoKaryawan || data.photoUrl) {
           const photoField = data.photoUrl || data.fotoKaryawan
           let imageUrl
@@ -401,6 +402,7 @@ export default function EditPegawaiPage() {
             imageUrl = getApiUrl(`api/upload/photos/${photoField}`)
           }
           
+          console.log('DEBUG: Final image URL constructed:', imageUrl)
           setPreviewImage(imageUrl)
         }
 
