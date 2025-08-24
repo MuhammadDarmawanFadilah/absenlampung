@@ -84,6 +84,33 @@ public class FaceRecognitionController {
         }
     }
     
+    // Get face recognition by pegawai ID
+    @GetMapping("/pegawai/{pegawaiId}")
+    public ResponseEntity<Map<String, Object>> getFaceRecognitionByPegawaiId(@PathVariable Long pegawaiId) {
+        try {
+            Optional<FaceRecognitionResponse> faceRecognition = faceRecognitionService.getFaceRecognitionByPegawaiId(pegawaiId);
+            
+            if (faceRecognition.isPresent()) {
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Face recognition retrieved successfully",
+                    "data", faceRecognition.get()
+                ));
+            } else {
+                return ResponseEntity.status(404).body(Map.of(
+                    "success", false,
+                    "message", "Face recognition not found for this pegawai"
+                ));
+            }
+        } catch (Exception e) {
+            log.error("Error getting face recognition by pegawai ID: ", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Internal server error: " + e.getMessage()
+            ));
+        }
+    }
+    
     // Create new face recognition
     @PostMapping
     public ResponseEntity<Map<String, Object>> createFaceRecognition(@RequestBody FaceRecognitionCreateRequest request) {

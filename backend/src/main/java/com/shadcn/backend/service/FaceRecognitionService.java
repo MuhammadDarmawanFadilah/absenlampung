@@ -43,6 +43,12 @@ public class FaceRecognitionService {
                 .map(this::convertToResponse);
     }
     
+    // Get face recognition by pegawai ID
+    public Optional<FaceRecognitionResponse> getFaceRecognitionByPegawaiId(Long pegawaiId) {
+        return faceRecognitionRepository.findByPegawaiId(pegawaiId)
+                .map(this::convertToResponse);
+    }
+    
     // Create new face recognition
     public FaceRecognitionResponse createFaceRecognition(FaceRecognitionCreateRequest request) {
         // Check if pegawai exists

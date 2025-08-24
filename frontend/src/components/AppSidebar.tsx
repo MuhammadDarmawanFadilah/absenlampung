@@ -354,6 +354,19 @@ const AppSidebar = () => {
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild className="w-full">
                         <Link 
+                          href="/pegawai/face-recognition"
+                          onClick={handleMenuClick}
+                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md group"
+                        >
+                          <Scan className="h-4 w-4 flex-shrink-0" />
+                          <span className="hidden md:inline truncate">Face Recognition Saya</span>
+                          <span className="md:hidden text-xs truncate">Face</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild className="w-full">
+                        <Link 
                           href="/reset-password" 
                           target="_blank"
                           onClick={handleMenuClick}
