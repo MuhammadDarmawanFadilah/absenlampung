@@ -245,12 +245,12 @@ export default function FaceRecognitionPage() {
             onClick: () => router.push('/admin/master-data/face-recognition/create'),
             icon: Plus
           }}
-          secondaryAction={{
+          secondaryActions={[{
             label: "Test Recognition",
             onClick: () => {},
             icon: TestTube,
             variant: "outline"
-          }}
+          }]}
         />
 
         {/* Statistics Cards */}

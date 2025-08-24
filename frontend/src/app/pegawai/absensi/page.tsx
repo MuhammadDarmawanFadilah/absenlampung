@@ -986,9 +986,9 @@ export default function AbsensiPage() {
           
           // Log detection success (throttled)
           const now = Date.now()
-          if (!window.lastFaceLogTime || now - window.lastFaceLogTime > 3000) {
+          if (!(window as any).lastFaceLogTime || now - (window as any).lastFaceLogTime > 3000) {
             console.log('✅ Face detected:', orientation, 'Valid:', isValidOrientation)
-            window.lastFaceLogTime = now
+            ;(window as any).lastFaceLogTime = now
           }
         } else {
           setFaceDetected(false)
@@ -997,9 +997,9 @@ export default function AbsensiPage() {
           
           // Log detection failure (throttled)
           const now = Date.now()
-          if (!window.lastNoFaceLogTime || now - window.lastNoFaceLogTime > 3000) {
+          if (!(window as any).lastNoFaceLogTime || now - (window as any).lastNoFaceLogTime > 3000) {
             console.log('❌ No face detected in real-time')
-            window.lastNoFaceLogTime = now
+            ;(window as any).lastNoFaceLogTime = now
           }
         }
       } catch (error) {

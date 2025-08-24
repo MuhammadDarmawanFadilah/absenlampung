@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
