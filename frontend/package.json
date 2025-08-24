@@ -6,6 +6,7 @@
     "dev": "node scripts/generate-sw.js && next dev --turbopack",
     "dev:pwa": "node scripts/dev-with-pwa.js",
     "build": "node scripts/generate-sw.js && next build",
+    "build:verify": "cross-env NODE_ENV=production npm run build && node scripts/verify-production-console.js",
     "start": "next start",
     "lint": "next lint --fix",
     "lint:check": "next lint",
@@ -73,9 +74,13 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "babel-plugin-transform-remove-console": "^6.9.4",
+    "cross-env": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
+    "glob": "^11.0.3",
     "tailwindcss": "^4",
+    "terser-webpack-plugin": "^5.3.14",
     "typescript": "^5"
   }
 }

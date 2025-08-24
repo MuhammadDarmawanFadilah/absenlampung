@@ -13,6 +13,13 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   /* config options here */
   
+  // Remove console.log in production using Next.js built-in compiler
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production" ? {
+      exclude: ['error', 'warn'] // Keep console.error and console.warn for debugging
+    } : false,
+  },
+  
   // Performance optimizations
   experimental: {
     optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
