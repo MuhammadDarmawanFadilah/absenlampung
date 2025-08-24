@@ -102,6 +102,73 @@ export default async function RootLayout({
         {/* Manifest */}
         <link rel="manifest" href="/manifest.json" />
         
+        {/* EMERGENCY CSP FIX FOR MEDIAPIPE WEBASSEMBLY */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            // CRITICAL: Emergency CSP override for MediaPipe WebAssembly
+            // This fixes the issue where browser receives wrong CSP without unsafe-eval
+            (function() {
+              console.log('🆘 Emergency CSP Fix: Initializing...');
+              
+              // Remove any existing bad CSP meta tags immediately
+              const badCSPTags = document.querySelectorAll('meta[http-equiv*="Content-Security-Policy"], meta[http-equiv*="content-security-policy"]');
+              badCSPTags.forEach((tag, index) => {
+                const content = tag.getAttribute('content') || '';
+                console.log(\`🔍 Found CSP meta tag \${index + 1}: \${content}\`);
+                if (!content.includes('unsafe-eval')) {
+                  console.log('🗑️ Removing bad CSP meta tag');
+                  tag.remove();
+                }
+              });
+              
+              // Force add emergency CSP with unsafe-eval for WebAssembly
+              const emergencyCSP = document.createElement('meta');
+              emergencyCSP.setAttribute('http-equiv', 'Content-Security-Policy');
+              emergencyCSP.setAttribute('content', 
+                "default-src 'self' 'unsafe-eval' 'unsafe-inline' https: http: data: blob:; " +
+                "script-src 'self' 'unsafe-eval' 'unsafe-inline' https: http: data: blob: 'wasm-unsafe-eval'; " +
+                "worker-src 'self' 'unsafe-eval' blob: data:; " +
+                "connect-src 'self' https: http: ws: wss:; " +
+                "img-src 'self' https: http: data: blob:; " +
+                "style-src 'self' 'unsafe-inline' https: http:; " +
+                "font-src 'self' https: http: data:; " +
+                "object-src 'none'; " +
+                "base-uri 'self';"
+              );
+              
+              // Insert emergency CSP as first meta tag for priority
+              const head = document.head || document.getElementsByTagName('head')[0];
+              const firstChild = head.firstElementChild;
+              if (firstChild) {
+                head.insertBefore(emergencyCSP, firstChild);
+              } else {
+                head.appendChild(emergencyCSP);
+              }
+              
+              console.log('✅ Emergency CSP with unsafe-eval injected!');
+              console.log('📋 Emergency CSP:', emergencyCSP.getAttribute('content'));
+              
+              // Test WebAssembly support immediately
+              setTimeout(() => {
+                try {
+                  const wasmBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+                  WebAssembly.instantiate(wasmBytes).then(() => {
+                    console.log('✅ WebAssembly test successful! Emergency CSP fix worked.');
+                    window.webAssemblySupported = true;
+                  }).catch(error => {
+                    console.error('❌ WebAssembly test failed:', error);
+                    window.webAssemblySupported = false;
+                  });
+                } catch (error) {
+                  console.error('❌ WebAssembly test error:', error);
+                  window.webAssemblySupported = false;
+                }
+              }, 100);
+              
+            })();
+          `
+        }} />
+        
         <link 
           rel="stylesheet" 
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"

@@ -20,6 +20,7 @@ import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Info } from 'lucide-react'
+import CSPBypass from '@/components/CSPBypass'
 
 // Icons
 import {
@@ -1359,6 +1360,7 @@ export default function CreateFaceRecognitionPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <CSPBypass />
       <AdminPageHeader 
         title="Create Face Recognition"
         description="Setup face recognition data for employee using MediaPipe 2024-2025 technology"
