@@ -27,17 +27,33 @@ const isDev = location.hostname === 'localhost' || location.hostname === '127.0.
 const CACHE_NAME = isDev ? \`absensi-lampung-dev-\${BUILD_TIME}\` : \`absensi-lampung-v\${VERSION}-\${DEPLOYMENT_ID}\`;
 const OFFLINE_URL = '/offline';
 
-// Files to cache immediately
+// Files to cache immediately - only existing files
 const STATIC_CACHE_URLS = [
   '/',
   '/offline',
-  '/manifest.json',
+  '/manifest.json'
+  // Dynamic logo and favicon will be added if they exist
+];
+
+// Add optional static files if they exist
+const OPTIONAL_STATIC_FILES = [
   '/logo.png',
-  '/logo.svg',
+  '/logo.svg', 
   '/favicon.ico'
 ];
 
-// Install event - cache static files
+// Check for optional files in runtime within service worker
+const getStaticCacheUrls = () => {
+  const baseUrls = [
+    '/',
+    '/offline',
+    '/manifest.json'
+  ];
+  
+  return baseUrls; // Only cache essential files initially
+};
+
+// Install event - cache static files with improved error handling
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Install event - Cache:', CACHE_NAME);
   console.log('Service Worker: Deployment ID:', DEPLOYMENT_ID);
@@ -45,11 +61,53 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching static files');
-        return cache.addAll(STATIC_CACHE_URLS);
+        console.log('Service Worker: Caching essential static files');
+        
+        // Cache essential files first
+        const essentialUrls = getStaticCacheUrls();
+        
+        return Promise.allSettled(
+          essentialUrls.map(url => {
+            return cache.add(url).catch(error => {
+              console.warn('Service Worker: Failed to cache essential file:', url, error);
+              return null;
+            });
+          })
+        ).then(results => {
+          const successful = results.filter(result => result.status === 'fulfilled').length;
+          const failed = results.filter(result => result.status === 'rejected').length;
+          console.log(\`Service Worker: Cached \${successful}/\${essentialUrls.length} essential files\`);
+          
+          // Try to cache optional files
+          return Promise.allSettled(
+            OPTIONAL_STATIC_FILES.map(url => {
+              return fetch(url, { method: 'HEAD' })
+                .then(response => {
+                  if (response.ok) {
+                    return cache.add(url);
+                  } else {
+                    console.log('Service Worker: Optional file not found:', url);
+                    return null;
+                  }
+                })
+                .catch(error => {
+                  console.log('Service Worker: Optional file not accessible:', url);
+                  return null;
+                });
+            })
+          );
+        }).then(optionalResults => {
+          const optionalSuccessful = optionalResults.filter(result => 
+            result.status === 'fulfilled' && result.value !== null
+          ).length;
+          console.log(\`Service Worker: Cached \${optionalSuccessful}/\${OPTIONAL_STATIC_FILES.length} optional files\`);
+          
+          return true;
+        });
       })
       .catch((error) => {
-        console.error('Service Worker: Error caching static files:', error);
+        console.error('Service Worker: Error opening cache:', error);
+        return true; // Don't fail installation
       })
   );
   
@@ -108,6 +166,12 @@ self.addEventListener('fetch', (event) => {
   
   // Skip Chrome extension requests
   if (event.request.url.startsWith('chrome-extension://')) {
+    return;
+  }
+
+  // Skip CSS files to prevent MIME type confusion
+  if (event.request.url.includes('.css') || 
+      event.request.url.includes('/_next/static/css/')) {
     return;
   }
 
