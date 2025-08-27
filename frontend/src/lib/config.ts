@@ -20,8 +20,8 @@ export const config = {
   useProxy: process.env.NEXT_PUBLIC_USE_PROXY === 'true',
   
   // Image Upload Configuration
-  imageUploadEndpoint: process.env.NEXT_PUBLIC_IMAGE_UPLOAD_ENDPOINT || '/api/images/upload',
-  imageServeEndpoint: process.env.NEXT_PUBLIC_IMAGE_SERVE_ENDPOINT || '/api/images',
+  imageUploadEndpoint: process.env.NEXT_PUBLIC_IMAGE_UPLOAD_ENDPOINT || '/api/upload/photo',
+  imageServeEndpoint: process.env.NEXT_PUBLIC_IMAGE_SERVE_ENDPOINT || '/api/upload/photos',
   maxImageSize: parseInt(process.env.NEXT_PUBLIC_MAX_IMAGE_SIZE || '5242880'),
   placeholderImageEndpoint: process.env.NEXT_PUBLIC_PLACEHOLDER_IMAGE_ENDPOINT || '/api/placeholder',
   

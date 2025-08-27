@@ -1,11 +1,11 @@
 // Service Worker for PWA - Auto-generated
-// Generated at: 2025-08-27T23:34:21.530Z
-// Deployment ID: hli521
+// Generated at: 2025-08-27T23:46:04.627Z
+// Deployment ID: 129o8w
 
 // Dynamic cache name with timestamp for development
 const VERSION = '0.1.0';
-const BUILD_TIME = 1756337661514;
-const DEPLOYMENT_ID = 'hli521';
+const BUILD_TIME = 1756338364610;
+const DEPLOYMENT_ID = '129o8w';
 const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const CACHE_NAME = isDev ? `absensi-lampung-dev-${BUILD_TIME}` : `absensi-lampung-v${VERSION}-${DEPLOYMENT_ID}`;
 const OFFLINE_URL = '/offline';
