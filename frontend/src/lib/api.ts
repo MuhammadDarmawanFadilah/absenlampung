@@ -407,7 +407,7 @@ export const imageAPI = {
     formData.append('file', file);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/images/upload`, {
+      const response = await fetch(`${API_BASE_URL}/upload/photo`, {
         method: 'POST',
         body: formData,
         mode: 'cors',
@@ -442,13 +442,27 @@ export const imageAPI = {
       return filename;
     }
     
-    // Otherwise, construct the URL
-    return `${API_BASE_URL}/images/${filename}`;
+    // Use environment config for photo serving endpoint
+    const photoEndpoint = process.env.NEXT_PUBLIC_IMAGE_SERVE_ENDPOINT || '/api/upload/photos';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || API_BASE_URL;
+    
+    // Debug logging for production
+    if (process.env.NODE_ENV === 'production') {
+      console.debug('imageAPI.getImageUrl:', {
+        filename,
+        photoEndpoint,
+        backendUrl,
+        fullUrl: `${backendUrl}${photoEndpoint}/${filename}`
+      });
+    }
+    
+    // Construct the full photo URL
+    return `${backendUrl}${photoEndpoint}/${filename}`;
   },
 
   // Delete image
   deleteImage: (filename: string): Promise<{success: string, message: string}> =>
-    apiCall<{success: string, message: string}>(`/images/${filename}`, {
+    apiCall<{success: string, message: string}>(`/upload/photos/${filename}`, {
       method: 'DELETE',
     }),
 };

@@ -52,6 +52,7 @@ public class FileUploadController {
             Path uploadPath = Paths.get(uploadDir, "photos");
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
+                log.info("Created upload directory: {} (absolute: {})", uploadPath, uploadPath.toAbsolutePath());
             }
 
             // Generate unique filename
@@ -62,6 +63,9 @@ public class FileUploadController {
 
             // Save file
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            
+            log.info("Photo uploaded successfully: {} (size: {} bytes, saved to: {})", 
+                    filename, file.getSize(), filePath.toAbsolutePath());
 
             // Create response
             Map<String, Object> response = new HashMap<>();
@@ -72,7 +76,6 @@ public class FileUploadController {
             response.put("size", file.getSize());
             response.put("contentType", contentType);
 
-            log.info("Photo uploaded successfully: {}", filename);
             return ResponseEntity.ok(response);
 
         } catch (IOException e) {
@@ -87,26 +90,28 @@ public class FileUploadController {
     public ResponseEntity<byte[]> getPhoto(@PathVariable String filename) {
         try {
             Path filePath = Paths.get(uploadDir, "photos", filename);
-            log.info("Attempting to serve photo: {} from path: {}", filename, filePath.toString());
+            log.info("Attempting to serve photo: {} from path: {} (uploadDir: {})", filename, filePath.toString(), uploadDir);
             
             if (!Files.exists(filePath)) {
-                log.warn("Photo file not found: {}", filePath.toString());
+                log.warn("Photo file not found: {} (absolute path: {})", filePath.toString(), filePath.toAbsolutePath());
                 return ResponseEntity.notFound().build();
             }
 
             byte[] fileContent = Files.readAllBytes(filePath);
             String contentType = Files.probeContentType(filePath);
             
-            log.info("Photo served successfully: {} (size: {} bytes, type: {})", 
-                    filename, fileContent.length, contentType);
+            log.info("Photo served successfully: {} (size: {} bytes, type: {}, absolute path: {})", 
+                    filename, fileContent.length, contentType, filePath.toAbsolutePath());
             
             return ResponseEntity.ok()
                     .header("Content-Type", contentType != null ? contentType : "application/octet-stream")
                     .header("Cache-Control", "public, max-age=3600")
+                    .header("Access-Control-Allow-Origin", "*")
                     .body(fileContent);
 
         } catch (IOException e) {
-            log.error("Error retrieving photo: {} from uploadDir: {}", filename, uploadDir, e);
+            log.error("Error retrieving photo: {} from uploadDir: {} (absolute uploadDir: {})", 
+                     filename, uploadDir, Paths.get(uploadDir).toAbsolutePath(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
