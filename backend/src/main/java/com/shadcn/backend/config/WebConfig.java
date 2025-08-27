@@ -23,10 +23,8 @@ public class WebConfig implements WebMvcConfigurer {
             uploadsPath = "file:" + System.getProperty("user.dir") + "/" + uploadDir + "/";
         }
         
-        // Serve uploaded files via API endpoint
-        registry.addResourceHandler("/api/upload/**")
-                .addResourceLocations(uploadsPath)
-                .setCachePeriod(3600); // Cache for 1 hour
+        // NOTE: Removed /api/upload/** mapping to avoid conflict with FileUploadController
+        // FileUploadController handles /api/upload/photos/{filename} with proper security
         
         // Serve static files from /storage directory (legacy)
         registry.addResourceHandler("/storage/**")
@@ -38,9 +36,9 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations("file:" + System.getProperty("user.dir") + "/storage/")
                 .setCachePeriod(3600);
                 
-        // For backward compatibility with uploads path (legacy)
+        // For backward compatibility with uploads path (legacy) - direct uploads without /api prefix
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + System.getProperty("user.dir") + "/uploads/")
+                .addResourceLocations(uploadsPath)
                 .setCachePeriod(3600);
     }
 }
