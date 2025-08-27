@@ -4,17 +4,27 @@ const fs = require('fs');
 const path = require('path');
 
 const isDev = process.env.NODE_ENV === 'development';
+// Use current timestamp for each build to ensure cache invalidation
 const buildTime = new Date().getTime();
+const deploymentId = Math.random().toString(36).substring(2, 8); // Random 6-char ID
 const version = require('../package.json').version || '1.0.0';
+
+console.log('🔧 Generating Service Worker...');
+console.log('🏗️  Environment:', isDev ? 'Development' : 'Production');
+console.log('📦 Version:', version);
+console.log('⏰ Build Time:', new Date(buildTime).toLocaleString());
+console.log('🆔 Deployment ID:', deploymentId);
 
 const swTemplate = `// Service Worker for PWA - Auto-generated
 // Generated at: ${new Date().toISOString()}
+// Deployment ID: ${deploymentId}
 
 // Dynamic cache name with timestamp for development
 const VERSION = '${version}';
 const BUILD_TIME = ${buildTime};
+const DEPLOYMENT_ID = '${deploymentId}';
 const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const CACHE_NAME = isDev ? \`absensi-lampung-dev-\${BUILD_TIME}\` : \`absensi-lampung-v\${VERSION}\`;
+const CACHE_NAME = isDev ? \`absensi-lampung-dev-\${BUILD_TIME}\` : \`absensi-lampung-v\${VERSION}-\${DEPLOYMENT_ID}\`;
 const OFFLINE_URL = '/offline';
 
 // Files to cache immediately
@@ -30,6 +40,7 @@ const STATIC_CACHE_URLS = [
 // Install event - cache static files
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Install event - Cache:', CACHE_NAME);
+  console.log('Service Worker: Deployment ID:', DEPLOYMENT_ID);
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -49,6 +60,7 @@ self.addEventListener('install', (event) => {
 // Activate event - cleanup old caches
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activate event');
+  console.log('Service Worker: New deployment activated:', DEPLOYMENT_ID);
   
   event.waitUntil(
     caches.keys()
@@ -65,6 +77,19 @@ self.addEventListener('activate', (event) => {
       .then(() => {
         // Take control of all open clients
         return self.clients.claim();
+      })
+      .then(() => {
+        // Notify all clients about the update
+        return self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({
+              type: 'SW_UPDATED',
+              deploymentId: DEPLOYMENT_ID,
+              buildTime: BUILD_TIME,
+              message: 'New version available!'
+            });
+          });
+        });
       })
   );
 });

@@ -1,11 +1,13 @@
 // Service Worker for PWA - Auto-generated
-// Generated at: 2025-08-24T08:58:46.399Z
+// Generated at: 2025-08-27T11:00:29.541Z
+// Deployment ID: nwj9wq
 
 // Dynamic cache name with timestamp for development
 const VERSION = '0.1.0';
-const BUILD_TIME = 1756025926398;
+const BUILD_TIME = 1756292429525;
+const DEPLOYMENT_ID = 'nwj9wq';
 const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const CACHE_NAME = isDev ? `absensi-lampung-dev-${BUILD_TIME}` : `absensi-lampung-v${VERSION}`;
+const CACHE_NAME = isDev ? `absensi-lampung-dev-${BUILD_TIME}` : `absensi-lampung-v${VERSION}-${DEPLOYMENT_ID}`;
 const OFFLINE_URL = '/offline';
 
 // Files to cache immediately
@@ -21,6 +23,7 @@ const STATIC_CACHE_URLS = [
 // Install event - cache static files
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Install event - Cache:', CACHE_NAME);
+  console.log('Service Worker: Deployment ID:', DEPLOYMENT_ID);
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -40,6 +43,7 @@ self.addEventListener('install', (event) => {
 // Activate event - cleanup old caches
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activate event');
+  console.log('Service Worker: New deployment activated:', DEPLOYMENT_ID);
   
   event.waitUntil(
     caches.keys()
@@ -56,6 +60,19 @@ self.addEventListener('activate', (event) => {
       .then(() => {
         // Take control of all open clients
         return self.clients.claim();
+      })
+      .then(() => {
+        // Notify all clients about the update
+        return self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({
+              type: 'SW_UPDATED',
+              deploymentId: DEPLOYMENT_ID,
+              buildTime: BUILD_TIME,
+              message: 'New version available!'
+            });
+          });
+        });
       })
   );
 });

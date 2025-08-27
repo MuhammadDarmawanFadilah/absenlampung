@@ -12,7 +12,8 @@
     "lint:check": "next lint",
     "type-check": "tsc --noEmit",
     "build:analyze": "ANALYZE=true npm run build",
-    "generate-sw": "node scripts/generate-sw.js"
+    "generate-sw": "node scripts/generate-sw.js",
+    "test:pwa": "node scripts/test-pwa-update.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
