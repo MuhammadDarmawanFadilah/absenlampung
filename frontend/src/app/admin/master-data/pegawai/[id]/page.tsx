@@ -13,6 +13,7 @@ import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, Building2, Edit, Shield
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { useToast } from "@/hooks/use-toast"
 import { getApiUrl } from "@/lib/config"
+import { imageAPI } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PemotonganAbsenInfo } from "@/components/pegawai/PemotonganAbsenInfo"
 
@@ -246,11 +247,8 @@ export default function DetailPegawaiPage() {
     const photoUrl = pegawaiData.photoUrl
     if (!photoUrl) return null
     
-    if (photoUrl.startsWith('http')) {
-      return photoUrl
-    }
-    
-    return `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/upload/photos/${photoUrl}`
+    // Use centralized imageAPI.getImageUrl() for consistency
+    return imageAPI.getImageUrl(photoUrl)
   }
 
   const formatCurrency = (value: number | undefined) => {
