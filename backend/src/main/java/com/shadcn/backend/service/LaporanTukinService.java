@@ -528,6 +528,7 @@ public class LaporanTukinService {
                             
                             // Only mark as having deduction if percentage > 0
                             if (percentage.compareTo(BigDecimal.ZERO) > 0) {
+                                // Add initial detail - will be updated later if compensated
                                 detailPemotongan.add("Terlambat " + menitTerlambat + " menit (" + percentage + "%)");
                             } else {
                                 // Still late but no penalty
@@ -638,11 +639,46 @@ public class LaporanTukinService {
                     percentage = rulePercentages.getOrDefault("TL3", BigDecimal.valueOf(2.50));
                 }
                 
+                // NEW RULE: Check for overtime compensation for late arrival (31-90 minutes only)
+                // Only minutes ABOVE 30 need compensation at 2x rate
+                boolean canCompensateWithOvertime = false;
+                
+                if (menitTerlambat > 30 && menitTerlambat <= 90 && absenPulang != null) {
+                    // Calculate overtime minutes (working beyond scheduled end time)
+                    if (absenPulang.getShift() != null && absenPulang.getShift().getJamKeluar() != null) {
+                        LocalTime shiftJamKeluar = LocalTime.parse(absenPulang.getShift().getJamKeluar());
+                        if (absenPulang.getWaktu().isAfter(shiftJamKeluar)) {
+                            int overtimeMinutes = (int) Duration.between(shiftJamKeluar, absenPulang.getWaktu()).toMinutes();
+                            
+                            // Only compensate for minutes above 30 (since 0-30 minutes have 0% penalty)
+                            int compensableLateness = menitTerlambat - 30;
+                            int requiredCompensation = compensableLateness * 2; // 2x compensation for compensable late minutes
+                            
+                            if (overtimeMinutes >= requiredCompensation) {
+                                canCompensateWithOvertime = true;
+                                // Reset percentage to zero since compensation is successful
+                                percentage = BigDecimal.ZERO;
+                                // Update detail to show compensation
+                                final int finalMenitTerlambat = menitTerlambat;
+                                detailPemotongan.removeIf(detail -> detail.contains("Terlambat " + finalMenitTerlambat + " menit"));
+                                detailPemotongan.add("Terlambat " + menitTerlambat + " menit (dikompensasi lembur " + 
+                                    overtimeMinutes + " menit untuk " + compensableLateness + " menit telat, perlu " + requiredCompensation + " menit)");
+                            }
+                        }
+                    }
+                }
+                
+                // Add percentage to daily total (will be 0 if compensated)
                 if (percentage.compareTo(BigDecimal.ZERO) > 0) {
                     actuallyHasPemotongan = true;
                     dailyPercentage = dailyPercentage.add(percentage);
                 }
-                combinedStatus = "TERLAMBAT";
+                
+                if (canCompensateWithOvertime) {
+                    combinedStatus = "TERLAMBAT (DIKOMPENSASI LEMBUR)";
+                } else {
+                    combinedStatus = "TERLAMBAT";
+                }
             }
             
             if (statusPulang.equals("PULANG_CEPAT")) {

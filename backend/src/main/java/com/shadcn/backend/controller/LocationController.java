@@ -98,7 +98,7 @@ public class LocationController {
     
     // Get provinsi with pagination (ADMIN)
     @GetMapping("/admin/provinsi")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<ProvinsiResponseDTO>> getAllProvinsiWithPagination(
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,

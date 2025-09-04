@@ -87,7 +87,7 @@ public class AbsensiController {
     }
     
     @GetMapping("/history/{pegawaiId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<PagedResponse<AbsensiResponse>> getAbsensiHistory(
             @PathVariable Long pegawaiId,
             @RequestParam(defaultValue = "0") int page,
@@ -112,7 +112,7 @@ public class AbsensiController {
     }
     
     @GetMapping("/stats/{pegawaiId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<AbsensiStats> getAbsensiStats(
             @PathVariable Long pegawaiId,
             @RequestParam(required = false) String bulan,
@@ -137,7 +137,7 @@ public class AbsensiController {
     }
     
     @GetMapping("/current-month/{pegawaiId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<List<AbsensiResponse>> getCurrentMonthAbsensi(@PathVariable Long pegawaiId) {
         LocalDate now = LocalDate.now();
         String bulan = now.format(DateTimeFormatter.ofPattern("MM"));
@@ -151,7 +151,7 @@ public class AbsensiController {
     
     // Admin endpoints for master data
     @GetMapping("/history/all")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<PagedResponse<AbsensiResponse>> getAllAbsensiHistory(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size,
@@ -174,7 +174,7 @@ public class AbsensiController {
     }
     
     @GetMapping("/stats/all")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<AbsensiStats> getAllAbsensiStats(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,

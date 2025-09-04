@@ -48,14 +48,14 @@ public class HariLiburController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR', 'USER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR', 'USER')")
     public ResponseEntity<HariLiburResponse> getHariLiburById(@PathVariable Long id) {
         HariLiburResponse hariLibur = hariLiburService.getHariLiburById(id);
         return ResponseEntity.ok(hariLibur);
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> createHariLibur(@Valid @RequestBody HariLiburRequest request) {
         try {
             HariLiburResponse hariLibur = hariLiburService.createHariLibur(request);
@@ -78,7 +78,7 @@ public class HariLiburController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> updateHariLibur(
             @PathVariable Long id, 
             @Valid @RequestBody HariLiburRequest request) {
@@ -103,7 +103,7 @@ public class HariLiburController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> deleteHariLibur(@PathVariable Long id) {
         try {
             hariLiburService.deleteHariLibur(id);
@@ -125,7 +125,7 @@ public class HariLiburController {
     }
 
     @PostMapping("/reset-tahun-ini")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> resetHariLiburTahunIni() {
         try {
             List<HariLiburResponse> hariLiburs = hariLiburService.resetHariLiburTahunIni();
@@ -149,7 +149,7 @@ public class HariLiburController {
     }
 
     @PostMapping("/reset-tahun/{tahun}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> resetHariLiburByTahun(@PathVariable int tahun) {
         try {
             List<HariLiburResponse> hariLiburs = hariLiburService.resetHariLiburByYear(tahun);
@@ -173,14 +173,14 @@ public class HariLiburController {
     }
 
     @GetMapping("/tahun/{tahun}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR', 'USER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR', 'USER')")
     public ResponseEntity<List<HariLiburResponse>> getHariLiburByTahun(@PathVariable int tahun) {
         List<HariLiburResponse> hariLiburs = hariLiburService.getHariLiburByTahun(tahun);
         return ResponseEntity.ok(hariLiburs);
     }
 
     @GetMapping("/bulan/{bulan}/tahun/{tahun}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR', 'USER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR', 'USER')")
     public ResponseEntity<List<HariLiburResponse>> getHariLiburByBulanTahun(
             @PathVariable int bulan, 
             @PathVariable int tahun) {

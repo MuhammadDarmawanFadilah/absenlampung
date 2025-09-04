@@ -21,7 +21,7 @@ public class PemotonganAbsenController {
     private final PemotonganAbsenService pemotonganAbsenService;
     
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getAllPemotonganAbsen() {
         try {
             log.debug("Request untuk mengambil semua pemotongan absen");
@@ -43,7 +43,7 @@ public class PemotonganAbsenController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getPemotonganAbsenById(@PathVariable Long id) {
         try {
             log.debug("Request untuk mengambil pemotongan absen dengan ID: {}", id);

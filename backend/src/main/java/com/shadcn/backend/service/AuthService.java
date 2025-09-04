@@ -242,8 +242,8 @@ public class AuthService {
         switch (roleName) {
             case "ADMIN":
                 return "Administrator dengan akses penuh ke sistem";
-            case "MODERATOR":
-                return "Moderator dengan akses terbatas";
+            case "VERIFICATOR":
+                return "Verificator dengan akses terbatas";
             case "SUPERVISOR":
                 return "Supervisor dengan akses pengawasan";
             case "PEGAWAI":

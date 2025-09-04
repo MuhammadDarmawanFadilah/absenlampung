@@ -190,12 +190,12 @@ public class RoleService {
             roleRepository.save(adminRole);
         }
         
-        // Create MODERATOR role if not exists
-        if (!roleRepository.existsByRoleName("MODERATOR")) {
-            Role moderatorRole = new Role();
-            moderatorRole.setRoleName("MODERATOR");
-            moderatorRole.setDescription("Moderator dengan akses admin terbatas");
-            moderatorRole.setPermissions(Set.of(
+        // Create VERIFICATOR role if not exists
+        if (!roleRepository.existsByRoleName("VERIFICATOR")) {
+            Role verificatorRole = new Role();
+            verificatorRole.setRoleName("VERIFICATOR");
+            verificatorRole.setDescription("Verificator dengan akses admin terbatas");
+            verificatorRole.setPermissions(Set.of(
                 "dashboard.view", "admin.panel.access", "home.access",
                 "laporan-pengawas.read", "laporan-saya.read", "file-manager.read",
                 "pegawai.read", "pegawai.update", "lokasi-pegawai.read", "roles.read", "file-pegawai.read",
@@ -203,7 +203,7 @@ public class RoleService {
                 "kategori-file.read", "jabatan.read", 
                 "wilayah-provinsi.read", "wilayah-kota.read", "wilayah-kecamatan.read", "wilayah-kelurahan.read"
             ));
-            roleRepository.save(moderatorRole);
+            roleRepository.save(verificatorRole);
         }
         
         // Create PEGAWAI role if not exists

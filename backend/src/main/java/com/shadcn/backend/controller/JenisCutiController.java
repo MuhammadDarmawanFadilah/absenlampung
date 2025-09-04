@@ -23,7 +23,7 @@ public class JenisCutiController {
     private final JenisCutiService jenisCutiService;
     
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<JenisCutiResponseDto>> getAllJenisCuti(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -58,21 +58,21 @@ public class JenisCutiController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<JenisCutiResponseDto> getJenisCutiById(@PathVariable Long id) {
         JenisCutiResponseDto result = jenisCutiService.getJenisCutiById(id);
         return ResponseEntity.ok(result);
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<JenisCutiResponseDto> createJenisCuti(@Valid @RequestBody JenisCutiRequestDto request) {
         JenisCutiResponseDto result = jenisCutiService.createJenisCuti(request);
         return ResponseEntity.ok(result);
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<JenisCutiResponseDto> updateJenisCuti(
             @PathVariable Long id, 
             @Valid @RequestBody JenisCutiRequestDto request) {
@@ -81,14 +81,14 @@ public class JenisCutiController {
     }
     
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Void> deleteJenisCuti(@PathVariable Long id) {
         jenisCutiService.deleteJenisCuti(id);
         return ResponseEntity.ok().build();
     }
     
     @PutMapping("/{id}/toggle-status")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<JenisCutiResponseDto> toggleJenisCutiStatus(@PathVariable Long id) {
         JenisCutiResponseDto result = jenisCutiService.toggleJenisCutiStatus(id);
         return ResponseEntity.ok(result);

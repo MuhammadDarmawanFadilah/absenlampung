@@ -23,7 +23,7 @@ public class MasterPosisiJabatanController {
     private final MasterPosisiJabatanService service;
     
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<MasterPosisiJabatanResponse>> findAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean isActive,
@@ -45,7 +45,7 @@ public class MasterPosisiJabatanController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiJabatanResponse> findById(@PathVariable Long id) {
         log.info("GET /api/admin/master-data/posisi-jabatan/{}", id);
         MasterPosisiJabatanResponse result = service.findById(id);
@@ -53,7 +53,7 @@ public class MasterPosisiJabatanController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiJabatanResponse> create(@Valid @RequestBody MasterPosisiJabatanRequest request) {
         log.info("POST /api/admin/master-data/posisi-jabatan - {}", request);
         MasterPosisiJabatanResponse result = service.create(request);
@@ -61,7 +61,7 @@ public class MasterPosisiJabatanController {
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiJabatanResponse> update(@PathVariable Long id, @Valid @RequestBody MasterPosisiJabatanRequest request) {
         log.info("PUT /api/admin/master-data/posisi-jabatan/{} - {}", id, request);
         MasterPosisiJabatanResponse result = service.update(id, request);
@@ -77,7 +77,7 @@ public class MasterPosisiJabatanController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiJabatanResponse> toggleActive(@PathVariable Long id) {
         log.info("PATCH /api/admin/master-data/posisi-jabatan/{}/toggle-active", id);
         MasterPosisiJabatanResponse result = service.toggleActive(id);

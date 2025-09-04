@@ -22,7 +22,7 @@ public class MasterSpesialisasiController {
     
     private final MasterSpesialisasiService service;    
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<MasterSpesialisasiResponse>> findAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean isActive,
@@ -42,7 +42,7 @@ public class MasterSpesialisasiController {
         return ResponseEntity.ok(result);
     }    
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiResponse> findById(@PathVariable Long id) {
         log.info("GET /api/admin/master-data/spesialisasi/{}", id);
         MasterSpesialisasiResponse result = service.findById(id);
@@ -50,7 +50,7 @@ public class MasterSpesialisasiController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiResponse> create(@Valid @RequestBody MasterSpesialisasiRequest request) {
         log.info("POST /api/admin/master-data/spesialisasi - {}", request);
         MasterSpesialisasiResponse result = service.create(request);
@@ -58,7 +58,7 @@ public class MasterSpesialisasiController {
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiResponse> update(@PathVariable Long id, @Valid @RequestBody MasterSpesialisasiRequest request) {
         log.info("PUT /api/admin/master-data/spesialisasi/{} - {}", id, request);
         MasterSpesialisasiResponse result = service.update(id, request);
@@ -73,7 +73,7 @@ public class MasterSpesialisasiController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiResponse> toggleActive(@PathVariable Long id) {
         log.info("PATCH /api/admin/master-data/spesialisasi/{}/toggle-active", id);
         MasterSpesialisasiResponse result = service.toggleActive(id);

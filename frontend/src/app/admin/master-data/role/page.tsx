@@ -11,6 +11,7 @@ import { showErrorToast, showSuccessToast } from "@/components/ui/toast-utils"
 import { Plus, ArrowLeft, Save, Shield, Edit, Trash2 } from 'lucide-react'
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import { ServerPagination } from "@/components/ServerPagination"
+import ProtectedRoute from "@/components/ProtectedRoute"
 import { getApiUrl } from "@/lib/config"
 import {
   Dialog,
@@ -40,6 +41,14 @@ interface Role {
 }
 
 export default function RolePage() {
+  return (
+    <ProtectedRoute requireAuth={true} allowedRoles={["ADMIN"]}>
+      <RolePageContent />
+    </ProtectedRoute>
+  )
+}
+
+function RolePageContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<Role[]>([])
@@ -343,7 +352,7 @@ export default function RolePage() {
                   id="roleName"
                   value={formData.roleName}
                   onChange={(e) => handleInputChange('roleName', e.target.value)}
-                  placeholder="Contoh: ADMIN, MODERATOR, PEGAWAI"
+                  placeholder="Contoh: ADMIN, VERIFICATOR, PEGAWAI"
                 />
               </div>
 

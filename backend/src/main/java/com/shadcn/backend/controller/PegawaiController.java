@@ -33,7 +33,7 @@ public class PegawaiController {
     private final AuthService authService;
 
     @PostMapping("/check-duplicate")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Map<String, Boolean>> checkDuplicate(@RequestBody Map<String, Object> checkData) {
         try {
             String username = (String) checkData.get("username");
@@ -102,7 +102,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('USER') and #id == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or (hasRole('USER') and #id == authentication.principal.id)")
     public ResponseEntity<PegawaiResponse> getPegawaiById(@PathVariable Long id) {
         try {
             Optional<PegawaiResponse> pegawaiOpt = pegawaiService.getPegawaiById(id);
@@ -163,7 +163,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('USER') and #userId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or (hasRole('USER') and #userId == authentication.principal.id)")
     public ResponseEntity<PegawaiResponse> getPegawaiByUserId(@PathVariable Long userId, HttpServletRequest request) {
         try {
             String token = request.getHeader("Authorization");
@@ -187,7 +187,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/username/{username}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<PegawaiResponse> getPegawaiByUsername(@PathVariable String username) {
         try {
             Optional<PegawaiResponse> pegawaiOpt = pegawaiService.getPegawaiByUsername(username);
@@ -203,7 +203,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/status/{status}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<List<PegawaiResponse>> getPegawaiByStatus(@PathVariable String status) {
         try {
             Boolean isActive = "active".equalsIgnoreCase(status) || "true".equalsIgnoreCase(status);
@@ -219,7 +219,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/jabatan/{jabatan}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<List<PegawaiResponse>> getPegawaiByJabatan(@PathVariable String jabatan) {
         try {
             List<PegawaiResponse> pegawaiList = pegawaiService.getPegawaiByJabatan(jabatan);
@@ -231,7 +231,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or hasRole('USER')")
     public ResponseEntity<List<PegawaiResponse>> getActivePegawai() {
         try {
             List<PegawaiResponse> pegawaiList = pegawaiService.getPegawaiByStatus(true);
@@ -243,7 +243,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<List<PegawaiResponse>> searchPegawai(@RequestParam String keyword) {
         try {
             List<PegawaiResponse> pegawaiList = pegawaiService.searchPegawai(keyword);
@@ -255,7 +255,7 @@ public class PegawaiController {
     }
 
     @PostMapping(consumes = "application/json")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> createPegawai(@Valid @RequestBody PegawaiRequest request) {
         try {
             PegawaiResponse pegawai = pegawaiService.createPegawai(request);
@@ -274,7 +274,7 @@ public class PegawaiController {
     }
 
     @PostMapping(consumes = "multipart/form-data")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<PegawaiResponse> createPegawaiWithFile(
             @RequestPart("data") @Valid PegawaiRequest request,
             @RequestPart(value = "foto_karyawan", required = false) MultipartFile file) {
@@ -385,7 +385,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/exists/username/{username}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Map<String, Boolean>> checkUsernameExists(@PathVariable String username) {
         try {
             boolean exists = pegawaiService.existsByUsername(username);
@@ -399,7 +399,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/exists/email/{email}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Map<String, Boolean>> checkEmailExists(@PathVariable String email) {
         try {
             boolean exists = pegawaiService.existsByEmail(email);
@@ -413,7 +413,7 @@ public class PegawaiController {
     }
 
     @GetMapping("/stats")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getPegawaiStats() {
         try {
             Map<String, Object> stats = new HashMap<>();
@@ -463,7 +463,7 @@ public class PegawaiController {
     }
 
     @PutMapping("/{id}/reset-password")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('USER') and #id == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or (hasRole('USER') and #id == authentication.principal.id)")
     public ResponseEntity<?> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> request) {
         try {
             String currentPassword = request.get("currentPassword");

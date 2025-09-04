@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authorities.add(new SimpleGrantedAuthority("pegawai.write"));
                         authorities.add(new SimpleGrantedAuthority("pegawai.delete"));
                         break;
-                    case "MODERATOR":
+                    case "VERIFICATOR":
                         authorities.add(new SimpleGrantedAuthority("pegawai.read"));
                         authorities.add(new SimpleGrantedAuthority("pegawai.write"));
                         break;

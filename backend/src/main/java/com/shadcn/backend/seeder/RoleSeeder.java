@@ -31,7 +31,7 @@ public class RoleSeeder implements CommandLineRunner {
         
         seedRole("ADMIN", "Administrator dengan akses penuh");
         seedRole("PEGAWAI", "Pegawai dengan akses terbatas");
-        seedRole("MODERATOR", "Moderator dengan akses tertentu");
+        seedRole("VERIFICATOR", "Verificator dengan akses tertentu");
         
         log.info("✅ Role seeding completed.");
     }

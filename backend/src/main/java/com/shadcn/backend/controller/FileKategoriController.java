@@ -47,7 +47,7 @@ public class FileKategoriController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<FileKategoriResponse> findById(@PathVariable Long id) {
         log.info("GET /api/admin/master-data/file-kategori/{}", id);
         FileKategoriResponse result = service.findById(id);
@@ -55,7 +55,7 @@ public class FileKategoriController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<FileKategoriResponse> create(@Valid @RequestBody FileKategoriRequest request) {
         log.info("POST /api/admin/master-data/file-kategori - {}", request);
         FileKategoriResponse result = service.create(request);
@@ -63,7 +63,7 @@ public class FileKategoriController {
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<FileKategoriResponse> update(@PathVariable Long id, @Valid @RequestBody FileKategoriRequest request) {
         log.info("PUT /api/admin/master-data/file-kategori/{} - {}", id, request);
         FileKategoriResponse result = service.update(id, request);
@@ -79,7 +79,7 @@ public class FileKategoriController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<FileKategoriResponse> toggleActive(@PathVariable Long id) {
         log.info("PATCH /api/admin/master-data/file-kategori/{}/toggle-active", id);
         FileKategoriResponse result = service.toggleActive(id);

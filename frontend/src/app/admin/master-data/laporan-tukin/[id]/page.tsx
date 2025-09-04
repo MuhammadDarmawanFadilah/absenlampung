@@ -183,9 +183,11 @@ function RincianDetailPerPegawai({
                           <Badge 
                             variant={absensi.statusMasuk === 'HADIR' ? 'default' : 
                                     absensi.statusMasuk === 'TERLAMBAT' ? 'destructive' : 
+                                    absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'default' :
                                     absensi.statusMasuk === 'LIBUR' ? 'outline' :
                                     absensi.statusMasuk === 'CUTI' ? 'secondary' :
                                     'secondary'}
+                            className={absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
                           >
                             {absensi.status || absensi.statusMasuk || 'HADIR'}
                           </Badge>

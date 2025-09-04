@@ -28,7 +28,7 @@ const Dashboard = () => {
   const { isAuthenticated, user } = useAuth();
 
   // Check if user is admin
-  const isAdmin = user?.role?.roleName === 'ADMIN' || user?.role?.roleName === 'MODERATOR';
+  const isAdmin = user?.role?.roleName === 'ADMIN' || user?.role?.roleName === 'VERIFICATOR';
 
   // Navigation functions with authentication check
   const navigateToDetail = (type: 'berita' | 'usulan' | 'documents' | 'biografi', id: number) => {

@@ -24,7 +24,7 @@ public class AdminController {
     private final PegawaiRepository pegawaiRepository;
     
     @GetMapping("/master-data/pegawai")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<PagedResponse<PegawaiResponse>> getAllPegawai(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size,

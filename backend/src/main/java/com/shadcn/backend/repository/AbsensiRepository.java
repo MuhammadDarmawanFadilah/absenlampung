@@ -135,4 +135,7 @@ public interface AbsensiRepository extends JpaRepository<Absensi, Long> {
     long countByTanggalAndTypeAndStatus(@Param("today") LocalDate today, 
                                        @Param("type") Absensi.AbsensiType type, 
                                        @Param("status") Absensi.AbsensiStatus status);
+
+    // Delete methods
+    long deleteByTanggalBetween(LocalDate startDate, LocalDate endDate);
 }

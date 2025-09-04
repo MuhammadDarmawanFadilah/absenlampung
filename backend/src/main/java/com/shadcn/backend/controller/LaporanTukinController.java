@@ -28,7 +28,7 @@ public class LaporanTukinController {
     private final AuthService authService;
     
     @PostMapping("/generate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> generateLaporan(
             @Valid @RequestBody LaporanTukinRequest request,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
@@ -75,7 +75,7 @@ public class LaporanTukinController {
     }
     
     @GetMapping("/histori")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getHistoriLaporan(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -110,7 +110,7 @@ public class LaporanTukinController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getLaporanById(@PathVariable Long id) {
         try {
             LaporanTukinResponse response = laporanTukinService.getLaporanById(id);
@@ -133,7 +133,7 @@ public class LaporanTukinController {
     }
     
     @GetMapping("/{id}/detail")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getLaporanDetail(@PathVariable Long id) {
         try {
             // This endpoint will return detailed view with pegawai breakdown for web display
@@ -157,7 +157,7 @@ public class LaporanTukinController {
     }
     
     @GetMapping("/{id}/rincian")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getRincianDetailPegawai(
             @PathVariable Long id,
             @RequestParam(required = false) Long pegawaiId) {
@@ -183,7 +183,7 @@ public class LaporanTukinController {
     }
     
     @GetMapping("/{id}/pegawai")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getListPegawaiInLaporan(@PathVariable Long id) {
         try {
             // Get list of pegawai for submenu dropdown
@@ -207,7 +207,7 @@ public class LaporanTukinController {
     }
     
     @GetMapping("/{id}/download")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<byte[]> downloadLaporanExcel(@PathVariable Long id) {
         try {
             byte[] excelData = laporanTukinService.generateExcelReport(id);
@@ -229,7 +229,7 @@ public class LaporanTukinController {
     }
     
     @GetMapping("/{id}/download-pdf")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<byte[]> downloadLaporanPDF(@PathVariable Long id) {
         try {
             byte[] pdfData = laporanTukinService.generatePDFReport(id);

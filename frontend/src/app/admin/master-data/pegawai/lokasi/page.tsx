@@ -282,7 +282,7 @@ export default function PegawaiLokasiPage() {
   const uniqueCities = new Set(allPegawaiLocations.map(p => p.kotaNama || p.kota)).size;
 
   return (
-    <ProtectedRoute requireAuth={true} allowedRoles={["ADMIN", "MODERATOR"]}>
+    <ProtectedRoute requireAuth={true} allowedRoles={["ADMIN", "VERIFICATOR"]}>
       <div className="min-h-screen bg-background">
         <AdminPageHeader
           title="Lokasi Pegawai"

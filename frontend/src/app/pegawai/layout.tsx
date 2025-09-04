@@ -8,7 +8,7 @@ export default function PegawaiLayout({
   children: React.ReactNode
 }) {
   return (
-    <ProtectedRoute requireAuth={true} allowedRoles={["PEGAWAI", "ADMIN", "MODERATOR"]}>
+    <ProtectedRoute requireAuth={true} allowedRoles={["PEGAWAI", "ADMIN", "VERIFICATOR"]}>
       {children}
     </ProtectedRoute>
   )

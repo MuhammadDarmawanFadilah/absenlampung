@@ -24,7 +24,7 @@ public class ShiftController {
     private final ShiftService shiftService;
     
     @GetMapping
-    // @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    // @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<ShiftResponse>> getAllShift(
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "0") int page,
@@ -41,7 +41,7 @@ public class ShiftController {
     }
     
     @GetMapping("/active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or hasRole('USER')")
     public ResponseEntity<List<ShiftResponse>> getActiveShift() {
         try {
             List<ShiftResponse> activeShift = shiftService.getAllActiveShift();
@@ -53,7 +53,7 @@ public class ShiftController {
     }
     
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<List<ShiftResponse>> getAllShiftList() {
         try {
             List<ShiftResponse> shiftList = shiftService.getAllShift();
@@ -65,7 +65,7 @@ public class ShiftController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<ShiftResponse> getShiftById(@PathVariable Long id) {
         try {
             return shiftService.getShiftById(id)
@@ -78,7 +78,7 @@ public class ShiftController {
     }
     
     @PostMapping
-    // @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    // @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> createShift(@Valid @RequestBody ShiftRequest request) {
         try {
             ShiftResponse createdShift = shiftService.createShift(request);
@@ -94,7 +94,7 @@ public class ShiftController {
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> updateShift(@PathVariable Long id, @Valid @RequestBody ShiftRequest request) {
         try {
             ShiftResponse updatedShift = shiftService.updateShift(id, request);
@@ -110,7 +110,7 @@ public class ShiftController {
     }
     
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> deleteShift(@PathVariable Long id) {
         try {
             shiftService.deleteShift(id);
@@ -126,7 +126,7 @@ public class ShiftController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> toggleShiftStatus(@PathVariable Long id) {
         try {
             ShiftResponse updatedShift = shiftService.toggleShiftStatus(id);

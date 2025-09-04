@@ -548,11 +548,23 @@ export default function EditPegawaiPage() {
       loadKelurahanData(value)
     } else if (field === 'kelurahan' && value) {
       // Auto-populate postal code from selected kelurahan
+      console.log('Kelurahan selected:', value)
+      console.log('Available kelurahan list:', kelurahanList)
+      
       const selectedKelurahan = kelurahanList.find(k => k.kode === value)
+      console.log('Selected kelurahan data:', selectedKelurahan)
+      
       if (selectedKelurahan && selectedKelurahan.kodePos) {
+        console.log('Setting kode pos:', selectedKelurahan.kodePos)
         setFormData(prev => ({
           ...prev,
           kodePos: selectedKelurahan.kodePos || ''
+        }))
+      } else {
+        console.log('No kode pos found for selected kelurahan')
+        setFormData(prev => ({
+          ...prev,
+          kodePos: ''
         }))
       }
     }
@@ -847,65 +859,27 @@ export default function EditPegawaiPage() {
       case 0: // Personal & Account Info
         console.log('Validating step 0 - Personal & Account Info')
         
+        // Personal Information - only nama lengkap is mandatory
         if (!formData.name?.trim()) {
           console.log('Name validation failed:', formData.name)
           showErrorToast('Nama lengkap harus diisi')
           return false
         }
-        if (!formData.nip?.trim()) {
-          console.log('NIP validation failed:', formData.nip)
-          showErrorToast('NIP harus diisi')
-          return false
-        }
-        if (!formData.email?.trim()) {
-          console.log('Email validation failed:', formData.email)
-          showErrorToast('Email harus diisi')
-          return false
-        }
-        if (!formData.telepon?.trim()) {
-          console.log('Phone validation failed:', formData.telepon)
-          showErrorToast('Nomor telepon harus diisi')
-          return false
-        }
+        
+        // Account & Job Information - all fields are mandatory
         if (!formData.username?.trim()) {
           console.log('Username validation failed:', formData.username)
           showErrorToast('Username harus diisi')
           return false
         }
-        // Password is optional for edit mode
-        if (!formData.password?.trim()) {
-          console.log('Warning: Password not provided for edit mode - will keep existing password')
-        }
-        if (!formData.gender) {
-          console.log('Gender validation failed:', formData.gender)
-          showErrorToast('Jenis kelamin harus dipilih')
-          return false
-        }
-        if (!formData.jabatan_id) {
-          console.log('Jabatan validation failed:', formData.jabatan_id)
-          showErrorToast('Jabatan harus dipilih')
-          return false
-        }
-        
-        // Check if jabatan exists in loaded list
-        const selectedJabatan = jabatanList.find(j => j.id.toString() === formData.jabatan_id)
-        if (!selectedJabatan) {
-          console.log('Jabatan not found in list:', formData.jabatan_id, 'Available:', jabatanList)
-          showErrorToast('Jabatan yang dipilih tidak valid. Silakan pilih jabatan yang tersedia.')
-          return false
-        }
-        
         if (!formData.lokasi_id) {
           console.log('Lokasi validation failed:', formData.lokasi_id)
           showErrorToast('Lokasi kantor harus dipilih')
           return false
         }
-        
-        // Check if lokasi exists in loaded list
-        const selectedLokasi = lokasiList.find(l => l.id.toString() === formData.lokasi_id)
-        if (!selectedLokasi) {
-          console.log('Lokasi not found in list:', formData.lokasi_id, 'Available:', lokasiList)
-          showErrorToast('Lokasi kantor yang dipilih tidak valid. Silakan pilih lokasi yang tersedia.')
+        if (!formData.jabatan_id) {
+          console.log('Jabatan validation failed:', formData.jabatan_id)
+          showErrorToast('Jabatan harus dipilih')
           return false
         }
         if (!formData.is_admin) {
@@ -916,42 +890,46 @@ export default function EditPegawaiPage() {
         
         console.log('Basic validation passed, checking duplicates...')
         
-        // Check for duplicates (exclude current pegawai)
+        // Check for duplicates only for filled fields (exclude current pegawai)
         try {
-          const duplicateResponse = await fetch(getApiUrl('api/pegawai/check-duplicate'), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-            },
-            body: JSON.stringify({
-              username: formData.username,
-              email: formData.email,
-              phoneNumber: formData.telepon,
-              nip: formData.nip,
-              excludeId: parseInt(params.id as string) // Exclude current pegawai from duplicate check
-            })
-          })
+          const duplicateCheckData: any = { excludeId: parseInt(params.id as string) }
           
-          if (duplicateResponse.ok) {
-            const duplicateData = await duplicateResponse.json()
-            console.log('Duplicate check result:', duplicateData)
+          if (formData.username?.trim()) duplicateCheckData.username = formData.username
+          if (formData.email?.trim()) duplicateCheckData.email = formData.email
+          if (formData.telepon?.trim()) duplicateCheckData.phoneNumber = formData.telepon
+          if (formData.nip?.trim()) duplicateCheckData.nip = formData.nip
+          
+          // Only check for duplicates if there are fields to check beyond excludeId
+          if (Object.keys(duplicateCheckData).length > 1) {
+            const duplicateResponse = await fetch(getApiUrl('api/pegawai/check-duplicate'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              },
+              body: JSON.stringify(duplicateCheckData)
+            })
             
-            if (duplicateData.usernameExists) {
-              showErrorToast('Username sudah digunakan')
-              return false
-            }
-            if (duplicateData.emailExists) {
-              showErrorToast('Email sudah digunakan')
-              return false
-            }
-            if (duplicateData.phoneExists) {
-              showErrorToast('Nomor telepon sudah digunakan')
-              return false
-            }
-            if (duplicateData.nipExists) {
-              showErrorToast('NIP sudah digunakan')
-              return false
+            if (duplicateResponse.ok) {
+              const duplicateData = await duplicateResponse.json()
+              console.log('Duplicate check result:', duplicateData)
+              
+              if (duplicateData.usernameExists && formData.username?.trim()) {
+                showErrorToast('Username sudah digunakan')
+                return false
+              }
+              if (duplicateData.emailExists && formData.email?.trim()) {
+                showErrorToast('Email sudah digunakan')
+                return false
+              }
+              if (duplicateData.phoneExists && formData.telepon?.trim()) {
+                showErrorToast('Nomor telepon sudah digunakan')
+                return false
+              }
+              if (duplicateData.nipExists && formData.nip?.trim()) {
+                showErrorToast('NIP sudah digunakan')
+                return false
+              }
             }
           }
         } catch (error) {
@@ -963,18 +941,7 @@ export default function EditPegawaiPage() {
         return true
       
       case 1: // Address Details
-        if (!formData.alamat.trim()) {
-          showErrorToast('Alamat lengkap harus diisi')
-          return false
-        }
-        if (!formData.provinsi) {
-          showErrorToast('Provinsi harus dipilih')
-          return false
-        }
-        if (!formData.kota) {
-          showErrorToast('Kota/Kabupaten harus dipilih')
-          return false
-        }
+        // No mandatory fields for address details
         return true
       
       case 2: // Salary & Benefits
@@ -1340,27 +1307,25 @@ export default function EditPegawaiPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="nip">NIP (Nomor Induk Pegawai) *</Label>
+                      <Label htmlFor="nip">NIP (Nomor Induk Pegawai)</Label>
                       <Input
                         id="nip"
                         value={formData.nip}
                         onChange={(e) => handleInputChange('nip', e.target.value)}
                         placeholder="Masukkan NIP"
-                        required
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email *</Label>
+                      <Label htmlFor="email">Email</Label>
                       <Input
                         id="email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         placeholder="nama@email.com"
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -1444,16 +1409,17 @@ export default function EditPegawaiPage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
+                      <Label htmlFor="username">Username *</Label>
                       <Input
                         id="username"
                         value={formData.username}
                         onChange={(e) => handleInputChange('username', e.target.value)}
                         placeholder="Masukkan username"
+                        required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
+                      <Label htmlFor="password">Password *</Label>
                       <Input
                         id="password"
                         type="password"
@@ -1558,20 +1524,19 @@ export default function EditPegawaiPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="alamat">Alamat Lengkap *</Label>
+                    <Label htmlFor="alamat">Alamat Lengkap</Label>
                     <Textarea
                       id="alamat"
                       value={formData.alamat}
                       onChange={(e) => handleInputChange('alamat', e.target.value)}
                       placeholder="Masukkan alamat lengkap (jalan, nomor rumah, dll)"
                       rows={3}
-                      required
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="provinsi">Provinsi *</Label>
+                      <Label htmlFor="provinsi">Provinsi</Label>
                       <Popover open={provinsiOpen} onOpenChange={setProvinsiOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -1624,7 +1589,7 @@ export default function EditPegawaiPage() {
                       </Popover>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="kota">Kota/Kabupaten *</Label>
+                      <Label htmlFor="kota">Kota/Kabupaten</Label>
                       <Popover open={kotaOpen} onOpenChange={setKotaOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -1682,7 +1647,7 @@ export default function EditPegawaiPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="kecamatan">Kecamatan *</Label>
+                      <Label htmlFor="kecamatan">Kecamatan</Label>
                       <Popover open={kecamatanOpen} onOpenChange={setKecamatanOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -1733,7 +1698,7 @@ export default function EditPegawaiPage() {
                       </Popover>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="kelurahan">Kelurahan/Desa *</Label>
+                      <Label htmlFor="kelurahan">Kelurahan/Desa</Label>
                       <Popover open={kelurahanOpen} onOpenChange={setKelurahanOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -1786,15 +1751,15 @@ export default function EditPegawaiPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="kodePos">Kode Pos *</Label>
+                    <Label htmlFor="kodePos">Kode Pos</Label>
                     <Input
                       id="kodePos"
                       value={formData.kodePos}
                       onChange={(e) => handleInputChange('kodePos', e.target.value)}
                       placeholder="12345"
                       maxLength={5}
-                      disabled
-                      className="bg-muted"
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
                     />
                     <p className="text-xs text-muted-foreground">
                       Kode pos akan terisi otomatis setelah memilih kelurahan/desa

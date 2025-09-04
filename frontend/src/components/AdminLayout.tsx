@@ -12,7 +12,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, isLoading } = useAuth()
 
   useEffect(() => {
-    if (!isLoading && (!user || (user.role?.roleName !== 'ADMIN' && user.role?.roleName !== 'MODERATOR'))) {
+    if (!isLoading && (!user || (user.role?.roleName !== 'ADMIN' && user.role?.roleName !== 'VERIFICATOR'))) {
       redirect('/')
     }
   }, [user, isLoading])
@@ -28,7 +28,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     )
   }
 
-  if (!user || (user.role?.roleName !== 'ADMIN' && user.role?.roleName !== 'MODERATOR')) {
+  if (!user || (user.role?.roleName !== 'ADMIN' && user.role?.roleName !== 'VERIFICATOR')) {
     return null
   }
 

@@ -330,7 +330,7 @@ export default function UsersPage() {
     resetForm();
     setIsCreateDialogOpen(true);  };
   return (
-    <ProtectedRoute requireAuth={true} allowedRoles={["ADMIN", "MODERATOR"]}>
+    <ProtectedRoute requireAuth={true} allowedRoles={["ADMIN", "VERIFICATOR"]}>
       <div className="min-h-screen bg-background">
         <AdminPageHeader
           title="Management Users"

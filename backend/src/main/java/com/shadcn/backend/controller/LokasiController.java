@@ -23,7 +23,7 @@ public class LokasiController {
     private final LokasiService lokasiService;
     
     @GetMapping
-    // @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    // @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> getAllLokasi(
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "0") int page,
@@ -56,7 +56,7 @@ public class LokasiController {
     }
     
     @GetMapping("/active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or hasRole('USER')")
     public ResponseEntity<List<LokasiResponse>> getActiveLokasi() {
         try {
             List<LokasiResponse> activeLokasi = lokasiService.getAllActiveLokasi();
@@ -68,7 +68,7 @@ public class LokasiController {
     }
     
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<List<LokasiResponse>> getAllLokasiList() {
         try {
             List<LokasiResponse> lokasiList = lokasiService.getAllLokasi();
@@ -80,7 +80,7 @@ public class LokasiController {
     }
     
     @GetMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    // @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<LokasiResponse> getLokasiById(@PathVariable Long id) {
         try {
             return lokasiService.getLokasiById(id)
@@ -93,7 +93,7 @@ public class LokasiController {
     }
     
     @PostMapping
-    // @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    // @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> createLokasi(@Valid @RequestBody LokasiRequest request) {
         try {
             log.info("Creating lokasi: {}", request.getNamaLokasi());
@@ -110,7 +110,7 @@ public class LokasiController {
     }
     
     @PutMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    // @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> updateLokasi(@PathVariable Long id, @Valid @RequestBody LokasiRequest request) {
         try {
             LokasiResponse updatedLokasi = lokasiService.updateLokasi(id, request);
@@ -126,7 +126,7 @@ public class LokasiController {
     }
     
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> deleteLokasi(@PathVariable Long id) {
         try {
             lokasiService.deleteLokasi(id);
@@ -142,7 +142,7 @@ public class LokasiController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<?> toggleLokasiStatus(@PathVariable Long id) {
         try {
             LokasiResponse updatedLokasi = lokasiService.toggleLokasiStatus(id);

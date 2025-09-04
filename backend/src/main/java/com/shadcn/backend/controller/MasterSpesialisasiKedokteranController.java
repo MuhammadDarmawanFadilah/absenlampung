@@ -23,7 +23,7 @@ public class MasterSpesialisasiKedokteranController {
     private final MasterSpesialisasiKedokteranService service;
     
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<MasterSpesialisasiKedokteranResponse>> findAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean isActive,
@@ -45,7 +45,7 @@ public class MasterSpesialisasiKedokteranController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiKedokteranResponse> findById(@PathVariable Long id) {
         log.info("GET /api/admin/master-data/spesialisasi-kedokteran/{}", id);
         MasterSpesialisasiKedokteranResponse result = service.findById(id);
@@ -53,7 +53,7 @@ public class MasterSpesialisasiKedokteranController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiKedokteranResponse> create(@Valid @RequestBody MasterSpesialisasiKedokteranRequest request) {
         log.info("POST /api/admin/master-data/spesialisasi-kedokteran - {}", request);
         MasterSpesialisasiKedokteranResponse result = service.create(request);
@@ -61,7 +61,7 @@ public class MasterSpesialisasiKedokteranController {
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiKedokteranResponse> update(@PathVariable Long id, @Valid @RequestBody MasterSpesialisasiKedokteranRequest request) {
         log.info("PUT /api/admin/master-data/spesialisasi-kedokteran/{} - {}", id, request);
         MasterSpesialisasiKedokteranResponse result = service.update(id, request);
@@ -77,7 +77,7 @@ public class MasterSpesialisasiKedokteranController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterSpesialisasiKedokteranResponse> toggleActive(@PathVariable Long id) {
         log.info("PATCH /api/admin/master-data/spesialisasi-kedokteran/{}/toggle-active", id);
         MasterSpesialisasiKedokteranResponse result = service.toggleActive(id);

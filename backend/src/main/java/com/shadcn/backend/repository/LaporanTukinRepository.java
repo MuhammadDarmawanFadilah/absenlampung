@@ -30,4 +30,7 @@ public interface LaporanTukinRepository extends JpaRepository<LaporanTukin, Long
     
     @Query("SELECT DISTINCT l.tahun FROM LaporanTukin l ORDER BY l.tahun DESC")
     List<Integer> findDistinctYears();
+    
+    // Delete methods
+    long deleteByBulanAndTahun(Integer bulan, Integer tahun);
 }

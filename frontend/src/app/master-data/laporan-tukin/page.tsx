@@ -224,6 +224,7 @@ export default function LaporanTukinPage() {
       'SAKIT': { variant: 'outline' as const, label: 'Sakit', color: 'bg-yellow-100 text-yellow-800' },
       'CUTI': { variant: 'outline' as const, label: 'Cuti', color: 'bg-purple-100 text-purple-800' },
       'TERLAMBAT': { variant: 'secondary' as const, label: 'Terlambat', color: 'bg-orange-100 text-orange-800' },
+      'TERLAMBAT (DIKOMPENSASI LEMBUR)': { variant: 'default' as const, label: 'Terlambat (Dikompensasi)', color: 'bg-blue-100 text-blue-800' },
       'PULANG CEPAT': { variant: 'secondary' as const, label: 'Pulang Cepat', color: 'bg-orange-100 text-orange-800' },
       'TERLAMBAT + PULANG CEPAT': { variant: 'destructive' as const, label: 'Terlambat + Pulang Cepat', color: 'bg-red-100 text-red-800' },
       'TIDAK PULANG': { variant: 'destructive' as const, label: 'Tidak Pulang', color: 'bg-red-100 text-red-800' },

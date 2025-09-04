@@ -20,14 +20,14 @@ public class PegawaiCutiController {
     private final PegawaiCutiService pegawaiCutiService;
     
     @GetMapping("/pegawai/{pegawaiId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
     public ResponseEntity<List<PegawaiCutiResponseDto>> getPegawaiCutiByPegawaiId(@PathVariable Long pegawaiId) {
         List<PegawaiCutiResponseDto> result = pegawaiCutiService.getPegawaiCutiByPegawaiId(pegawaiId);
         return ResponseEntity.ok(result);
     }
     
     @GetMapping("/pegawai/{pegawaiId}/tahun/{tahun}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
     public ResponseEntity<List<PegawaiCutiResponseDto>> getPegawaiCutiByPegawaiIdAndTahun(
             @PathVariable Long pegawaiId, 
             @PathVariable Integer tahun) {
@@ -36,14 +36,14 @@ public class PegawaiCutiController {
     }
     
     @GetMapping("/pegawai/{pegawaiId}/quota")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
     public ResponseEntity<List<PegawaiCutiQuotaDto>> getPegawaiCutiQuota(@PathVariable Long pegawaiId) {
         List<PegawaiCutiQuotaDto> result = pegawaiCutiService.getPegawaiCutiQuotaCurrentYear(pegawaiId);
         return ResponseEntity.ok(result);
     }
     
     @GetMapping("/pegawai/{pegawaiId}/quota/tahun/{tahun}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or (hasRole('ALUMNI') and #pegawaiId == authentication.principal.id)")
     public ResponseEntity<List<PegawaiCutiQuotaDto>> getPegawaiCutiQuotaByTahun(
             @PathVariable Long pegawaiId, 
             @PathVariable Integer tahun) {
@@ -52,14 +52,14 @@ public class PegawaiCutiController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<PegawaiCutiResponseDto> createOrUpdatePegawaiCuti(@Valid @RequestBody PegawaiCutiRequestDto request) {
         PegawaiCutiResponseDto result = pegawaiCutiService.createOrUpdatePegawaiCuti(request);
         return ResponseEntity.ok(result);
     }
     
     @PostMapping("/pegawai/{pegawaiId}/batch")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Void> savePegawaiCutiList(
             @PathVariable Long pegawaiId,
             @Valid @RequestBody List<PegawaiCutiRequestDto> cutiList) {
@@ -68,7 +68,7 @@ public class PegawaiCutiController {
     }
     
     @DeleteMapping("/pegawai/{pegawaiId}/jenis-cuti/{jenisCutiId}/tahun/{tahun}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Void> deletePegawaiCuti(
             @PathVariable Long pegawaiId,
             @PathVariable Long jenisCutiId,

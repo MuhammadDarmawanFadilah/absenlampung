@@ -22,7 +22,7 @@ public class MasterHobiController {
     
     private final MasterHobiService service;    
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<MasterHobiResponse>> findAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String kategori,
@@ -59,7 +59,7 @@ public class MasterHobiController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterHobiResponse> findById(@PathVariable Long id) {
         log.info("GET /api/admin/master-data/hobi/{}", id);
         MasterHobiResponse result = service.findById(id);
@@ -67,7 +67,7 @@ public class MasterHobiController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterHobiResponse> create(@Valid @RequestBody MasterHobiRequest request) {
         log.info("POST /api/admin/master-data/hobi - {}", request);
         MasterHobiResponse result = service.create(request);
@@ -75,7 +75,7 @@ public class MasterHobiController {
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterHobiResponse> update(@PathVariable Long id, @Valid @RequestBody MasterHobiRequest request) {
         log.info("PUT /api/admin/master-data/hobi/{} - {}", id, request);
         MasterHobiResponse result = service.update(id, request);
@@ -91,7 +91,7 @@ public class MasterHobiController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterHobiResponse> toggleActive(@PathVariable Long id) {
         log.info("PATCH /api/admin/master-data/hobi/{}/toggle-active", id);
         MasterHobiResponse result = service.toggleActive(id);

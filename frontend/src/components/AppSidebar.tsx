@@ -123,7 +123,7 @@ const AppSidebar = () => {
     },
   ];
 
-  // Admin Laporan Absensi items (accessible to admin/moderator)
+  // Admin Laporan Absensi items (accessible to admin/verificator)
   const adminLaporanAbsensiItems = [
     {
       title: "Histori Absensi",
@@ -147,7 +147,7 @@ const AppSidebar = () => {
     },
   ];
 
-  // Admin Pegawai items (accessible to admin/moderator)
+  // Admin Pegawai items (accessible to admin/verificator)
   const adminPegawaiItems = [
     {
       title: "Data Pegawai",
@@ -176,7 +176,7 @@ const AppSidebar = () => {
     },
   ];
 
-  // Master Data Absensi items (accessible to admin/moderator)
+  // Master Data Absensi items (accessible to admin/verificator)
   const masterDataAbsensiItems = [
     {
       title: "Daftar Cuti",
@@ -205,7 +205,7 @@ const AppSidebar = () => {
     },
   ];
 
-  // Master Data Wilayah items (accessible to admin/moderator)
+  // Master Data Wilayah items (accessible to admin/verificator)
   const masterDataWilayahItems = [
     {
       title: "Wilayah - Provinsi",
@@ -229,7 +229,10 @@ const AppSidebar = () => {
     },
   ];
 
-  const isAdmin = user?.role?.roleName === 'ADMIN' || user?.role?.roleName === 'MODERATOR';
+  // Separate role checks for different access levels
+  const isAdmin = user?.role?.roleName === 'ADMIN';
+  const isVerificator = user?.role?.roleName === 'VERIFICATOR';
+  const isAdminOrVerificator = isAdmin || isVerificator;
 
   return (
     <Sidebar 
@@ -385,8 +388,8 @@ const AppSidebar = () => {
           </Collapsible>
         )}
 
-        {/* ADMIN LAPORAN ABSENSI SECTION - Only visible for admin/moderator */}
-        {isAuthenticated && isAdmin && (
+        {/* ADMIN LAPORAN ABSENSI SECTION - Only visible for admin/verificator */}
+        {isAuthenticated && isAdminOrVerificator && (
           <Collapsible defaultOpen className="group/collapsible">
             <SidebarGroup>
               <SidebarGroupLabel asChild>
@@ -416,7 +419,7 @@ const AppSidebar = () => {
           </Collapsible>
         )}
 
-          {/* ADMIN PEGAWAI SECTION - Only visible for admin/moderator */}
+          {/* ADMIN PEGAWAI SECTION - Only visible for admin */}
         {isAuthenticated && isAdmin && (
           <Collapsible defaultOpen className="group/collapsible">
             <SidebarGroup>              <SidebarGroupLabel asChild>
@@ -445,7 +448,7 @@ const AppSidebar = () => {
           </Collapsible>
         )}
 
-        {/* MASTER DATA ABSENSI SECTION - Only visible for admin/moderator */}
+        {/* MASTER DATA ABSENSI SECTION - Only visible for admin */}
         {isAuthenticated && isAdmin && (
           <Collapsible defaultOpen className="group/collapsible">
             <SidebarGroup>
@@ -476,7 +479,7 @@ const AppSidebar = () => {
           </Collapsible>
         )}
 
-        {/* MASTER DATA WILAYAH SECTION - Only visible for admin/moderator */}
+        {/* MASTER DATA WILAYAH SECTION - Only visible for admin */}
         {isAuthenticated && isAdmin && (
           <Collapsible defaultOpen className="group/collapsible">
             <SidebarGroup>

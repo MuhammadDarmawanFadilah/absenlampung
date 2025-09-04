@@ -26,7 +26,7 @@ public class PemotonganController {
     private final PemotonganService pemotonganService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> getAllPemotongan(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -49,14 +49,14 @@ public class PemotonganController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<PemotonganResponse> getPemotonganById(@PathVariable Long id) {
         PemotonganResponse pemotongan = pemotonganService.getPemotonganById(id);
         return ResponseEntity.ok(pemotongan);
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> createPemotongan(@Valid @RequestBody PemotonganRequest request) {
         try {
             PemotonganResponse pemotongan = pemotonganService.createPemotongan(request);
@@ -79,7 +79,7 @@ public class PemotonganController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> updatePemotongan(
             @PathVariable Long id,
             @Valid @RequestBody PemotonganRequest request) {
@@ -104,7 +104,7 @@ public class PemotonganController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<Map<String, Object>> deletePemotongan(@PathVariable Long id) {
         try {
             pemotonganService.deletePemotongan(id);
@@ -126,14 +126,14 @@ public class PemotonganController {
     }
 
     @GetMapping("/pegawai/{pegawaiId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<List<PemotonganResponse>> getPemotonganByPegawai(@PathVariable Long pegawaiId) {
         List<PemotonganResponse> pemotongans = pemotonganService.getPemotonganByPegawai(pegawaiId);
         return ResponseEntity.ok(pemotongans);
     }
 
     @GetMapping("/periode")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFICATOR')")
     public ResponseEntity<List<PemotonganResponse>> getPemotonganByPeriode(
             @RequestParam Integer bulan,
             @RequestParam Integer tahun) {

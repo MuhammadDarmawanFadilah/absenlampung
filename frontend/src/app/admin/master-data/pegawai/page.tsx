@@ -49,6 +49,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Search, Plus, MoreHorizontal, Edit, Trash2, Users, AlertTriangle, Eye, Filter, X, Check, ChevronsUpDown, MapPin, Calendar } from 'lucide-react'
 import { AdminPageHeader } from "@/components/AdminPageHeader"
 import AdminFilters from "@/components/AdminFilters"
+import ProtectedRoute from "@/components/ProtectedRoute"
 import { useToast } from "@/hooks/use-toast"
 import { getApiUrl } from "@/lib/config"
 import { cn } from "@/lib/utils"
@@ -89,6 +90,14 @@ interface PegawaiResponse {
 }
 
 export default function PegawaiMasterDataPage() {
+  return (
+    <ProtectedRoute requireAuth={true} allowedRoles={["ADMIN"]}>
+      <PegawaiMasterDataContent />
+    </ProtectedRoute>
+  )
+}
+
+function PegawaiMasterDataContent() {
   const router = useRouter()
   const [pegawaiList, setPegawaiList] = useState<PegawaiResponse[]>([])
   const [jabatanList, setJabatanList] = useState<JabatanResponse[]>([])

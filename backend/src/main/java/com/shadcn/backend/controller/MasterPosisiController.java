@@ -22,7 +22,7 @@ public class MasterPosisiController {
     
     private final MasterPosisiService service;    
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<Page<MasterPosisiResponse>> findAll(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String kategori,
@@ -59,7 +59,7 @@ public class MasterPosisiController {
     }
     
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiResponse> findById(@PathVariable Long id) {
         log.info("GET /api/admin/master-data/posisi/{}", id);
         MasterPosisiResponse result = service.findById(id);
@@ -67,7 +67,7 @@ public class MasterPosisiController {
     }
     
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiResponse> create(@Valid @RequestBody MasterPosisiRequest request) {
         log.info("POST /api/admin/master-data/posisi - {}", request);
         MasterPosisiResponse result = service.create(request);
@@ -75,7 +75,7 @@ public class MasterPosisiController {
     }
     
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiResponse> update(@PathVariable Long id, @Valid @RequestBody MasterPosisiRequest request) {
         log.info("PUT /api/admin/master-data/posisi/{} - {}", id, request);
         MasterPosisiResponse result = service.update(id, request);
@@ -91,7 +91,7 @@ public class MasterPosisiController {
     }
     
     @PatchMapping("/{id}/toggle-active")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MODERATOR')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR')")
     public ResponseEntity<MasterPosisiResponse> toggleActive(@PathVariable Long id) {
         log.info("PATCH /api/admin/master-data/posisi/{}/toggle-active", id);
         MasterPosisiResponse result = service.toggleActive(id);
