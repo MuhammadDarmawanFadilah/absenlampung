@@ -67,6 +67,11 @@ public class LaporanTukinResponse {
         private BigDecimal totalPotongan;
         private BigDecimal tunjanganBersih;
         
+        // Deduction Cap Status (for bold styling when 60% reached)
+        private Boolean isAttendanceCapped;
+        private Boolean isOtherDeductionsCapped; 
+        private Boolean isTotalCapped;
+        
         // Enhanced Detail - Attendance History & Deduction Breakdown
         private List<HistoriAbsensi> historiAbsensi;
         private List<DetailPemotonganAbsen> detailPemotonganAbsenList;

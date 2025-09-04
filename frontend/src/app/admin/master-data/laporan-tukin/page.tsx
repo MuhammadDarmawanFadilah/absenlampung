@@ -8,9 +8,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, FileText, Download, Eye, Plus } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { CalendarIcon, FileText, Download, Eye, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { laporanTukinAPI, type LaporanTukin, type LaporanTukinRequest, type LaporanTukinHistoriRequest, type PagedResponse } from '@/lib/api';
@@ -20,15 +31,17 @@ interface FormData {
   tahun: string;
   tanggalMulai: string;
   tanggalAkhir: string;
-  formatLaporan: string;
 }
 
 export default function LaporanTukinPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [historiLoading, setHistoriLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{open: boolean; laporan: LaporanTukin | null}>({
+    open: false,
+    laporan: null
+  });
   const [histori, setHistori] = useState<PagedResponse<LaporanTukin>>({
     content: [],
     totalElements: 0,
@@ -48,8 +61,7 @@ export default function LaporanTukinPage() {
     bulan: currentMonth.toString(),
     tahun: currentYear.toString(),
     tanggalMulai: '',
-    tanggalAkhir: '',
-    formatLaporan: 'WEB'
+    tanggalAkhir: ''
   });
 
   const [filters, setFilters] = useState({
@@ -139,10 +151,8 @@ export default function LaporanTukinPage() {
         empty: true
       });
       
-      toast({
-        title: "Error",
-        description: error.message || 'Gagal memuat data histori',
-        variant: "destructive"
+      toast.error('Terjadi kesalahan saat memuat data histori', {
+        description: error.message || 'Gagal memuat data histori'
       });
     } finally {
       setHistoriLoading(false);
@@ -159,15 +169,12 @@ export default function LaporanTukinPage() {
         tahun: parseInt(formData.tahun),
         ...(formData.tanggalMulai && { tanggalMulai: formData.tanggalMulai }),
         ...(formData.tanggalAkhir && { tanggalAkhir: formData.tanggalAkhir }),
-        formatLaporan: formData.formatLaporan as 'PDF' | 'EXCEL' | 'WEB'
+        formatLaporan: 'WEB'
       };
 
       const result = await laporanTukinAPI.generate(request);
       
-      toast({
-        title: "Berhasil",
-        description: "Laporan Tukin berhasil dibuat!",
-      });
+      toast.success('Laporan Tukin berhasil dibuat!');
       
       // Redirect to detail page
       if (result.id) {
@@ -178,10 +185,8 @@ export default function LaporanTukinPage() {
         fetchHistori();
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || 'Terjadi kesalahan saat generate laporan',
-        variant: "destructive"
+      toast.error('Terjadi kesalahan saat generate laporan', {
+        description: error.message || 'Terjadi kesalahan saat generate laporan'
       });
     } finally {
       setLoading(false);
@@ -190,6 +195,35 @@ export default function LaporanTukinPage() {
 
   const handleViewDetail = (id: number) => {
     router.push(`/admin/master-data/laporan-tukin/${id}`);
+  };
+
+  const handleDeleteClick = (laporan: LaporanTukin) => {
+    setDeleteDialog({ open: true, laporan });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.laporan) return;
+
+    try {
+      await laporanTukinAPI.delete(deleteDialog.laporan.id);
+      
+      // Close dialog first
+      setDeleteDialog({ open: false, laporan: null });
+      
+      // Show success toast
+      toast.success(`Laporan "${deleteDialog.laporan.judul}" berhasil dihapus!`);
+      
+      // Refresh data
+      fetchHistori();
+    } catch (error: any) {
+      // Close dialog first
+      setDeleteDialog({ open: false, laporan: null });
+      
+      // Show error toast
+      toast.error('Terjadi kesalahan saat menghapus laporan', {
+        description: error.message || 'Terjadi kesalahan saat menghapus laporan'
+      });
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -294,7 +328,6 @@ export default function LaporanTukinPage() {
                     type="date"
                     value={formData.tanggalMulai}
                     onChange={(e) => setFormData(prev => ({ ...prev, tanggalMulai: e.target.value }))}
-                    disabled={!!formData.bulan} // Disable when month is selected
                   />
                 </div>
 
@@ -305,24 +338,11 @@ export default function LaporanTukinPage() {
                     type="date"
                     value={formData.tanggalAkhir}
                     onChange={(e) => setFormData(prev => ({ ...prev, tanggalAkhir: e.target.value }))}
-                    disabled={!!formData.bulan} // Disable when month is selected
                   />
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="formatLaporan">Format Laporan</Label>
-                <Select value={formData.formatLaporan} onValueChange={(value) => setFormData(prev => ({ ...prev, formatLaporan: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="WEB">Web Page</SelectItem>
-                    <SelectItem value="PDF">PDF</SelectItem>
-                    <SelectItem value="EXCEL">Excel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
@@ -393,7 +413,6 @@ export default function LaporanTukinPage() {
               <TableRow>
                 <TableHead>Judul</TableHead>
                 <TableHead>Periode</TableHead>
-                <TableHead>Format</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Total Pegawai</TableHead>
                 <TableHead>Total Tunjangan</TableHead>
@@ -405,13 +424,13 @@ export default function LaporanTukinPage() {
             <TableBody>
               {historiLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : histori.empty ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     Belum ada laporan yang digenerate
                   </TableCell>
                 </TableRow>
@@ -425,7 +444,6 @@ export default function LaporanTukinPage() {
                         : `${formatDate(laporan.tanggalMulai)} - ${formatDate(laporan.tanggalAkhir)}`
                       }
                     </TableCell>
-                    <TableCell>{getFormatBadge(laporan.formatLaporan)}</TableCell>
                     <TableCell>{getStatusBadge(laporan.status)}</TableCell>
                     <TableCell>{laporan.totalPegawai} orang</TableCell>
                     <TableCell>{formatCurrency(laporan.totalTunjanganBersih || 0)}</TableCell>
@@ -439,6 +457,14 @@ export default function LaporanTukinPage() {
                           onClick={() => handleViewDetail(laporan.id)}
                         >
                           <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleDeleteClick(laporan)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -476,6 +502,35 @@ export default function LaporanTukinPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, laporan: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Hapus Laporan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus laporan{' '}
+              <strong>"{deleteDialog.laporan?.judul}"</strong>?
+              <br />
+              <br />
+              <span className="text-red-600 font-medium">
+                ⚠️ Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data laporan secara permanen.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialog({ open: false, laporan: null })}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Ya, Hapus Laporan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

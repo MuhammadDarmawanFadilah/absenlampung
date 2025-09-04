@@ -128,10 +128,15 @@ function RincianDetailPerPegawai({
               <div className="text-xs text-gray-600">Tunjangan Dasar</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-red-600">
+              <div className={`text-lg font-bold text-red-600 ${pegawai.isTotalCapped ? 'font-black border-2 border-red-600 rounded px-2 py-1' : ''}`}>
                 {formatCurrency(pegawai.totalPotongan || pegawai.potonganAbsen || 0)}
               </div>
-              <div className="text-xs text-gray-600">Total Pemotongan</div>
+              <div className="text-xs text-gray-600">
+                Total Pemotongan
+                {pegawai.isTotalCapped && (
+                  <span className="text-red-600 font-bold ml-1">(MAX 60%)</span>
+                )}
+              </div>
             </div>
             <div>
               <div className="text-lg font-bold text-green-600">
@@ -1403,14 +1408,23 @@ export default function LaporanTukinDetailPage() {
                           })()}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right text-red-600">
+                      <TableCell className={`text-right text-red-600 ${pegawai.isAttendanceCapped ? 'font-black bg-red-100 border-2 border-red-600' : ''}`}>
                         {formatCurrency(pegawai.potonganAbsen || 0)}
+                        {pegawai.isAttendanceCapped && (
+                          <div className="text-xs font-bold text-red-700">MAX 60%</div>
+                        )}
                       </TableCell>
-                      <TableCell className="text-right text-red-600">
+                      <TableCell className={`text-right text-red-600 ${pegawai.isOtherDeductionsCapped ? 'font-black bg-red-100 border-2 border-red-600' : ''}`}>
                         {formatCurrency(pegawai.pemotonganLain || 0)}
+                        {pegawai.isOtherDeductionsCapped && (
+                          <div className="text-xs font-bold text-red-700">MAX 60%</div>
+                        )}
                       </TableCell>
-                      <TableCell className="text-right text-red-600 font-medium">
+                      <TableCell className={`text-right text-red-600 font-medium ${pegawai.isTotalCapped ? 'font-black bg-red-100 border-2 border-red-600' : ''}`}>
                         {formatCurrency(pegawai.totalPotongan || 0)}
+                        {pegawai.isTotalCapped && (
+                          <div className="text-xs font-bold text-red-700">MAX 60%</div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-bold text-blue-600">
                         {formatCurrency(pegawai.tunjanganBersih || 0)}

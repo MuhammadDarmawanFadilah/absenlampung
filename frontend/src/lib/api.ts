@@ -2140,6 +2140,10 @@ export interface DetailPegawaiTukin {
   detailPemotonganLain: string;
   totalPotongan: number;
   tunjanganBersih: number;
+  // Deduction Cap Status (for bold styling when 60% reached)
+  isAttendanceCapped?: boolean;
+  isOtherDeductionsCapped?: boolean;
+  isTotalCapped?: boolean;
   // Enhanced Detail Fields
   historiAbsensi?: HistoriAbsensi[];
   detailPemotonganAbsenList?: DetailPemotonganAbsen[];
@@ -2215,17 +2219,22 @@ export interface LaporanTukinHistoriRequest {
 export const laporanTukinAPI = {
   // Generate laporan tukin
   generate: async (request: LaporanTukinRequest): Promise<LaporanTukin> => {
-    const response = await apiCall<any>('/admin/master-data/laporan-tukin/generate', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-
-    // Return the data from the response
-    return response.data;
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.post('/admin/master-data/laporan-tukin/generate', request);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || 'Failed to generate laporan');
+    }
+    
+    const data = await response.json();
+    return data.data;
   },
 
   // Get histori laporan tukin with pagination
   getHistori: async (request: LaporanTukinHistoriRequest): Promise<PagedResponse<LaporanTukin>> => {
+    const { ApiClient } = await import('./api-client');
+    
     // Build query parameters
     const params = new URLSearchParams();
     
@@ -2235,20 +2244,25 @@ export const laporanTukinAPI = {
     if (request.tahun) params.append('tahun', request.tahun.toString());
     if (request.status) params.append('status', request.status);
 
-    const response = await apiCall<any>(`/admin/master-data/laporan-tukin/histori?${params.toString()}`, {
-      method: 'GET'
-    });
+    const response = await ApiClient.get(`/admin/master-data/laporan-tukin/histori?${params.toString()}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || 'Failed to get histori');
+    }
+    
+    const responseData = await response.json();
 
     // Transform backend response to frontend PagedResponse format
     return {
-      content: response.data || [],
-      totalElements: response.totalItems || 0,
-      totalPages: response.totalPages || 0,
-      size: response.size || 10,
-      number: response.currentPage || 0,
-      first: response.currentPage === 0,
-      last: !response.hasNext,
-      empty: !response.data || response.data.length === 0
+      content: responseData.data || [],
+      totalElements: responseData.totalItems || 0,
+      totalPages: responseData.totalPages || 0,
+      size: responseData.size || 10,
+      number: responseData.currentPage || 0,
+      first: responseData.currentPage === 0,
+      last: !responseData.hasNext,
+      empty: !responseData.data || responseData.data.length === 0
     };
   },
 
@@ -2313,8 +2327,13 @@ export const laporanTukinAPI = {
   },
 
   // Delete laporan tukin
-  delete: (id: number): Promise<void> =>
-    apiCall<void>(`/admin/master-data/laporan-tukin/${id}`, {
-      method: 'DELETE',
-    }),
+  delete: async (id: number): Promise<void> => {
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.delete(`/admin/master-data/laporan-tukin/${id}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || 'Failed to delete laporan');
+    }
+  },
 };

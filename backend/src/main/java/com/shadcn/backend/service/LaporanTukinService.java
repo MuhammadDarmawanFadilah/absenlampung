@@ -99,7 +99,7 @@ public class LaporanTukinService {
         BigDecimal totalTunjanganBersih = BigDecimal.ZERO;
         
         for (Pegawai pegawai : allPegawai) {
-            LaporanTukinResponse.DetailPegawaiTukin detail = calculateTukinForPegawai(
+            LaporanTukinResponse.DetailPegawaiTukin detail = calculateTukinForPegawaiWithEnhancedDetail(
                 pegawai, startDate, endDate, request.getBulan(), request.getTahun());
             detailPegawai.add(detail);
             
@@ -203,11 +203,40 @@ public class LaporanTukinService {
                 .map(p -> p.getAlasanPemotongan() + " (" + p.getPersentasePemotongan() + "%)")
                 .collect(Collectors.joining(", "));
         
-        // Calculate totals with maximum 100% deduction limit
+        // Apply new deduction capping rules (60% maximum for each category)
+        BigDecimal maxCap60Percent = baseTunjangan.multiply(BigDecimal.valueOf(60))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        
+        // Cap 1: Attendance deductions maximum 60%
+        boolean attendanceCapped = false;
+        if (potonganAbsen.compareTo(maxCap60Percent) > 0) {
+            potonganAbsen = maxCap60Percent;
+            attendanceCapped = true;
+            log.info("Applied 60% cap to attendance deductions for pegawai: {} ({})", 
+                    pegawai.getNamaLengkap(), pegawai.getNip());
+        }
+        
+        // Cap 2: Other deductions maximum 60%
+        boolean otherCapped = false;
+        if (pemotonganLain.compareTo(maxCap60Percent) > 0) {
+            pemotonganLain = maxCap60Percent;
+            otherCapped = true;
+            log.info("Applied 60% cap to other deductions for pegawai: {} ({})", 
+                    pegawai.getNamaLengkap(), pegawai.getNip());
+        }
+        
+        // Cap 3: Total deductions maximum 60%
         BigDecimal totalPotongan = potonganAbsen.add(pemotonganLain);
-        BigDecimal maxPotongan = baseTunjangan; // 100% of base salary
-        if (totalPotongan.compareTo(maxPotongan) > 0) {
-            totalPotongan = maxPotongan;
+        boolean totalCapped = false;
+        if (totalPotongan.compareTo(maxCap60Percent) > 0) {
+            // Proportionally reduce both types of deductions to fit within 60% total
+            BigDecimal reductionRatio = maxCap60Percent.divide(totalPotongan, 6, RoundingMode.HALF_UP);
+            potonganAbsen = potonganAbsen.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
+            pemotonganLain = pemotonganLain.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
+            totalPotongan = maxCap60Percent;
+            totalCapped = true;
+            log.info("Applied 60% total cap with proportional reduction for pegawai: {} ({})", 
+                    pegawai.getNamaLengkap(), pegawai.getNip());
         }
         
         BigDecimal tunjanganBersih = baseTunjangan.subtract(totalPotongan);
@@ -229,6 +258,9 @@ public class LaporanTukinService {
                 .detailPemotonganLain(detailPemotonganLain)
                 .totalPotongan(totalPotongan)
                 .tunjanganBersih(tunjanganBersih)
+                .isAttendanceCapped(attendanceCapped)
+                .isOtherDeductionsCapped(otherCapped)
+                .isTotalCapped(totalCapped)
                 .historiAbsensi(historiAbsensi)
                 .detailPemotonganAbsenList(detailPemotonganAbsenList)
                 .build();
@@ -331,10 +363,11 @@ public class LaporanTukinService {
                 .map(LaporanTukinResponse.HistoriAbsensi::getNominalPemotongan)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
-        // Apply maximum 100% deduction limit
-        BigDecimal maxPemotongan = baseTunjangan; // 100% of base salary
-        if (totalPemotongan.compareTo(maxPemotongan) > 0) {
-            totalPemotongan = maxPemotongan;
+        // Apply maximum 60% deduction limit for attendance deductions
+        BigDecimal maxPemotongan60Percent = baseTunjangan.multiply(BigDecimal.valueOf(60))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        if (totalPemotongan.compareTo(maxPemotongan60Percent) > 0) {
+            totalPemotongan = maxPemotongan60Percent;
         }
         
         return totalPemotongan;
@@ -1029,11 +1062,40 @@ public class LaporanTukinService {
                 .map(p -> p.getAlasanPemotongan() + " (" + p.getPersentasePemotongan() + "%)")
                 .collect(Collectors.joining(", "));
         
-        // Calculate totals with maximum 100% deduction limit
+        // Apply new deduction capping rules (60% maximum for each category)
+        BigDecimal maxCap60Percent = baseTunjangan.multiply(BigDecimal.valueOf(60))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        
+        // Cap 1: Attendance deductions maximum 60%
+        boolean attendanceCapped = false;
+        if (potonganAbsen.compareTo(maxCap60Percent) > 0) {
+            potonganAbsen = maxCap60Percent;
+            attendanceCapped = true;
+            log.info("Applied 60% cap to attendance deductions for pegawai: {} ({})", 
+                    pegawai.getNamaLengkap(), pegawai.getNip());
+        }
+        
+        // Cap 2: Other deductions maximum 60%
+        boolean otherCapped = false;
+        if (pemotonganLain.compareTo(maxCap60Percent) > 0) {
+            pemotonganLain = maxCap60Percent;
+            otherCapped = true;
+            log.info("Applied 60% cap to other deductions for pegawai: {} ({})", 
+                    pegawai.getNamaLengkap(), pegawai.getNip());
+        }
+        
+        // Cap 3: Total deductions maximum 60%
         BigDecimal totalPotongan = potonganAbsen.add(pemotonganLain);
-        BigDecimal maxPotongan = baseTunjangan; // 100% of base salary
-        if (totalPotongan.compareTo(maxPotongan) > 0) {
-            totalPotongan = maxPotongan;
+        boolean totalCapped = false;
+        if (totalPotongan.compareTo(maxCap60Percent) > 0) {
+            // Proportionally reduce both types of deductions to fit within 60% total
+            BigDecimal reductionRatio = maxCap60Percent.divide(totalPotongan, 6, RoundingMode.HALF_UP);
+            potonganAbsen = potonganAbsen.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
+            pemotonganLain = pemotonganLain.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
+            totalPotongan = maxCap60Percent;
+            totalCapped = true;
+            log.info("Applied 60% total cap with proportional reduction for pegawai: {} ({})", 
+                    pegawai.getNamaLengkap(), pegawai.getNip());
         }
         
         BigDecimal tunjanganBersih = baseTunjangan.subtract(totalPotongan);
@@ -1055,6 +1117,9 @@ public class LaporanTukinService {
                 .detailPemotonganLain(detailPemotonganLain)
                 .totalPotongan(totalPotongan)
                 .tunjanganBersih(tunjanganBersih)
+                .isAttendanceCapped(attendanceCapped)
+                .isOtherDeductionsCapped(otherCapped)
+                .isTotalCapped(totalCapped)
                 .historiAbsensi(historiAbsensi)
                 .detailPemotonganAbsenList(detailPemotonganAbsenList)
                 .build();
@@ -1101,7 +1166,7 @@ public class LaporanTukinService {
         List<LaporanTukinResponse.DetailPegawaiTukin> detailPegawai = new ArrayList<>();
         
         for (Pegawai pegawai : pegawaiList) {
-            LaporanTukinResponse.DetailPegawaiTukin detail = calculateTukinForPegawai(
+            LaporanTukinResponse.DetailPegawaiTukin detail = calculateTukinForPegawaiWithEnhancedDetail(
                 pegawai, startDate, endDate, laporan.getBulan(), laporan.getTahun());
             detailPegawai.add(detail);
         }
@@ -1182,6 +1247,7 @@ public class LaporanTukinService {
         CellStyle dataStyle = createDataStyle(workbook);
         CellStyle dateStyle = createDateStyle(workbook);
         CellStyle currencyStyle = createCurrencyStyle(workbook);
+        CellStyle cappedCurrencyStyle = createCappedCurrencyStyle(workbook);
         CellStyle holidayStyle = createHolidayStyle(workbook);
         CellStyle nameStyle = createNameStyle(workbook);
         CellStyle numberStyle = createNumberStyle(workbook);
@@ -1196,7 +1262,7 @@ public class LaporanTukinService {
         createSummaryKehadiranSheet(workbook, rincianData, laporan, titleStyle, headerStyle, dataStyle);
         
         // Sheet 4: Detail Tunjangan Kinerja Per Pegawai
-        createDetailTunjanganSheet(workbook, laporanResponse, titleStyle, headerStyle, dataStyle, currencyStyle);
+        createDetailTunjanganSheet(workbook, laporanResponse, titleStyle, headerStyle, dataStyle, currencyStyle, cappedCurrencyStyle);
         
         // Write to byte array
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -1298,6 +1364,46 @@ public class LaporanTukinService {
         style.setBorderBottom(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
+        DataFormat format = workbook.createDataFormat();
+        style.setDataFormat(format.getFormat("#,##0"));
+        return style;
+    }
+    
+    private CellStyle getCappedCurrencyStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Calibri");
+        font.setBold(true);
+        font.setColor(IndexedColors.RED.getIndex());
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.RIGHT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderTop(BorderStyle.THICK);
+        style.setBorderBottom(BorderStyle.THICK);
+        style.setBorderLeft(BorderStyle.THICK);
+        style.setBorderRight(BorderStyle.THICK);
+        style.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    }
+    
+    private CellStyle createCappedCurrencyStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Calibri");
+        font.setColor(IndexedColors.RED.getIndex());
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.RIGHT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderTop(BorderStyle.MEDIUM);
+        style.setBorderBottom(BorderStyle.MEDIUM);
+        style.setBorderLeft(BorderStyle.MEDIUM);
+        style.setBorderRight(BorderStyle.MEDIUM);
         DataFormat format = workbook.createDataFormat();
         style.setDataFormat(format.getFormat("#,##0"));
         return style;
@@ -1784,18 +1890,32 @@ public class LaporanTukinService {
             // Alpha/Tidak masuk
             row.createCell(colIndex++).setCellValue(deductionCounts.getOrDefault("ALPHA", 0));
             
-            // Calculate total percentage dengan format persentase
-            BigDecimal totalPercentage = BigDecimal.ZERO;
-            if (pegawai.getHistoriAbsensi() != null) {
-                totalPercentage = pegawai.getHistoriAbsensi().stream()
-                        .filter(h -> h.getPersentasePemotongan() != null && h.getPersentasePemotongan().compareTo(BigDecimal.ZERO) > 0)
-                        .map(LaporanTukinResponse.HistoriAbsensi::getPersentasePemotongan)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            // Calculate capped percentage based on total deduction and base salary (60% maximum)
+            BigDecimal baseTunjangan = BigDecimal.valueOf(pegawai.getTunjanganKinerja());
+            BigDecimal actualPercentage = BigDecimal.ZERO;
+            
+            if (baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal totalDeductionAmount = pegawai.getTotalPotongan() != null ? 
+                    pegawai.getTotalPotongan() : BigDecimal.ZERO;
+                
+                actualPercentage = totalDeductionAmount
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(baseTunjangan, 2, RoundingMode.HALF_UP);
+                
+                // Apply 60% maximum cap
+                actualPercentage = actualPercentage.min(BigDecimal.valueOf(60.0));
             }
             
             Cell persenCell = row.createCell(colIndex);
-            persenCell.setCellValue(Math.min(totalPercentage.doubleValue(), 100.0) + "%");
-            persenCell.setCellStyle(dataStyle);
+            String percentageText = actualPercentage.setScale(1, RoundingMode.HALF_UP) + "%";
+            persenCell.setCellValue(percentageText);
+            
+            // Apply bold style if capped at 60%
+            if (pegawai.getIsTotalCapped() != null && pegawai.getIsTotalCapped()) {
+                persenCell.setCellStyle(getCappedCurrencyStyle(workbook));
+            } else {
+                persenCell.setCellStyle(dataStyle);
+            }
         }
         
         // Set custom column widths for better readability
@@ -1928,7 +2048,7 @@ public class LaporanTukinService {
     }
     
     private void createDetailTunjanganSheet(Workbook workbook, LaporanTukinResponse laporanResponse,
-                                          CellStyle titleStyle, CellStyle headerStyle, CellStyle dataStyle, CellStyle currencyStyle) {
+                                          CellStyle titleStyle, CellStyle headerStyle, CellStyle dataStyle, CellStyle currencyStyle, CellStyle cappedCurrencyStyle) {
         Sheet sheet = workbook.createSheet("Detail Tunjangan Per Pegawai");
         
         // Create title
@@ -1983,15 +2103,15 @@ public class LaporanTukinService {
                 
                 Cell potonganAbsenCell = row.createCell(7);
                 potonganAbsenCell.setCellValue(pegawai.getPotonganAbsen() != null ? pegawai.getPotonganAbsen().doubleValue() : 0);
-                potonganAbsenCell.setCellStyle(currencyStyle);
+                potonganAbsenCell.setCellStyle(pegawai.getIsAttendanceCapped() != null && pegawai.getIsAttendanceCapped() ? cappedCurrencyStyle : currencyStyle);
                 
                 Cell pemotonganLainCell = row.createCell(8);
                 pemotonganLainCell.setCellValue(pegawai.getPemotonganLain() != null ? pegawai.getPemotonganLain().doubleValue() : 0);
-                pemotonganLainCell.setCellStyle(currencyStyle);
+                pemotonganLainCell.setCellStyle(pegawai.getIsOtherDeductionsCapped() != null && pegawai.getIsOtherDeductionsCapped() ? cappedCurrencyStyle : currencyStyle);
                 
                 Cell totalPotonganCell = row.createCell(9);
                 totalPotonganCell.setCellValue(pegawai.getTotalPotongan() != null ? pegawai.getTotalPotongan().doubleValue() : 0);
-                totalPotonganCell.setCellStyle(currencyStyle);
+                totalPotonganCell.setCellStyle(pegawai.getIsTotalCapped() != null && pegawai.getIsTotalCapped() ? cappedCurrencyStyle : currencyStyle);
                 
                 Cell tunjanganBersihCell = row.createCell(10);
                 tunjanganBersihCell.setCellValue(pegawai.getTunjanganBersih() != null ? pegawai.getTunjanganBersih().doubleValue() : 0);
@@ -2255,5 +2375,15 @@ public class LaporanTukinService {
     private String formatCurrency(BigDecimal amount) {
         if (amount == null) amount = BigDecimal.ZERO;
         return String.format("Rp %,d", amount.longValue());
+    }
+    
+    public void deleteLaporan(Long id) {
+        log.info("Deleting laporan tukin with id: {}", id);
+        
+        LaporanTukin laporan = laporanTukinRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan"));
+        
+        laporanTukinRepository.delete(laporan);
+        log.info("Laporan tukin dengan id {} berhasil dihapus", id);
     }
 }

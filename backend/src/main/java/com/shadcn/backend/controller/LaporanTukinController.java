@@ -249,4 +249,26 @@ public class LaporanTukinController {
             return ResponseEntity.badRequest().build();
         }
     }
+    
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> deleteLaporan(@PathVariable Long id) {
+        try {
+            laporanTukinService.deleteLaporan(id);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "Laporan berhasil dihapus");
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error deleting laporan by id {}: ", id, e);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", "Gagal menghapus laporan: " + e.getMessage());
+            
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
 }
