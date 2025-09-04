@@ -6,10 +6,12 @@ import com.shadcn.backend.dto.AbsensiStats;
 import com.shadcn.backend.dto.PagedResponse;
 import com.shadcn.backend.dto.ShiftResponse;
 import com.shadcn.backend.entity.Absensi;
+import com.shadcn.backend.entity.PemotonganAbsen;
 import com.shadcn.backend.entity.Shift;
 import com.shadcn.backend.entity.Absensi.AbsensiStatus;
 import com.shadcn.backend.model.Pegawai;
 import com.shadcn.backend.repository.AbsensiRepository;
+import com.shadcn.backend.repository.PemotonganAbsenRepository;
 import com.shadcn.backend.repository.ShiftRepository;
 import com.shadcn.backend.repository.PegawaiRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +37,7 @@ import java.util.*;
 public class AbsensiService {
     
     private final AbsensiRepository absensiRepository;
+    private final PemotonganAbsenRepository pemotonganAbsenRepository;
     private final ShiftRepository shiftRepository;
     private final PegawaiRepository pegawaiRepository;
     private final PhotoUploadService photoUploadService;
@@ -200,8 +205,9 @@ public class AbsensiService {
                 }
             }
             
-            // Determine status based on time and shift
-            Absensi.AbsensiStatus status = determineAbsensiStatus(type, shift);
+            // Determine status and keterangan based on time, shift, and penalty rules
+            LocalTime currentTime = LocalTime.now();
+            AbsensiStatusAndKeterangan statusAndKeterangan = determineAbsensiStatusAndKeterangan(type, shift, currentTime, pegawai);
             
             // Create absensi record
             Absensi absensi = new Absensi();
@@ -209,12 +215,13 @@ public class AbsensiService {
             absensi.setShift(shift);
             absensi.setType(type);
             absensi.setTanggal(today);
-            absensi.setWaktu(LocalTime.now());
+            absensi.setWaktu(currentTime);
             absensi.setLatitude(request.getLatitude());
             absensi.setLongitude(request.getLongitude());
             absensi.setJarak(distance);
             absensi.setPhotoUrl(photoUrl);
-            absensi.setStatus(status);
+            absensi.setStatus(statusAndKeterangan.status);
+            absensi.setKeterangan(statusAndKeterangan.keterangan);
             
             // Save absensi
             Absensi savedAbsensi = absensiRepository.save(absensi);
@@ -655,14 +662,118 @@ public class AbsensiService {
         }
     }
     
+    /**
+     * Enhanced method to determine status and keterangan with dynamic penalty calculation
+     */
+    private AbsensiStatusAndKeterangan determineAbsensiStatusAndKeterangan(Absensi.AbsensiType type, Shift shift, LocalTime currentTime, Pegawai pegawai) {
+        LocalTime jamMasuk = LocalTime.parse(shift.getJamMasuk());
+        LocalTime jamKeluar = LocalTime.parse(shift.getJamKeluar());
+        
+        if (type == Absensi.AbsensiType.MASUK) {
+            return determineCheckInStatusAndKeterangan(currentTime, jamMasuk);
+        } else {
+            return determineCheckOutStatusAndKeterangan(currentTime, jamKeluar, pegawai);
+        }
+    }
+    
+    /**
+     * Determine check-in status and keterangan with dynamic penalty calculation
+     */
+    private AbsensiStatusAndKeterangan determineCheckInStatusAndKeterangan(LocalTime currentTime, LocalTime jamMasuk) {
+        if (currentTime.isAfter(jamMasuk)) {
+            long lateMinutes = Duration.between(jamMasuk, currentTime).toMinutes();
+            BigDecimal penaltyPercentage = getPenaltyPercentageForLateness((int) lateMinutes);
+            
+            if (lateMinutes >= 31 && lateMinutes <= 90) {
+                long compensableLateness = lateMinutes - 30; // Only minutes above 30
+                String keterangan = "Terlambat " + lateMinutes + " menit - " + compensableLateness + " menit dapat dikompensasi dengan " + (compensableLateness * 2) + " menit lembur";
+                return new AbsensiStatusAndKeterangan(Absensi.AbsensiStatus.TERLAMBAT, keterangan);
+            } else if (lateMinutes > 0) {
+                if (lateMinutes <= 30) {
+                    String keterangan = "Terlambat " + lateMinutes + " menit (tidak perlu kompensasi - " + penaltyPercentage + "% potongan)";
+                    return new AbsensiStatusAndKeterangan(Absensi.AbsensiStatus.TERLAMBAT, keterangan);
+                } else {
+                    String keterangan = "Terlambat " + lateMinutes + " menit (tidak dapat dikompensasi - " + penaltyPercentage + "% potongan)";
+                    return new AbsensiStatusAndKeterangan(Absensi.AbsensiStatus.TERLAMBAT, keterangan);
+                }
+            }
+        }
+        return new AbsensiStatusAndKeterangan(Absensi.AbsensiStatus.HADIR, "Masuk tepat waktu");
+    }
+    
+    /**
+     * Determine check-out status and keterangan
+     */
+    private AbsensiStatusAndKeterangan determineCheckOutStatusAndKeterangan(LocalTime currentTime, LocalTime jamKeluar, Pegawai pegawai) {
+        if (currentTime.isBefore(jamKeluar.minusMinutes(30))) {
+            long earlyMinutes = Duration.between(currentTime, jamKeluar).toMinutes();
+            String keterangan = "Pulang cepat " + earlyMinutes + " menit";
+            return new AbsensiStatusAndKeterangan(Absensi.AbsensiStatus.PULANG_CEPAT, keterangan);
+        } else if (currentTime.isAfter(jamKeluar)) {
+            long overtimeMinutes = Duration.between(jamKeluar, currentTime).toMinutes();
+            String keterangan = "Lembur " + overtimeMinutes + " menit";
+            return new AbsensiStatusAndKeterangan(Absensi.AbsensiStatus.HADIR, keterangan);
+        }
+        return new AbsensiStatusAndKeterangan(Absensi.AbsensiStatus.HADIR, "Pulang tepat waktu");
+    }
+    
+    /**
+     * Get penalty percentage for lateness from database rules (same logic as seeder and LaporanTukinService)
+     */
+    private BigDecimal getPenaltyPercentageForLateness(int lateMinutes) {
+        try {
+            // Get penalty rules from database
+            List<PemotonganAbsen> pemotonganRules = pemotonganAbsenRepository.findAllActiveOrderByKode();
+            Map<String, BigDecimal> rulePercentages = pemotonganRules.stream()
+                    .collect(Collectors.toMap(
+                            PemotonganAbsen::getKode,
+                            PemotonganAbsen::getPersentase
+                    ));
+            
+            // Apply same logic as LaporanTukinService
+            if (lateMinutes <= 30) {
+                return rulePercentages.getOrDefault("TL0", BigDecimal.valueOf(0.00));
+            } else if (lateMinutes <= 60) {
+                return rulePercentages.getOrDefault("TL1", BigDecimal.valueOf(0.50));
+            } else if (lateMinutes <= 90) {
+                return rulePercentages.getOrDefault("TL2", BigDecimal.valueOf(1.25));
+            } else {
+                return rulePercentages.getOrDefault("TL3", BigDecimal.valueOf(2.50));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get penalty percentage from database, using fallback values: {}", e.getMessage());
+            // Fallback to hardcoded values if database access fails
+            if (lateMinutes <= 30) return BigDecimal.valueOf(0.00);
+            else if (lateMinutes <= 60) return BigDecimal.valueOf(0.50);
+            else if (lateMinutes <= 90) return BigDecimal.valueOf(1.25);
+            else return BigDecimal.valueOf(2.50);
+        }
+    }
+    
+    /**
+     * Helper class to return both status and keterangan
+     */
+    private static class AbsensiStatusAndKeterangan {
+        final Absensi.AbsensiStatus status;
+        final String keterangan;
+        
+        AbsensiStatusAndKeterangan(Absensi.AbsensiStatus status, String keterangan) {
+            this.status = status;
+            this.keterangan = keterangan;
+        }
+    }
+    
+    /**
+     * Legacy method for backward compatibility
+     */
     private Absensi.AbsensiStatus determineAbsensiStatus(Absensi.AbsensiType type, Shift shift) {
         LocalTime now = LocalTime.now();
         LocalTime jamMasuk = LocalTime.parse(shift.getJamMasuk());
         LocalTime jamKeluar = LocalTime.parse(shift.getJamKeluar());
         
         if (type == Absensi.AbsensiType.MASUK) {
-            // Check if late for work
-            if (now.isAfter(jamMasuk.plusMinutes(15))) { // 15 minutes tolerance
+            // Use dynamic penalty rules instead of hardcoded 15 minutes
+            if (now.isAfter(jamMasuk)) {
                 return Absensi.AbsensiStatus.TERLAMBAT;
             } else {
                 return Absensi.AbsensiStatus.HADIR;

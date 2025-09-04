@@ -1,21 +1,27 @@
 package com.shadcn.backend.seeder;
 
 import com.shadcn.backend.entity.Absensi;
+import com.shadcn.backend.entity.PemotonganAbsen;
 import com.shadcn.backend.entity.Shift;
 import com.shadcn.backend.model.Pegawai;
 import com.shadcn.backend.repository.AbsensiRepository;
 import com.shadcn.backend.repository.PegawaiRepository;
+import com.shadcn.backend.repository.PemotonganAbsenRepository;
 import com.shadcn.backend.repository.ShiftRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -26,10 +32,22 @@ public class AbsensiSeptember2025Seeder implements CommandLineRunner {
     private final AbsensiRepository absensiRepository;
     private final PegawaiRepository pegawaiRepository;
     private final ShiftRepository shiftRepository;
+    private final PemotonganAbsenRepository pemotonganAbsenRepository;
+    
+    @Value("${app.seeder.insert-dummy-data:no}")
+    private String insertDummyData;
 
     @Override
     public void run(String... args) throws Exception {
         log.info("🗓️ Starting Absensi September 2025 Seeder...");
+        
+        // SAFETY CHECK: Do not run in production environment
+        if ("no".equalsIgnoreCase(insertDummyData)) {
+            log.info("🛡️ Dummy data insertion is disabled (app.seeder.insert-dummy-data=no). Skipping September 2025 seeder for PRODUCTION safety.");
+            return;
+        }
+        
+        log.warn("⚠️ DEVELOPMENT MODE: Running September 2025 seeder with dummy data (app.seeder.insert-dummy-data={})", insertDummyData);
         
         // Check if September 2025 data already exists
         LocalDate septemberStart = LocalDate.of(2025, 9, 1);
@@ -200,7 +218,9 @@ public class AbsensiSeptember2025Seeder implements CommandLineRunner {
                     return "Terlambat " + lateMinutes + " menit - " + compensableLateness + " menit dapat dikompensasi dengan " + (compensableLateness * 2) + " menit lembur";
                 } else if (lateMinutes > 0) {
                     if (lateMinutes <= 30) {
-                        return "Terlambat " + lateMinutes + " menit (tidak perlu kompensasi - 0% potongan)";
+                        // Get dynamic penalty percentage from database rules
+                        BigDecimal penaltyPercentage = getPenaltyPercentageForLateness((int) lateMinutes);
+                        return "Terlambat " + lateMinutes + " menit (tidak perlu kompensasi - " + penaltyPercentage + "% potongan)";
                     } else {
                         return "Terlambat " + lateMinutes + " menit (tidak dapat dikompensasi)";
                     }
@@ -214,6 +234,32 @@ public class AbsensiSeptember2025Seeder implements CommandLineRunner {
                 return "Lembur " + overtimeMinutes + " menit";
             }
             return "Pulang normal";
+        }
+    }
+
+    /**
+     * Get penalty percentage for lateness from database rules
+     * @param lateMinutes Minutes of lateness
+     * @return Penalty percentage from database or fallback value
+     */
+    private BigDecimal getPenaltyPercentageForLateness(int lateMinutes) {
+        // Get penalty rules from database
+        List<PemotonganAbsen> pemotonganRules = pemotonganAbsenRepository.findAllActiveOrderByKode();
+        Map<String, BigDecimal> rulePercentages = pemotonganRules.stream()
+                .collect(Collectors.toMap(
+                        PemotonganAbsen::getKode,
+                        PemotonganAbsen::getPersentase
+                ));
+        
+        // Apply same logic as LaporanTukinService
+        if (lateMinutes <= 30) {
+            return rulePercentages.getOrDefault("TL0", BigDecimal.valueOf(0.00));
+        } else if (lateMinutes <= 60) {
+            return rulePercentages.getOrDefault("TL1", BigDecimal.valueOf(0.50));
+        } else if (lateMinutes <= 90) {
+            return rulePercentages.getOrDefault("TL2", BigDecimal.valueOf(1.25));
+        } else {
+            return rulePercentages.getOrDefault("TL3", BigDecimal.valueOf(2.50));
         }
     }
 }
