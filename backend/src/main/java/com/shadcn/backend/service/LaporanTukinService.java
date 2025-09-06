@@ -30,9 +30,11 @@ import com.lowagie.text.FontFactory;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
+import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import com.lowagie.text.pdf.CMYKColor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -88,8 +90,28 @@ public class LaporanTukinService {
             endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
         }
         
-        // Get all active employees
-        List<Pegawai> allPegawai = pegawaiRepository.findByIsActive(true);
+        // Get employees based on request
+        List<Pegawai> targetPegawai;
+        boolean isPersonalReport = false;
+        
+        if (request.getPegawaiId() != null) {
+            // Personal report - only for specific pegawai
+            Pegawai specificPegawai = pegawaiRepository.findById(request.getPegawaiId())
+                    .orElseThrow(() -> new RuntimeException("Pegawai tidak ditemukan dengan ID: " + request.getPegawaiId()));
+            
+            if (!specificPegawai.getIsActive()) {
+                throw new RuntimeException("Pegawai tidak aktif: " + specificPegawai.getNamaLengkap());
+            }
+            
+            targetPegawai = List.of(specificPegawai);
+            isPersonalReport = true;
+            log.info("Generating personal laporan tukin for pegawai: {} ({})", 
+                    specificPegawai.getNamaLengkap(), specificPegawai.getNip());
+        } else {
+            // Admin report - for all active employees
+            targetPegawai = pegawaiRepository.findByIsActive(true);
+            log.info("Generating admin laporan tukin for {} active employees", targetPegawai.size());
+        }
         
         // Calculate tukin for each employee
         List<LaporanTukinResponse.DetailPegawaiTukin> detailPegawai = new ArrayList<>();
@@ -98,7 +120,7 @@ public class LaporanTukinService {
         BigDecimal totalPemotongan = BigDecimal.ZERO;
         BigDecimal totalTunjanganBersih = BigDecimal.ZERO;
         
-        for (Pegawai pegawai : allPegawai) {
+        for (Pegawai pegawai : targetPegawai) {
             LaporanTukinResponse.DetailPegawaiTukin detail = calculateTukinForPegawaiWithEnhancedDetail(
                 pegawai, startDate, endDate, request.getBulan(), request.getTahun());
             detailPegawai.add(detail);
@@ -119,8 +141,15 @@ public class LaporanTukinService {
         }
         
         // Create and save laporan record
-        String judul = String.format("Laporan Tunjangan Kinerja %s %d", 
-            getMonthName(request.getBulan()), request.getTahun());
+        String judul;
+        if (request.getPegawaiId() != null) {
+            Pegawai targetEmployee = targetPegawai.get(0);
+            judul = String.format("Laporan Tunjangan Kinerja Pribadi %s %d - %s", 
+                getMonthName(request.getBulan()), request.getTahun(), targetEmployee.getNamaLengkap());
+        } else {
+            judul = String.format("Laporan Tunjangan Kinerja %s %d", 
+                getMonthName(request.getBulan()), request.getTahun());
+        }
             
         LaporanTukin laporan = LaporanTukin.builder()
                 .judul(judul)
@@ -131,12 +160,13 @@ public class LaporanTukinService {
                 .startDate(startDate)  // Legacy column
                 .endDate(endDate)      // Legacy column
                 .formatLaporan(request.getFormatLaporan())
-                .totalPegawai(allPegawai.size())
+                .totalPegawai(targetPegawai.size())
                 .totalTunjanganKinerja(totalTunjanganKinerja)
                 .totalPotonganAbsen(totalPotonganAbsen)
                 .totalPemotongan(totalPemotongan)
                 .totalTunjanganBersih(totalTunjanganBersih)
                 .generatedBy(currentUser)
+                .isPersonalReport(isPersonalReport)
                 // Legacy columns
                 .totalTukin(totalTunjanganKinerja)
                 .jenisLaporan("TUNJANGAN_KINERJA")
@@ -291,45 +321,49 @@ public class LaporanTukinService {
         
         // Check each working day in the period
         LocalDate currentDate = startDate;
+        LocalDate today = LocalDate.now();
         while (!currentDate.isAfter(endDate)) {
             // Skip weekends (assuming Saturday=6, Sunday=7) and holidays
             if (currentDate.getDayOfWeek().getValue() < 6 && !hariLiburDates.contains(currentDate)) {
-                totalHariKerja++;
-                
-                List<Absensi> dayAbsensi = absensiByDate.get(currentDate);
-                if (dayAbsensi == null || dayAbsensi.isEmpty()) {
-                    totalAlpha++;
-                } else {
-                    boolean hasMasuk = dayAbsensi.stream().anyMatch(a -> a.getType() == Absensi.AbsensiType.MASUK);
-                    boolean hasPulang = dayAbsensi.stream().anyMatch(a -> a.getType() == Absensi.AbsensiType.PULANG);
+                // Only count past and present days for statistics, not future days
+                if (!currentDate.isAfter(today)) {
+                    totalHariKerja++;
                     
-                    if (hasMasuk && hasPulang) {
-                        totalHadir++;
+                    List<Absensi> dayAbsensi = absensiByDate.get(currentDate);
+                    if (dayAbsensi == null || dayAbsensi.isEmpty()) {
+                        totalAlpha++;
+                    } else {
+                        boolean hasMasuk = dayAbsensi.stream().anyMatch(a -> a.getType() == Absensi.AbsensiType.MASUK);
+                        boolean hasPulang = dayAbsensi.stream().anyMatch(a -> a.getType() == Absensi.AbsensiType.PULANG);
                         
-                        // Check for late arrival and early departure based on shift
-                        for (Absensi absen : dayAbsensi) {
-                            if (absen.getType() == Absensi.AbsensiType.MASUK && 
-                                absen.getShift() != null && 
-                                absen.getShift().getJamMasuk() != null) {
-                                
-                                LocalTime shiftJamMasuk = LocalTime.parse(absen.getShift().getJamMasuk());
-                                if (absen.getWaktu().isAfter(shiftJamMasuk)) {
-                                    totalTerlambat++;
-                                    totalTerlambatMenit += (int) Duration.between(shiftJamMasuk, absen.getWaktu()).toMinutes();
-                                }
-                            } else if (absen.getType() == Absensi.AbsensiType.PULANG && 
-                                       absen.getShift() != null && 
-                                       absen.getShift().getJamKeluar() != null) {
-                                
-                                LocalTime shiftJamKeluar = LocalTime.parse(absen.getShift().getJamKeluar());
-                                if (absen.getWaktu().isBefore(shiftJamKeluar)) {
-                                    totalPulangCepat++;
-                                    totalPulangCepatMenit += (int) Duration.between(absen.getWaktu(), shiftJamKeluar).toMinutes();
+                        if (hasMasuk && hasPulang) {
+                            totalHadir++;
+                            
+                            // Check for late arrival and early departure based on shift
+                            for (Absensi absen : dayAbsensi) {
+                                if (absen.getType() == Absensi.AbsensiType.MASUK && 
+                                    absen.getShift() != null && 
+                                    absen.getShift().getJamMasuk() != null) {
+                                    
+                                    LocalTime shiftJamMasuk = LocalTime.parse(absen.getShift().getJamMasuk());
+                                    if (absen.getWaktu().isAfter(shiftJamMasuk)) {
+                                        totalTerlambat++;
+                                        totalTerlambatMenit += (int) Duration.between(shiftJamMasuk, absen.getWaktu()).toMinutes();
+                                    }
+                                } else if (absen.getType() == Absensi.AbsensiType.PULANG && 
+                                           absen.getShift() != null && 
+                                           absen.getShift().getJamKeluar() != null) {
+                                    
+                                    LocalTime shiftJamKeluar = LocalTime.parse(absen.getShift().getJamKeluar());
+                                    if (absen.getWaktu().isBefore(shiftJamKeluar)) {
+                                        totalPulangCepat++;
+                                        totalPulangCepatMenit += (int) Duration.between(absen.getWaktu(), shiftJamKeluar).toMinutes();
+                                    }
                                 }
                             }
+                        } else {
+                            totalAlpha++;
                         }
-                    } else {
-                        totalAlpha++;
                     }
                 }
             }
@@ -391,13 +425,14 @@ public class LaporanTukinService {
         List<LaporanTukinResponse.HistoriAbsensi> historiAbsensi = new ArrayList<>();
         
         LocalDate currentDate = startDate;
+        LocalDate today = LocalDate.now();
         while (!currentDate.isAfter(endDate)) {
             Map<Absensi.AbsensiType, Absensi> dayAbsensi = absensiByDateAndType.get(currentDate);
             
             String jamMasuk = null;
             String jamPulang = null;
-            String statusMasuk = "ALPHA";
-            String statusPulang = "ALPHA";
+            String statusMasuk = currentDate.isAfter(today) ? "MENDATANG" : "ALPHA";
+            String statusPulang = currentDate.isAfter(today) ? "MENDATANG" : "ALPHA";
             int menitTerlambat = 0;
             int menitPulangCepat = 0;
             String keterangan = "";
@@ -445,12 +480,14 @@ public class LaporanTukinService {
                 
                 // If no attendance at all for this date
                 if (absenMasuk == null && absenPulang == null) {
-                    hasPemotongan = true;
+                    // Don't apply penalty for future dates
+                    hasPemotongan = !currentDate.isAfter(today);
                 }
             } else {
                 // No attendance record for this date
-                hasPemotongan = true;
-                keterangan = "Tidak ada data absensi";
+                // Don't apply penalty for future dates
+                hasPemotongan = !currentDate.isAfter(today);
+                keterangan = currentDate.isAfter(today) ? "Belum terjadi" : "Tidak ada data absensi";
             }
             
             historiAbsensi.add(LaporanTukinResponse.HistoriAbsensi.builder()
@@ -516,13 +553,14 @@ public class LaporanTukinService {
         List<LaporanTukinResponse.HistoriAbsensi> historiAbsensi = new ArrayList<>();
         
         LocalDate currentDate = startDate;
+        LocalDate today = LocalDate.now();
         while (!currentDate.isAfter(endDate)) {
             Map<Absensi.AbsensiType, Absensi> dayAbsensi = absensiByDateAndType.get(currentDate);
             
             String jamMasuk = null;
             String jamPulang = null;
-            String statusMasuk = "ALPHA";
-            String statusPulang = "ALPHA";
+            String statusMasuk = currentDate.isAfter(today) ? "MENDATANG" : "ALPHA";
+            String statusPulang = currentDate.isAfter(today) ? "MENDATANG" : "ALPHA";
             int menitTerlambat = 0;
             int menitPulangCepat = 0;
             String keterangan = "";
@@ -613,40 +651,52 @@ public class LaporanTukinService {
                 
                 // If no attendance at all for this date
                 if (absenMasuk == null && absenPulang == null) {
-                    // Check if there's approved cuti for this date
-                    Cuti cutiHariIni = cutiByDate.get(currentDate);
-                    if (cutiHariIni != null) {
-                        statusMasuk = "CUTI";
-                        statusPulang = "CUTI";
-                        keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
-                        // No deduction for approved cuti - clear previous deductions
-                        detailPemotongan.clear();
+                    // Check if it's a future date first
+                    if (currentDate.isAfter(today)) {
+                        // Already set to MENDATANG in initialization, no deduction
+                        keterangan = "Belum terjadi";
                     } else {
-                        BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
-                        detailPemotongan.add("Tidak absen (" + percentage + "%)");
+                        // Check if there's approved cuti for this date
+                        Cuti cutiHariIni = cutiByDate.get(currentDate);
+                        if (cutiHariIni != null) {
+                            statusMasuk = "CUTI";
+                            statusPulang = "CUTI";
+                            keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
+                            // No deduction for approved cuti - clear previous deductions
+                            detailPemotongan.clear();
+                        } else {
+                            BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
+                            detailPemotongan.add("Tidak absen (" + percentage + "%)");
+                        }
                     }
                 }
             } else {
                 // No attendance record for this date
-                // Check if it's a holiday first
-                if (hariLiburDates.contains(currentDate)) {
-                    statusMasuk = "LIBUR";
-                    statusPulang = "LIBUR";
-                    keterangan = "Hari Libur";
-                    // No deduction for holidays
+                // Check if it's a future date first
+                if (currentDate.isAfter(today)) {
+                    // Already set to MENDATANG in initialization, no deduction
+                    keterangan = "Belum terjadi";
                 } else {
-                    // Check if there's approved cuti for this date
-                    Cuti cutiHariIni = cutiByDate.get(currentDate);
-                    if (cutiHariIni != null) {
-                        statusMasuk = "CUTI";
-                        statusPulang = "CUTI";
-                        keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
-                        // No deduction for approved cuti
+                    // Check if it's a holiday first
+                    if (hariLiburDates.contains(currentDate)) {
+                        statusMasuk = "LIBUR";
+                        statusPulang = "LIBUR";
+                        keterangan = "Hari Libur";
+                        // No deduction for holidays
                     } else {
-                        // No attendance record and no cuti and no holiday - Tidak Absen
-                        keterangan = "Tidak ada data absensi";
-                        BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
-                        detailPemotongan.add("Tidak absen (" + percentage + "%)");
+                        // Check if there's approved cuti for this date
+                        Cuti cutiHariIni = cutiByDate.get(currentDate);
+                        if (cutiHariIni != null) {
+                            statusMasuk = "CUTI";
+                            statusPulang = "CUTI";
+                            keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
+                            // No deduction for approved cuti
+                        } else {
+                            // No attendance record and no cuti and no holiday - Tidak Absen
+                            keterangan = "Tidak ada data absensi";
+                            BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
+                            detailPemotongan.add("Tidak absen (" + percentage + "%)");
+                        }
                     }
                 }
             }
@@ -735,7 +785,10 @@ public class LaporanTukinService {
             } else if (statusMasuk.equals("LIBUR")) {
                 combinedStatus = "LIBUR";
                 actuallyHasPemotongan = false; // No deduction for holidays
-            } else if (statusMasuk.equals("ALPHA") || (absenMasuk == null && absenPulang == null && !statusMasuk.equals("CUTI") && !statusMasuk.equals("LIBUR"))) {
+            } else if (statusMasuk.equals("MENDATANG")) {
+                combinedStatus = "MENDATANG";
+                actuallyHasPemotongan = false; // No deduction for future dates
+            } else if (statusMasuk.equals("ALPHA") || (absenMasuk == null && absenPulang == null && !statusMasuk.equals("CUTI") && !statusMasuk.equals("LIBUR") && !statusMasuk.equals("MENDATANG"))) {
                 BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
                 actuallyHasPemotongan = true;
                 dailyPercentage = percentage;
@@ -978,8 +1031,11 @@ public class LaporanTukinService {
     }
     
     public Page<LaporanTukinResponse> getHistoriLaporan(int page, int size, Integer bulan, Integer tahun, String status) {
+        log.info("Getting admin laporan tukin history with filters: bulan={}, tahun={}, status={}", bulan, tahun, status);
+        
         Pageable pageable = PageRequest.of(page, size);
-        Page<LaporanTukin> laporanPage = laporanTukinRepository.findWithFilters(bulan, tahun, status, pageable);
+        // Use admin-specific filter to exclude personal reports
+        Page<LaporanTukin> laporanPage = laporanTukinRepository.findAdminReportsWithFilters(bulan, tahun, status, pageable);
         
         return laporanPage.map(this::convertToResponse);
     }
@@ -2096,7 +2152,7 @@ public class LaporanTukinService {
                 int totalMasuk = 0;
                 if (pegawai.getHistoriAbsensi() != null) {
                     totalMasuk = (int) pegawai.getHistoriAbsensi().stream()
-                            .filter(h -> !"ALPHA".equals(h.getStatusMasuk()) && !"TIDAK_HADIR".equals(h.getStatusMasuk()))
+                            .filter(h -> !"ALPHA".equals(h.getStatusMasuk()) && !"TIDAK_HADIR".equals(h.getStatusMasuk()) && !"MENDATANG".equals(h.getStatusMasuk()))
                             .count();
                 }
                 row.createCell(6).setCellValue(totalMasuk);
@@ -2112,6 +2168,95 @@ public class LaporanTukinService {
                 Cell totalPotonganCell = row.createCell(9);
                 totalPotonganCell.setCellValue(pegawai.getTotalPotongan() != null ? pegawai.getTotalPotongan().doubleValue() : 0);
                 totalPotonganCell.setCellStyle(pegawai.getIsTotalCapped() != null && pegawai.getIsTotalCapped() ? cappedCurrencyStyle : currencyStyle);
+                
+                Cell tunjanganBersihCell = row.createCell(10);
+                tunjanganBersihCell.setCellValue(pegawai.getTunjanganBersih() != null ? pegawai.getTunjanganBersih().doubleValue() : 0);
+                tunjanganBersihCell.setCellStyle(currencyStyle);
+            }
+        }
+        
+        // Set custom column widths for better readability
+        sheet.setColumnWidth(0, 1500);  // No - narrow
+        sheet.setColumnWidth(1, 4000);  // NIP
+        sheet.setColumnWidth(2, 8000);  // Nama Pegawai - wider
+        sheet.setColumnWidth(3, 6000);  // Jabatan
+        sheet.setColumnWidth(4, 4000);  // Lokasi
+        sheet.setColumnWidth(5, 5000);  // Tunjangan Kinerja
+        sheet.setColumnWidth(6, 3000);  // Total Masuk
+        sheet.setColumnWidth(7, 4000);  // Potongan Absen
+        sheet.setColumnWidth(8, 4000);  // Potongan Lain
+        sheet.setColumnWidth(9, 4000);  // Total Potongan
+        sheet.setColumnWidth(10, 4500); // Tunjangan Bersih
+    }
+    
+    // Overloaded method for personal reports using filtered data
+    private void createDetailTunjanganSheet(Workbook workbook, LaporanTukin laporan, 
+                                          List<LaporanTukinResponse.DetailPegawaiTukin> rincianData,
+                                          CellStyle titleStyle, CellStyle headerStyle, CellStyle dataStyle, 
+                                          CellStyle nameStyle, CellStyle currencyStyle) {
+        Sheet sheet = workbook.createSheet("Detail Tunjangan Per Pegawai");
+        
+        // Create title
+        Row titleRow = sheet.createRow(0);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("DETAIL TUNJANGAN KINERJA PER PEGAWAI");
+        titleCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 10));
+        
+        Row periodRow = sheet.createRow(1);
+        Cell periodCell = periodRow.createCell(0);
+        periodCell.setCellValue("Periode: " + getMonthName(laporan.getBulan()) + " " + laporan.getTahun());
+        periodCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 10));
+        
+        // Create headers
+        Row headerRow = sheet.createRow(3);
+        String[] headers = {"No", "NIP", "Nama Pegawai", "Jabatan", "Lokasi", 
+                           "Tunjangan Kinerja", "Total Masuk", "Potongan Absen", 
+                           "Potongan Lain", "Total Potongan", "Tunjangan Bersih"};
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+        
+        // Fill employee data using filtered rincianData
+        int rowIndex = 4;
+        if (rincianData != null) {
+            for (int i = 0; i < rincianData.size(); i++) {
+                LaporanTukinResponse.DetailPegawaiTukin pegawai = rincianData.get(i);
+                Row row = sheet.createRow(rowIndex++);
+                
+                row.createCell(0).setCellValue(i + 1);
+                row.createCell(1).setCellValue(pegawai.getNip() != null ? pegawai.getNip() : "-");
+                row.createCell(2).setCellValue(pegawai.getNamaLengkap());
+                row.createCell(3).setCellValue(pegawai.getJabatan());
+                row.createCell(4).setCellValue(pegawai.getLokasi());
+                
+                Cell tunjanganCell = row.createCell(5);
+                tunjanganCell.setCellValue(pegawai.getTunjanganKinerja());
+                tunjanganCell.setCellStyle(currencyStyle);
+                
+                // Calculate total masuk from historiAbsensi if available
+                int totalMasuk = 0;
+                if (pegawai.getHistoriAbsensi() != null) {
+                    totalMasuk = (int) pegawai.getHistoriAbsensi().stream()
+                            .filter(h -> !"ALPHA".equals(h.getStatusMasuk()) && !"TIDAK_HADIR".equals(h.getStatusMasuk()) && !"MENDATANG".equals(h.getStatusMasuk()))
+                            .count();
+                }
+                row.createCell(6).setCellValue(totalMasuk);
+                
+                Cell potonganAbsenCell = row.createCell(7);
+                potonganAbsenCell.setCellValue(pegawai.getPotonganAbsen() != null ? pegawai.getPotonganAbsen().doubleValue() : 0);
+                potonganAbsenCell.setCellStyle(currencyStyle);
+                
+                Cell pemotonganLainCell = row.createCell(8);
+                pemotonganLainCell.setCellValue(pegawai.getPemotonganLain() != null ? pegawai.getPemotonganLain().doubleValue() : 0);
+                pemotonganLainCell.setCellStyle(currencyStyle);
+                
+                Cell totalPotonganCell = row.createCell(9);
+                totalPotonganCell.setCellValue(pegawai.getTotalPotongan() != null ? pegawai.getTotalPotongan().doubleValue() : 0);
+                totalPotonganCell.setCellStyle(currencyStyle);
                 
                 Cell tunjanganBersihCell = row.createCell(10);
                 tunjanganBersihCell.setCellValue(pegawai.getTunjanganBersih() != null ? pegawai.getTunjanganBersih().doubleValue() : 0);
@@ -2209,7 +2354,7 @@ public class LaporanTukinService {
                     int totalMasuk = 0;
                     if (pegawai.getHistoriAbsensi() != null) {
                         totalMasuk = (int) pegawai.getHistoriAbsensi().stream()
-                                .filter(h -> !"ALPHA".equals(h.getStatusMasuk()) && !"TIDAK_HADIR".equals(h.getStatusMasuk()))
+                                .filter(h -> !"ALPHA".equals(h.getStatusMasuk()) && !"TIDAK_HADIR".equals(h.getStatusMasuk()) && !"MENDATANG".equals(h.getStatusMasuk()))
                                 .count();
                     }
                     detailTable.addCell(createDataCell(String.valueOf(totalMasuk), normalFont, Element.ALIGN_CENTER));
@@ -2377,6 +2522,476 @@ public class LaporanTukinService {
         return String.format("Rp %,d", amount.longValue());
     }
     
+    public byte[] generateExcelReportPersonal(Long laporanId, Long pegawaiId) throws IOException {
+        log.info("Generating personal Excel report for laporan: {}, pegawai: {}", laporanId, pegawaiId);
+        
+        // Use modified method that only gets data for specific pegawai
+        return generateExcelReportForPegawai(laporanId, pegawaiId);
+    }
+    
+    public byte[] generatePDFReportPersonal(Long laporanId, Long pegawaiId) throws IOException {
+        log.info("Generating personal PDF report for laporan: {}, pegawai: {}", laporanId, pegawaiId);
+        
+        // Use modified method that only gets data for specific pegawai  
+        return generatePDFReportForPegawai(laporanId, pegawaiId);
+    }
+    
+    private byte[] generateExcelReportForPegawai(Long laporanId, Long pegawaiId) throws IOException {
+        LaporanTukin laporan = laporanTukinRepository.findById(laporanId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan"));
+        
+        // Get data only for the specific pegawai
+        List<LaporanTukinResponse.DetailPegawaiTukin> rincianData = getRincianDetailPerPegawai(laporanId, pegawaiId);
+        
+        // Get holidays for the period
+        List<HariLibur> holidays = hariLiburRepository.findByTanggalLiburBetweenAndIsActiveTrue(
+                laporan.getTanggalMulai(), laporan.getTanggalAkhir());
+        
+        Workbook workbook = new XSSFWorkbook();
+        
+        // Create styles
+        CellStyle titleStyle = createTitleStyle(workbook);
+        CellStyle headerStyle = createHeaderStyle(workbook);
+        CellStyle emptyHeaderStyle = createEmptyHeaderStyle(workbook);
+        CellStyle dataStyle = createDataStyle(workbook);
+        CellStyle dateStyle = createDateStyle(workbook);
+        CellStyle holidayStyle = createHolidayStyle(workbook);
+        CellStyle nameStyle = createNameStyle(workbook);
+        CellStyle numberStyle = createNumberStyle(workbook);
+        CellStyle currencyStyle = createCurrencyStyle(workbook);
+        
+        // Create sheets with personal data only
+        createInputAbsensiSheet(workbook, rincianData, laporan, holidays, 
+                              titleStyle, headerStyle, emptyHeaderStyle, dataStyle, 
+                              dateStyle, holidayStyle, nameStyle, numberStyle, currencyStyle);
+        createRekapitulasiPemotonganSheet(workbook, rincianData, laporan, 
+                                        titleStyle, headerStyle, dataStyle, nameStyle, currencyStyle);
+        createSummaryKehadiranSheet(workbook, rincianData, laporan, 
+                                  titleStyle, headerStyle, dataStyle);
+        // Use overloaded method for personal reports with filtered data
+        createDetailTunjanganSheet(workbook, laporan, rincianData,
+                                 titleStyle, headerStyle, dataStyle, nameStyle, currencyStyle);
+        
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        workbook.write(outputStream);
+        workbook.close();
+        
+        return outputStream.toByteArray();
+    }
+    
+    private byte[] generatePDFReportForPegawai(Long laporanId, Long pegawaiId) throws IOException {
+        LaporanTukin laporan = laporanTukinRepository.findById(laporanId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan"));
+        
+        // Get data only for the specific pegawai
+        List<LaporanTukinResponse.DetailPegawaiTukin> rincianData = getRincianDetailPerPegawai(laporanId, pegawaiId);
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4);
+        PdfWriter.getInstance(document, baos);
+        
+        document.open();
+        
+        // Define fonts with formal business colors
+        com.lowagie.text.Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, new CMYKColor(0.8f, 0.6f, 0, 0.2f)); // Dark navy
+        com.lowagie.text.Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new CMYKColor(0.6f, 0.4f, 0, 0.1f)); // Medium navy
+        com.lowagie.text.Font subHeaderFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0.4f, 0.3f, 0, 0.05f)); // Light navy
+        com.lowagie.text.Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 11);
+        com.lowagie.text.Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 9);
+        com.lowagie.text.Font labelFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new CMYKColor(0.5f, 0.3f, 0, 0.1f)); // Formal label color
+        
+        // Add professional header section with formal styling
+        PdfPTable headerTable = new PdfPTable(1);
+        headerTable.setWidthPercentage(100);
+        headerTable.setSpacingAfter(20f);
+        
+        PdfPCell headerCell = new PdfPCell();
+        headerCell.setBorder(Rectangle.BOX);
+        headerCell.setBorderWidth(2f);
+        headerCell.setBorderColor(new CMYKColor(0, 0, 0, 0.6f)); // Dark gray border
+        headerCell.setPadding(15f);
+        headerCell.setBackgroundColor(new CMYKColor(0, 0, 0, 0.05f)); // Very light gray background
+        
+        Paragraph title = new Paragraph("LAPORAN TUNJANGAN KINERJA PRIBADI", titleFont);
+        title.setAlignment(Element.ALIGN_CENTER);
+        title.setSpacingAfter(8f);
+        
+        String[] bulanNama = {"", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                             "Juli", "Agustus", "September", "Oktober", "November", "Desember"};
+        String periodText = bulanNama[laporan.getBulan()] + " " + laporan.getTahun();
+        Paragraph subtitle = new Paragraph("Periode: " + periodText, headerFont);
+        subtitle.setAlignment(Element.ALIGN_CENTER);
+        subtitle.setSpacingAfter(5f);
+        
+        Paragraph reportType = new Paragraph("LAPORAN PRIBADI", subHeaderFont);
+        reportType.setAlignment(Element.ALIGN_CENTER);
+        
+        headerCell.addElement(title);
+        headerCell.addElement(subtitle);
+        headerCell.addElement(reportType);
+        headerTable.addCell(headerCell);
+        document.add(headerTable);
+        
+        // Employee Details with professional styling
+        for (LaporanTukinResponse.DetailPegawaiTukin detail : rincianData) {
+            // Employee information section with professional styling
+            Paragraph empHeader = new Paragraph("INFORMASI PEGAWAI", headerFont);
+            empHeader.setAlignment(Element.ALIGN_LEFT);
+            empHeader.setSpacingBefore(15f);
+            empHeader.setSpacingAfter(8f);
+            document.add(empHeader);
+            
+            // Create professional employee info table
+            PdfPTable empTable = new PdfPTable(4);
+            empTable.setWidthPercentage(100);
+            empTable.setSpacingBefore(5f);
+            empTable.setSpacingAfter(15f);
+            float[] empColumnWidths = {1.2f, 2.3f, 1.2f, 2.3f};
+            empTable.setWidths(empColumnWidths);
+            
+            // Employee info rows with formal styling
+            PdfPCell nameLabel = new PdfPCell(new Phrase("Nama:", labelFont));
+            nameLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.08f)); // Light gray
+            nameLabel.setPadding(8f);
+            nameLabel.setBorder(Rectangle.BOX);
+            empTable.addCell(nameLabel);
+            
+            PdfPCell nameValue = new PdfPCell(new Phrase(detail.getNamaLengkap() != null ? detail.getNamaLengkap() : "-", normalFont));
+            nameValue.setPadding(8f);
+            nameValue.setBorder(Rectangle.BOX);
+            empTable.addCell(nameValue);
+            
+            PdfPCell nipLabel = new PdfPCell(new Phrase("NIP:", labelFont));
+            nipLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.08f)); // Light gray
+            nipLabel.setPadding(8f);
+            nipLabel.setBorder(Rectangle.BOX);
+            empTable.addCell(nipLabel);
+            
+            PdfPCell nipValue = new PdfPCell(new Phrase(detail.getNip() != null ? detail.getNip() : "-", normalFont));
+            nipValue.setPadding(8f);
+            nipValue.setBorder(Rectangle.BOX);
+            empTable.addCell(nipValue);
+            
+            PdfPCell jabatanLabel = new PdfPCell(new Phrase("Jabatan:", labelFont));
+            jabatanLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.08f)); // Light gray
+            jabatanLabel.setPadding(8f);
+            jabatanLabel.setBorder(Rectangle.BOX);
+            empTable.addCell(jabatanLabel);
+            
+            PdfPCell jabatanValue = new PdfPCell(new Phrase(detail.getJabatan() != null ? detail.getJabatan() : "-", normalFont));
+            jabatanValue.setPadding(8f);
+            jabatanValue.setBorder(Rectangle.BOX);
+            empTable.addCell(jabatanValue);
+            
+            PdfPCell unitLabel = new PdfPCell(new Phrase("Lokasi Kerja:", labelFont));
+            unitLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.08f)); // Light gray
+            unitLabel.setPadding(8f);
+            unitLabel.setBorder(Rectangle.BOX);
+            empTable.addCell(unitLabel);
+            
+            PdfPCell unitValue = new PdfPCell(new Phrase(detail.getLokasi() != null ? detail.getLokasi() : "-", normalFont));
+            unitValue.setPadding(8f);
+            unitValue.setBorder(Rectangle.BOX);
+            empTable.addCell(unitValue);
+            
+            document.add(empTable);
+            
+            // Financial summary section with enhanced styling
+            Paragraph finHeader = new Paragraph("RINGKASAN KEUANGAN", headerFont);
+            finHeader.setAlignment(Element.ALIGN_LEFT);
+            finHeader.setSpacingBefore(15f);
+            finHeader.setSpacingAfter(8f);
+            document.add(finHeader);
+            
+            // Create professional financial table
+            PdfPTable finTable = new PdfPTable(2);
+            finTable.setWidthPercentage(100);
+            finTable.setSpacingBefore(5f);
+            finTable.setSpacingAfter(15f);
+            float[] finColumnWidths = {3f, 2f};
+            finTable.setWidths(finColumnWidths);
+            
+            // Financial info rows with formal business styling
+            PdfPCell tunjanganLabel = new PdfPCell(new Phrase("Tunjangan Kinerja:", labelFont));
+            tunjanganLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.08f)); // Light gray
+            tunjanganLabel.setPadding(10f);
+            tunjanganLabel.setBorder(Rectangle.BOX);
+            finTable.addCell(tunjanganLabel);
+            
+            PdfPCell tunjanganValue = new PdfPCell(new Phrase(formatCurrency(BigDecimal.valueOf(detail.getTunjanganKinerja())), normalFont));
+            tunjanganValue.setPadding(10f);
+            tunjanganValue.setBorder(Rectangle.BOX);
+            tunjanganValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            finTable.addCell(tunjanganValue);
+            
+            PdfPCell potonganAbsenLabel = new PdfPCell(new Phrase("Potongan Absen:", labelFont));
+            potonganAbsenLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.08f)); // Light gray
+            potonganAbsenLabel.setPadding(10f);
+            potonganAbsenLabel.setBorder(Rectangle.BOX);
+            finTable.addCell(potonganAbsenLabel);
+            
+            com.lowagie.text.Font redFont = FontFactory.getFont(FontFactory.HELVETICA, 11, new CMYKColor(0, 0.6f, 0.6f, 0.2f)); // Formal dark red
+            PdfPCell potonganAbsenValue = new PdfPCell(new Phrase(formatCurrency(detail.getPotonganAbsen()), redFont));
+            potonganAbsenValue.setPadding(10f);
+            potonganAbsenValue.setBorder(Rectangle.BOX);
+            potonganAbsenValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            finTable.addCell(potonganAbsenValue);
+            
+            PdfPCell potonganLainLabel = new PdfPCell(new Phrase("Potongan Lain:", labelFont));
+            potonganLainLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.08f)); // Light gray
+            potonganLainLabel.setPadding(10f);
+            potonganLainLabel.setBorder(Rectangle.BOX);
+            finTable.addCell(potonganLainLabel);
+            
+            PdfPCell potonganLainValue = new PdfPCell(new Phrase(formatCurrency(detail.getPemotonganLain()), redFont));
+            potonganLainValue.setPadding(10f);
+            potonganLainValue.setBorder(Rectangle.BOX);
+            potonganLainValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            finTable.addCell(potonganLainValue);
+            
+            PdfPCell totalPotonganLabel = new PdfPCell(new Phrase("Total Potongan:", labelFont));
+            totalPotonganLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.12f)); // Medium gray
+            totalPotonganLabel.setPadding(10f);
+            totalPotonganLabel.setBorder(Rectangle.BOX);
+            finTable.addCell(totalPotonganLabel);
+            
+            PdfPCell totalPotonganValue = new PdfPCell(new Phrase(formatCurrency(detail.getTotalPotongan()), redFont));
+            totalPotonganValue.setPadding(10f);
+            totalPotonganValue.setBorder(Rectangle.BOX);
+            totalPotonganValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            finTable.addCell(totalPotonganValue);
+            
+            PdfPCell totalLabel = new PdfPCell(new Phrase("Tunjangan Bersih:", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0, 0, 0, 0.8f))));
+            totalLabel.setBackgroundColor(new CMYKColor(0, 0, 0, 0.15f)); // Darker gray for emphasis
+            totalLabel.setPadding(12f);
+            totalLabel.setBorder(Rectangle.BOX);
+            totalLabel.setBorderWidth(2f);
+            finTable.addCell(totalLabel);
+            
+            com.lowagie.text.Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0, 0, 0, 0.8f)); // Dark gray
+            PdfPCell totalValue = new PdfPCell(new Phrase(formatCurrency(detail.getTunjanganBersih()), boldFont));
+            totalValue.setPadding(12f);
+            totalValue.setBorder(Rectangle.BOX);
+            totalValue.setBorderWidth(2f);
+            totalValue.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            finTable.addCell(totalValue);
+            
+            document.add(finTable);
+            
+            // Attendance statistics section with enhanced styling
+            if (detail.getStatistikAbsen() != null) {
+                Paragraph statsHeader = new Paragraph("STATISTIK KEHADIRAN", headerFont);
+                statsHeader.setAlignment(Element.ALIGN_LEFT);
+                statsHeader.setSpacingBefore(15f);
+                statsHeader.setSpacingAfter(8f);
+                document.add(statsHeader);
+                
+                // Create professional statistics table
+                Map<String, Object> stats = detail.getStatistikAbsen();
+                PdfPTable statsTable = new PdfPTable(5);
+                statsTable.setWidthPercentage(100);
+                statsTable.setSpacingBefore(5f);
+                statsTable.setSpacingAfter(15f);
+                float[] statsColumnWidths = {1f, 1f, 1f, 1f, 1f};
+                statsTable.setWidths(statsColumnWidths);
+                
+                // Statistics headers with formal business colors
+                String[] headers = {"Hadir", "Alpha", "Cuti", "Libur", "Mendatang"};
+                CMYKColor[] headerColors = {
+                    new CMYKColor(0, 0, 0, 0.5f), // Dark gray for Hadir
+                    new CMYKColor(0, 0, 0, 0.6f), // Darker gray for Alpha
+                    new CMYKColor(0, 0, 0, 0.45f), // Medium dark gray for Cuti
+                    new CMYKColor(0, 0, 0, 0.4f), // Medium gray for Libur
+                    new CMYKColor(0, 0, 0, 0.35f)  // Light dark gray for Mendatang
+                };
+                
+                for (int i = 0; i < headers.length; i++) {
+                    PdfPCell cell = new PdfPCell(new Phrase(headers[i], FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, CMYKColor.WHITE)));
+                    cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                    cell.setBackgroundColor(headerColors[i]);
+                    cell.setPadding(8f);
+                    cell.setBorder(Rectangle.BOX);
+                    statsTable.addCell(cell);
+                }
+                
+                // Statistics values with formal colors
+                // Hadir - Dark green
+                Object hadirObj = stats.get("hadir");
+                int hadir = hadirObj != null ? Integer.parseInt(hadirObj.toString()) : 0;
+                PdfPCell hadirCell = new PdfPCell(new Phrase(String.valueOf(hadir), 
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0.4f, 0, 0.4f, 0.2f))));
+                hadirCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                hadirCell.setPadding(10f);
+                hadirCell.setBorder(Rectangle.BOX);
+                statsTable.addCell(hadirCell);
+                
+                // Alpha - Dark red
+                Object alphaObj = stats.get("alpha");
+                int alpha = alphaObj != null ? Integer.parseInt(alphaObj.toString()) : 0;
+                PdfPCell alphaCell = new PdfPCell(new Phrase(String.valueOf(alpha), 
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0, 0.6f, 0.6f, 0.3f))));
+                alphaCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                alphaCell.setPadding(10f);
+                alphaCell.setBorder(Rectangle.BOX);
+                statsTable.addCell(alphaCell);
+                
+                // Cuti - Dark blue
+                Object cutiObj = stats.get("cuti");
+                int cuti = cutiObj != null ? Integer.parseInt(cutiObj.toString()) : 0;
+                PdfPCell cutiCell = new PdfPCell(new Phrase(String.valueOf(cuti), 
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0.6f, 0.3f, 0, 0.2f))));
+                cutiCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                cutiCell.setPadding(10f);
+                cutiCell.setBorder(Rectangle.BOX);
+                statsTable.addCell(cutiCell);
+                
+                // Libur - Dark gray
+                Object liburObj = stats.get("libur");
+                int libur = liburObj != null ? Integer.parseInt(liburObj.toString()) : 0;
+                PdfPCell liburCell = new PdfPCell(new Phrase(String.valueOf(libur), 
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0, 0, 0, 0.7f))));
+                liburCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                liburCell.setPadding(10f);
+                liburCell.setBorder(Rectangle.BOX);
+                statsTable.addCell(liburCell);
+                
+                // Mendatang - Dark brown
+                Object mendatangObj = stats.get("mendatang");
+                int mendatang = mendatangObj != null ? Integer.parseInt(mendatangObj.toString()) : 0;
+                PdfPCell mendatangCell = new PdfPCell(new Phrase(String.valueOf(mendatang), 
+                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new CMYKColor(0.2f, 0.4f, 0.6f, 0.2f))));
+                mendatangCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                mendatangCell.setPadding(10f);
+                mendatangCell.setBorder(Rectangle.BOX);
+                statsTable.addCell(mendatangCell);
+                
+                document.add(statsTable);
+            }
+            
+            // Attendance Details if available
+            if (detail.getHistoriAbsensi() != null && !detail.getHistoriAbsensi().isEmpty()) {
+                Paragraph histHeader = new Paragraph("RINCIAN KEHADIRAN", headerFont);
+                histHeader.setAlignment(Element.ALIGN_LEFT);
+                histHeader.setSpacingBefore(15f);
+                histHeader.setSpacingAfter(8f);
+                document.add(histHeader);
+                
+                // Create professional attendance table
+                PdfPTable histTable = new PdfPTable(6);
+                histTable.setWidthPercentage(100);
+                histTable.setSpacingBefore(5f);
+                histTable.setSpacingAfter(10f);
+                float[] columnWidths = {2.2f, 1.8f, 1.8f, 1.8f, 1.8f, 2.6f};
+                histTable.setWidths(columnWidths);
+                
+                // Professional headers with formal business styling
+                String[] histHeaders = {"Tanggal", "Jam Masuk", "Jam Pulang", "Status Masuk", "Status Pulang", "Keterangan"};
+                for (String header : histHeaders) {
+                    PdfPCell cell = new PdfPCell(new Phrase(header, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, CMYKColor.WHITE)));
+                    cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                    cell.setBackgroundColor(new CMYKColor(0, 0, 0, 0.7f)); // Dark gray header
+                    cell.setPadding(6f);
+                    cell.setBorder(Rectangle.BOX);
+                    cell.setBorderWidth(1f);
+                    histTable.addCell(cell);
+                }
+                
+                // Data rows with subtle alternating colors (limit to first 15 for better visibility)
+                int maxRows = Math.min(15, detail.getHistoriAbsensi().size());
+                for (int i = 0; i < maxRows; i++) {
+                    LaporanTukinResponse.HistoriAbsensi hist = detail.getHistoriAbsensi().get(i);
+                    
+                    // Subtle alternating row colors for better readability
+                    CMYKColor rowColor = (i % 2 == 0) ? new CMYKColor(0, 0, 0, 0.02f) : new CMYKColor(0, 0, 0, 0.05f);
+                    
+                    PdfPCell tanggalCell = new PdfPCell(new Phrase(hist.getTanggal() != null ? hist.getTanggal() : "-", smallFont));
+                    tanggalCell.setPadding(5f);
+                    tanggalCell.setBorder(Rectangle.BOX);
+                    tanggalCell.setBackgroundColor(rowColor);
+                    tanggalCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    histTable.addCell(tanggalCell);
+                    
+                    PdfPCell masukCell = new PdfPCell(new Phrase(hist.getJamMasuk() != null ? hist.getJamMasuk() : "-", smallFont));
+                    masukCell.setPadding(5f);
+                    masukCell.setBorder(Rectangle.BOX);
+                    masukCell.setBackgroundColor(rowColor);
+                    masukCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    histTable.addCell(masukCell);
+                    
+                    PdfPCell pulangCell = new PdfPCell(new Phrase(hist.getJamPulang() != null ? hist.getJamPulang() : "-", smallFont));
+                    pulangCell.setPadding(5f);
+                    pulangCell.setBorder(Rectangle.BOX);
+                    pulangCell.setBackgroundColor(rowColor);
+                    pulangCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    histTable.addCell(pulangCell);
+                    
+                    // Status cells with color coding
+                    String statusMasuk = hist.getStatusMasuk() != null ? hist.getStatusMasuk() : "-";
+                    com.lowagie.text.Font statusMasukFont = getStatusFont(statusMasuk);
+                    PdfPCell statusMasukCell = new PdfPCell(new Phrase(statusMasuk, statusMasukFont));
+                    statusMasukCell.setPadding(5f);
+                    statusMasukCell.setBorder(Rectangle.BOX);
+                    statusMasukCell.setBackgroundColor(rowColor);
+                    statusMasukCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    histTable.addCell(statusMasukCell);
+                    
+                    String statusPulang = hist.getStatusPulang() != null ? hist.getStatusPulang() : "-";
+                    com.lowagie.text.Font statusPulangFont = getStatusFont(statusPulang);
+                    PdfPCell statusPulangCell = new PdfPCell(new Phrase(statusPulang, statusPulangFont));
+                    statusPulangCell.setPadding(5f);
+                    statusPulangCell.setBorder(Rectangle.BOX);
+                    statusPulangCell.setBackgroundColor(rowColor);
+                    statusPulangCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    histTable.addCell(statusPulangCell);
+                    
+                    PdfPCell keteranganCell = new PdfPCell(new Phrase(hist.getKeterangan() != null ? hist.getKeterangan() : "-", smallFont));
+                    keteranganCell.setPadding(5f);
+                    keteranganCell.setBorder(Rectangle.BOX);
+                    keteranganCell.setBackgroundColor(rowColor);
+                    histTable.addCell(keteranganCell);
+                }
+                
+                document.add(histTable);
+                
+                if (detail.getHistoriAbsensi().size() > 15) {
+                    Paragraph note = new Paragraph("* Menampilkan 15 data teratas dari total " + detail.getHistoriAbsensi().size() + " hari kehadiran", 
+                        FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8, new CMYKColor(0, 0, 0, 0.6f)));
+                    note.setAlignment(Element.ALIGN_LEFT);
+                    note.setSpacingBefore(5f);
+                    document.add(note);
+                }
+            }
+        }
+        
+        // Add professional footer
+        document.add(new Paragraph(" "));
+        document.add(new Paragraph(" "));
+        
+        PdfPTable footerTable = new PdfPTable(1);
+        footerTable.setWidthPercentage(100);
+        footerTable.setSpacingBefore(20f);
+        
+        PdfPCell footerCell = new PdfPCell();
+        footerCell.setBorder(Rectangle.TOP);
+        footerCell.setBorderWidth(1f);
+        footerCell.setBorderColor(new CMYKColor(0, 0, 0, 0.3f));
+        footerCell.setPadding(10f);
+        
+        Paragraph footerText = new Paragraph("Laporan ini digenerate secara otomatis pada " + 
+            new java.text.SimpleDateFormat("dd MMMM yyyy 'pukul' HH:mm", java.util.Locale.forLanguageTag("id-ID")).format(new java.util.Date()), 
+            FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8, new CMYKColor(0, 0, 0, 0.6f)));
+        footerText.setAlignment(Element.ALIGN_CENTER);
+        
+        footerCell.addElement(footerText);
+        footerTable.addCell(footerCell);
+        document.add(footerTable);
+        
+        document.close();
+        return baos.toByteArray();
+    }
+    
     public void deleteLaporan(Long id) {
         log.info("Deleting laporan tukin with id: {}", id);
         
@@ -2385,5 +3000,176 @@ public class LaporanTukinService {
         
         laporanTukinRepository.delete(laporan);
         log.info("Laporan tukin dengan id {} berhasil dihapus", id);
+    }
+    
+    // Personal report methods for pegawai
+    
+    public LaporanTukinResponse generateLaporanTukinPribadi(LaporanTukinRequest request, Pegawai currentUser) {
+        log.info("Generating personal laporan tukin for pegawai: {} for period: {}/{}", 
+                currentUser.getNamaLengkap(), request.getBulan(), request.getTahun());
+        
+        // Force request to be for current user only
+        request.setPegawaiId(currentUser.getId());
+        
+        // Check if a personal report already exists for this period and user
+        List<LaporanTukin> existingReports = laporanTukinRepository.findByBulanAndTahunOrderByTanggalGenerateDesc(
+                request.getBulan(), request.getTahun());
+        
+        // Check if current user already has a personal report for this period
+        boolean userHasReport = existingReports.stream()
+                .anyMatch(report -> report.getGeneratedBy().getId().equals(currentUser.getId()) 
+                         && Boolean.TRUE.equals(report.getIsPersonalReport()));
+        
+        if (userHasReport) {
+            throw new RuntimeException("Anda sudah memiliki laporan pribadi untuk periode ini. Silakan hapus laporan lama jika ingin membuat yang baru.");
+        }
+        
+        return generateLaporanTukin(request, currentUser);
+    }
+    
+    public Page<LaporanTukinResponse> getHistoriLaporanPribadi(int page, int size, Integer bulan, Integer tahun, String status, Long pegawaiId) {
+        log.info("Getting personal laporan tukin history for pegawai: {}", pegawaiId);
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<LaporanTukin> laporanPage;
+        
+        if (bulan != null && tahun != null && status != null && !status.trim().isEmpty()) {
+            laporanPage = laporanTukinRepository.findByBulanAndTahunAndStatusAndGeneratedByIdOrderByTanggalGenerateDesc(
+                    bulan, tahun, status, pegawaiId, pageable);
+        } else if (bulan != null && tahun != null) {
+            laporanPage = laporanTukinRepository.findByBulanAndTahunAndGeneratedByIdOrderByTanggalGenerateDesc(
+                    bulan, tahun, pegawaiId, pageable);
+        } else if (bulan != null) {
+            laporanPage = laporanTukinRepository.findByBulanAndGeneratedByIdOrderByTanggalGenerateDesc(
+                    bulan, pegawaiId, pageable);
+        } else if (tahun != null) {
+            laporanPage = laporanTukinRepository.findByTahunAndGeneratedByIdOrderByTanggalGenerateDesc(
+                    tahun, pegawaiId, pageable);
+        } else if (status != null && !status.trim().isEmpty()) {
+            laporanPage = laporanTukinRepository.findByStatusAndGeneratedByIdOrderByTanggalGenerateDesc(
+                    status, pegawaiId, pageable);
+        } else {
+            laporanPage = laporanTukinRepository.findByGeneratedByIdOrderByTanggalGenerateDesc(
+                    pegawaiId, pageable);
+        }
+        
+        return laporanPage.map(this::convertToResponse);
+    }
+    
+    public LaporanTukinResponse getLaporanByIdPribadi(Long id, Long pegawaiId) {
+        log.info("Getting personal laporan tukin by id: {} for pegawai: {}", id, pegawaiId);
+        
+        LaporanTukin laporan = laporanTukinRepository.findByIdAndGeneratedById(id, pegawaiId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan atau tidak memiliki akses"));
+        
+        return convertToResponse(laporan);
+    }
+    
+    public LaporanTukinResponse getDetailLaporanByIdPribadi(Long id, Long pegawaiId) {
+        log.info("Getting personal laporan tukin detail by id: {} for pegawai: {}", id, pegawaiId);
+        
+        LaporanTukin laporan = laporanTukinRepository.findByIdAndGeneratedById(id, pegawaiId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan atau tidak memiliki akses"));
+        
+        return convertToResponseWithDetail(laporan, pegawaiId);
+    }
+    
+    public byte[] downloadLaporanPribadi(Long id, Long pegawaiId) throws IOException {
+        log.info("Downloading personal laporan tukin file by id: {} for pegawai: {}", id, pegawaiId);
+        
+        // Verify access
+        laporanTukinRepository.findByIdAndGeneratedById(id, pegawaiId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan atau tidak memiliki akses"));
+        
+        return generateExcelReportPersonal(id, pegawaiId);
+    }
+    
+    public byte[] downloadLaporanPribadiPDF(Long id, Long pegawaiId) throws IOException {
+        log.info("Downloading personal laporan tukin PDF by id: {} for pegawai: {}", id, pegawaiId);
+        
+        // Verify access
+        laporanTukinRepository.findByIdAndGeneratedById(id, pegawaiId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan atau tidak memiliki akses"));
+        
+        return generatePDFReportPersonal(id, pegawaiId);
+    }
+    
+    public List<LaporanTukinResponse.DetailPegawaiTukin> getRincianDetailLaporanPribadi(Long laporanId, Long pegawaiId, Long currentUserId) {
+        log.info("Getting rincian detail personal laporan tukin for laporan: {}, pegawai: {}, by user: {}", 
+                laporanId, pegawaiId, currentUserId);
+        
+        // Verify access - ensure the laporan belongs to current user
+        laporanTukinRepository.findByIdAndGeneratedById(laporanId, currentUserId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan atau tidak memiliki akses"));
+        
+        // For personal reports, only return data for current user (pegawaiId should equal currentUserId)
+        if (!pegawaiId.equals(currentUserId)) {
+            throw new RuntimeException("Access denied - can only view own data");
+        }
+        
+        return getRincianDetailPerPegawai(laporanId, pegawaiId);
+    }
+    
+    public List<Object> getPegawaiListLaporanPribadi(Long laporanId, Long currentUserId) {
+        log.info("Getting pegawai list for personal laporan tukin: {} by user: {}", laporanId, currentUserId);
+        
+        // Verify access - ensure the laporan belongs to current user
+        laporanTukinRepository.findByIdAndGeneratedById(laporanId, currentUserId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan atau tidak memiliki akses"));
+        
+        // For personal reports, only return current user in the list
+        Pegawai currentUser = pegawaiRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("Pegawai tidak ditemukan"));
+        
+        Map<String, Object> pegawaiInfo = new HashMap<>();
+        pegawaiInfo.put("id", currentUser.getId());
+        pegawaiInfo.put("nip", currentUser.getNip());
+        pegawaiInfo.put("namaLengkap", currentUser.getNamaLengkap());
+        pegawaiInfo.put("jabatan", currentUser.getJabatan() != null ? currentUser.getJabatan().getNama() : "N/A");
+        pegawaiInfo.put("lokasi", currentUser.getLokasi() != null ? currentUser.getLokasi().getNamaLokasi() : "N/A");
+        
+        return List.of(pegawaiInfo);
+    }
+
+    public void deleteLaporanPribadi(Long id, Long pegawaiId) {
+        log.info("Deleting personal laporan tukin: {} by pegawai: {}", id, pegawaiId);
+        
+        // Verify the laporan exists and belongs to the current user
+        LaporanTukin laporan = laporanTukinRepository.findByIdAndGeneratedById(id, pegawaiId)
+                .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan atau tidak memiliki akses untuk menghapus"));
+        
+        // Only allow deletion of personal reports
+        if (!Boolean.TRUE.equals(laporan.getIsPersonalReport())) {
+            throw new RuntimeException("Hanya laporan pribadi yang dapat dihapus");
+        }
+        
+        // Delete the main laporan
+        laporanTukinRepository.delete(laporan);
+        
+        log.info("Successfully deleted personal laporan tukin with id: {}", id);
+    }
+    
+    // Helper method for status font coloring in PDF with formal colors
+    private com.lowagie.text.Font getStatusFont(String status) {
+        if (status == null) {
+            return FontFactory.getFont(FontFactory.HELVETICA, 9);
+        }
+        
+        switch (status.toUpperCase()) {
+            case "HADIR":
+            case "TEPAT WAKTU":
+                return FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, new CMYKColor(0.4f, 0, 0.4f, 0.3f)); // Dark green
+            case "ALPHA":
+            case "TERLAMBAT":
+                return FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, new CMYKColor(0, 0.6f, 0.6f, 0.4f)); // Dark red
+            case "CUTI":
+                return FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, new CMYKColor(0.6f, 0.3f, 0, 0.3f)); // Dark blue
+            case "LIBUR":
+                return FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, new CMYKColor(0, 0, 0, 0.6f)); // Dark gray
+            case "MENDATANG":
+                return FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, new CMYKColor(0.2f, 0.4f, 0.6f, 0.3f)); // Dark brown
+            default:
+                return FontFactory.getFont(FontFactory.HELVETICA, 9);
+        }
     }
 }

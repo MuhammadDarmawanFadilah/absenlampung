@@ -87,6 +87,10 @@ public class LaporanTukin {
     @Column(name = "total_tunjangan_bersih", precision = 15, scale = 2)
     private BigDecimal totalTunjanganBersih;
     
+    @Column(name = "is_personal_report", nullable = false)
+    @Builder.Default
+    private Boolean isPersonalReport = false;
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "generated_by", nullable = false)
     private Pegawai generatedBy;

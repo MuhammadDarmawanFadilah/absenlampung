@@ -7,6 +7,9 @@ interface ApiRequestOptions {
 }
 
 export class ApiClient {
+  private static isRefreshing = false;
+  private static refreshPromise: Promise<any> | null = null;
+
   private static async makeRequest(endpoint: string, options: ApiRequestOptions = {}): Promise<Response> {
     const token = localStorage.getItem('auth_token');
     
@@ -26,30 +29,26 @@ export class ApiClient {
 
     let response = await fetch(getApiUrl(endpoint), requestOptions);
 
-    // If unauthorized, try to refresh token
-    if (response.status === 401 && token) {
+    // If unauthorized, try to refresh token (but avoid concurrent refreshes)
+    if (response.status === 401 && token && !this.isRefreshing) {
       console.log('Token expired, attempting refresh...');
       
       try {
-        const refreshResponse = await fetch(getApiUrl('api/auth/refresh'), {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json();
-          localStorage.setItem('auth_token', refreshData.token);
-          localStorage.setItem('auth_user', JSON.stringify(refreshData.user));
-
+        // Use a shared promise to avoid concurrent refresh attempts
+        if (!this.refreshPromise) {
+          this.isRefreshing = true;
+          this.refreshPromise = this.performTokenRefresh(token);
+        }
+        
+        const refreshResult = await this.refreshPromise;
+        
+        if (refreshResult.success) {
           // Retry original request with new token
           const retryOptions = {
             ...requestOptions,
             headers: {
               ...requestOptions.headers,
-              'Authorization': `Bearer ${refreshData.token}`,
+              'Authorization': `Bearer ${refreshResult.newToken}`,
             },
           };
 
@@ -59,23 +58,80 @@ export class ApiClient {
             console.log('Request successful after token refresh');
           }
         } else {
-          // Refresh failed, redirect to login
-          console.error('Token refresh failed, redirecting to login');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('auth_user');
-          window.location.href = '/login';
+          // Refresh failed, redirect to login only once
+          this.handleAuthFailure();
           throw new Error('Authentication failed');
         }
       } catch (error) {
         console.error('Error during token refresh:', error);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
-        window.location.href = '/login';
+        this.handleAuthFailure();
         throw error;
+      } finally {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+      }
+    } else if (response.status === 401 && this.isRefreshing) {
+      // If we're already refreshing, wait for it to complete
+      try {
+        if (this.refreshPromise) {
+          const refreshResult = await this.refreshPromise;
+          if (refreshResult.success) {
+            // Retry with new token
+            const retryOptions = {
+              ...requestOptions,
+              headers: {
+                ...requestOptions.headers,
+                'Authorization': `Bearer ${refreshResult.newToken}`,
+              },
+            };
+            response = await fetch(getApiUrl(endpoint), retryOptions);
+          }
+        }
+      } catch {
+        // If waiting for refresh fails, continue with original response
       }
     }
 
     return response;
+  }
+
+  private static async performTokenRefresh(token: string): Promise<{ success: boolean; newToken?: string }> {
+    try {
+      const refreshResponse = await fetch(getApiUrl('api/auth/refresh'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (refreshResponse.ok) {
+        const refreshData = await refreshResponse.json();
+        localStorage.setItem('auth_token', refreshData.token);
+        localStorage.setItem('auth_user', JSON.stringify(refreshData.user));
+        return { success: true, newToken: refreshData.token };
+      } else {
+        console.error('Token refresh failed:', refreshResponse.status, refreshResponse.statusText);
+        return { success: false };
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return { success: false };
+    }
+  }
+
+  private static handleAuthFailure() {
+    // Only clear storage and redirect if not already done
+    if (localStorage.getItem('auth_token')) {
+      console.error('Authentication failed, clearing storage and redirecting to login');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      
+      // Use replace to avoid back button issues
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
+    }
   }
 
   static async get(endpoint: string, headers?: Record<string, string>): Promise<Response> {

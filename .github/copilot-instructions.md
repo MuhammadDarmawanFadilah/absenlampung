@@ -4,13 +4,16 @@
 
 **Code Implementation Only:**
 - ABSOLUTELY NO explanations, descriptions, comments, or documentation text
+- NEVER provide any descriptions, summaries, or explanations about what was implemented
 - ONLY provide raw code implementation without any surrounding text
 - NEVER use markdown code blocks unless explicitly requested
 - NO introductory text like "Here's the implementation" or "I'll update the file"
 - NO explanatory text after code changes
+- NO implementation summaries or feature descriptions
 - 🚫 STRICTLY FORBIDDEN: NEVER run, start, execute, launch backend or frontend applications
 - 🚫 NEVER use run_in_terminal for starting servers, running applications, or executing npm/mvn commands
 - 🚫 NEVER execute mvn spring-boot:run, npm start, npm run dev, or any application startup commands
+- 🚫 Applications are AUTO-COMPILED by user environment - NEVER attempt to run them
 - ⚠️ EXCEPTION: If user explicitly requests to run/start backend or frontend applications, ignore above restrictions
 - NO file backups - edit files directly
 - For files >500 lines, split into 2 files maintaining same functionality

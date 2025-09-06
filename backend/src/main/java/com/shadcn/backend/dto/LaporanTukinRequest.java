@@ -28,4 +28,6 @@ public class LaporanTukinRequest {
     @NotBlank(message = "Format laporan tidak boleh kosong")
     @Pattern(regexp = "PDF|EXCEL|WEB", message = "Format laporan harus PDF, EXCEL, atau WEB")
     private String formatLaporan;
+    
+    private Long pegawaiId; // For personal reports
 }

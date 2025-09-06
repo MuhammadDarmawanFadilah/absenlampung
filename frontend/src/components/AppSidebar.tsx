@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import {
@@ -120,6 +120,11 @@ const AppSidebar = () => {
       title: "Pengajuan Cuti",
       url: "/pegawai/cuti",
       icon: Calendar,
+    },
+    {
+      title: "Laporan Tukin Pribadi",
+      url: "/pegawai/laporan-tukin",
+      icon: FileText,
     },
   ];
 

@@ -28,10 +28,55 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
     if (!response.ok) {
       // Handle different error types
       if (response.status === 401) {
-        // Token expired or invalid
+        console.warn('Authentication failed, trying token refresh before logout...');
+        
+        // Try to refresh token first
+        const refreshResponse = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          localStorage.setItem('auth_token', refreshData.token);
+          localStorage.setItem('auth_user', JSON.stringify(refreshData.user));
+          
+          // Retry original request with new token
+          const retryResponse = await fetch(url, {
+            ...options,
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${refreshData.token}`,
+              ...options.headers,
+            },
+          });
+          
+          if (retryResponse.ok) {
+            // Handle empty responses (like DELETE operations)
+            if (retryResponse.status === 204 || retryResponse.headers.get('content-length') === '0') {
+              return null as T;
+            }
+            
+            // Check if there's content to parse
+            const contentType = retryResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const data = await retryResponse.json();
+              return data;
+            }
+            
+            return null as T;
+          }
+        }
+        
+        // If refresh failed or retry failed, handle error
         const errorData = await response.json().catch(() => ({ error: 'Unauthorized' }));
         
-        // Clear invalid token
+        // Clear invalid token only after all retry attempts fail
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
         
@@ -2196,6 +2241,9 @@ export interface LaporanTukin {
   totalPotonganAbsen: number;
   totalPemotongan: number;
   totalTunjanganBersih: number;
+  totalNominal: number;
+  createdAt: string;
+  pegawaiId?: number;
   detailPegawai?: DetailPegawaiTukin[];
 }
 
@@ -2205,6 +2253,7 @@ export interface LaporanTukinRequest {
   tanggalMulai?: string;
   tanggalAkhir?: string;
   formatLaporan: 'PDF' | 'EXCEL' | 'WEB';
+  pegawaiId?: number;
 }
 
 export interface LaporanTukinHistoriRequest {
@@ -2213,6 +2262,7 @@ export interface LaporanTukinHistoriRequest {
   bulan?: number;
   tahun?: number;
   status?: string;
+  pegawaiId?: number;
 }
 
 // Laporan Tukin API functions
@@ -2330,6 +2380,136 @@ export const laporanTukinAPI = {
   delete: async (id: number): Promise<void> => {
     const { ApiClient } = await import('./api-client');
     const response = await ApiClient.delete(`/admin/master-data/laporan-tukin/${id}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || 'Failed to delete laporan');
+    }
+  },
+};
+
+// Personal Laporan Tukin API functions for pegawai
+export const personalLaporanTukinAPI = {
+  // Generate personal laporan tukin
+  generate: async (request: LaporanTukinRequest): Promise<LaporanTukin> => {
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.post('/api/pegawai/laporan-tukin/generate', request);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || 'Failed to generate laporan');
+    }
+    
+    const data = await response.json();
+    return data.data;
+  },
+
+  // Get personal histori laporan tukin with pagination
+  getHistori: async (request: LaporanTukinHistoriRequest): Promise<PagedResponse<LaporanTukin>> => {
+    try {
+      const { ApiClient } = await import('./api-client');
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      
+      params.append('page', (request.page || 0).toString());
+      params.append('size', (request.size || 10).toString());
+      if (request.bulan) params.append('bulan', request.bulan.toString());
+      if (request.tahun) params.append('tahun', request.tahun.toString());
+      if (request.status) params.append('status', request.status);
+
+      const response = await ApiClient.get(`/api/pegawai/laporan-tukin/histori?${params.toString()}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(errorData.message || 'Failed to get histori');
+      }
+      
+      const responseData = await response.json();
+
+      // Transform backend response to frontend PagedResponse format
+      return {
+        content: responseData.data || [],
+        totalElements: responseData.totalItems || 0,
+        totalPages: responseData.totalPages || 0,
+        size: responseData.size || 10,
+        number: responseData.currentPage || 0,
+        first: responseData.currentPage === 0,
+        last: !responseData.hasNext,
+        empty: !responseData.data || responseData.data.length === 0
+      };
+    } catch (error) {
+      console.error('Error fetching personal laporan tukin histori:', error);
+      // Return empty result instead of throwing to prevent logout
+      return {
+        content: [],
+        totalElements: 0,
+        totalPages: 0,
+        size: 10,
+        number: 0,
+        first: true,
+        last: true,
+        empty: true
+      };
+    }
+  },
+
+  // Get personal laporan tukin by ID
+  getById: async (id: number): Promise<LaporanTukin> => {
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.get(`/api/pegawai/laporan-tukin/${id}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || 'Failed to get laporan');
+    }
+    
+    const data = await response.json();
+    return data.data;
+  },
+
+  // Get personal laporan tukin detail with pegawai breakdown
+  getDetail: async (id: number): Promise<LaporanTukin> => {
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.get(`/api/pegawai/laporan-tukin/${id}/detail`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || 'Failed to get laporan detail');
+    }
+    
+    const data = await response.json();
+    return data.data;
+  },
+
+  // Download personal laporan tukin file
+  downloadFile: async (id: number): Promise<Blob> => {
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.get(`/api/pegawai/laporan-tukin/${id}/download`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return response.blob();
+  },
+
+  // Download personal laporan tukin as PDF
+  downloadPDF: async (id: number): Promise<Blob> => {
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.get(`/api/pegawai/laporan-tukin/${id}/download-pdf`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return response.blob();
+  },
+
+  // Delete personal laporan tukin
+  delete: async (id: number): Promise<void> => {
+    const { ApiClient } = await import('./api-client');
+    const response = await ApiClient.delete(`/api/pegawai/laporan-tukin/${id}`);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
