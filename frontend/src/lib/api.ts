@@ -8,7 +8,6 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   const url = `${API_BASE_URL}${endpoint}`;
   const method = options.method || 'GET';
   
-  // Get auth token from localStorage
   const token = localStorage.getItem('auth_token');
   
   try {
@@ -26,11 +25,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
     });
 
     if (!response.ok) {
-      // Handle different error types
       if (response.status === 401) {
-        console.warn('Authentication failed, trying token refresh before logout...');
-        
-        // Try to refresh token first
         const refreshResponse = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
           method: 'POST',
           headers: {
@@ -44,7 +39,6 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
           localStorage.setItem('auth_token', refreshData.token);
           localStorage.setItem('auth_user', JSON.stringify(refreshData.user));
           
-          // Retry original request with new token
           const retryResponse = await fetch(url, {
             ...options,
             method,
@@ -56,40 +50,33 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
             },
           });
           
-          if (retryResponse.ok) {
-            // Handle empty responses (like DELETE operations)
-            if (retryResponse.status === 204 || retryResponse.headers.get('content-length') === '0') {
+            if (retryResponse.ok) {
+              if (retryResponse.status === 204 || retryResponse.headers.get('content-length') === '0') {
+                return null as T;
+              }
+              
+              const contentType = retryResponse.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                const data = await retryResponse.json();
+                return data;
+              }
+              
               return null as T;
             }
-            
-            // Check if there's content to parse
-            const contentType = retryResponse.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const data = await retryResponse.json();
-              return data;
-            }
-            
-            return null as T;
           }
-        }
-        
-        // If refresh failed or retry failed, handle error
-        const errorData = await response.json().catch(() => ({ error: 'Unauthorized' }));
-        
-        // Clear invalid token only after all retry attempts fail
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
-        
-        // Trigger logout by dispatching custom event
-        window.dispatchEvent(new CustomEvent('auth:token-expired'));
-        
-        throw new Error(errorData.error || 'Token tidak valid atau telah kedaluwarsa. Silakan login kembali.');
+          
+          const errorData = await response.json().catch(() => ({ error: 'Unauthorized' }));
+          
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          
+          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+          
+          throw new Error(errorData.error || 'Token tidak valid atau telah kedaluwarsa. Silakan login kembali.');
       } else {
-        // Other errors
         const errorText = await response.text();
         let errorMessage = `HTTP ${response.status}: ${errorText}`;
         
-        // Try to parse JSON error response
         try {
           const errorData = JSON.parse(errorText);
           errorMessage = errorData.error || errorData.message || errorMessage;
@@ -101,19 +88,16 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
       }
     }
 
-    // Handle empty responses (like DELETE operations)
     if (response.status === 204 || response.headers.get('content-length') === '0') {
       return null as T;
     }
 
-    // Check if there's content to parse
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
       return data;
     }
 
-    // For non-JSON responses, return null
     return null as T;
   } catch (error) {
     console.error(`API Error for ${endpoint}:`, error);

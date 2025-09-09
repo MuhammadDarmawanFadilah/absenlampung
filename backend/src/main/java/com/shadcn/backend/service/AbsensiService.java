@@ -926,4 +926,15 @@ public class AbsensiService {
         
         return response;
     }
+    
+    @Transactional
+    public void deleteAbsensi(Long absensiId) {
+        Optional<Absensi> absensiOpt = absensiRepository.findById(absensiId);
+        if (absensiOpt.isEmpty()) {
+            throw new RuntimeException("Data absensi tidak ditemukan");
+        }
+        
+        Absensi absensi = absensiOpt.get();
+        absensiRepository.delete(absensi);
+    }
 }

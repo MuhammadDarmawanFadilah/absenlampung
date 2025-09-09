@@ -183,4 +183,24 @@ public class AbsensiController {
         AbsensiStats stats = absensiService.getAllAbsensiStats(startDate, endDate, pegawaiId);
         return ResponseEntity.ok(stats);
     }
+    
+    @DeleteMapping("/{absensiId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> deleteAbsensi(@PathVariable Long absensiId) {
+        try {
+            absensiService.deleteAbsensi(absensiId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Data absensi berhasil dihapus");
+            
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

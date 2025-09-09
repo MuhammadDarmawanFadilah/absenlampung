@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/generate-sw.js && next dev --turbopack",
+    "dev": "node scripts/generate-sw.js && next dev",
     "dev:pwa": "node scripts/dev-with-pwa.js",
     "build": "node scripts/generate-sw.js && next build",
     "build:verify": "cross-env NODE_ENV=production npm run build && node scripts/verify-production-console.js",

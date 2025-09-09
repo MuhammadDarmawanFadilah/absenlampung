@@ -156,6 +156,7 @@ export default function AbsensiPage() {
   const [mediapipiLoading, setMediapipeLoading] = useState(false)
   const [recognizedUser, setRecognizedUser] = useState<string | null>(null)
   const [faceRecognitionProcessing, setFaceRecognitionProcessing] = useState(false)
+  const [isCapturingPhoto, setIsCapturingPhoto] = useState(false)
   const [faceValidationResult, setFaceValidationResult] = useState<{
     isValid: boolean,
     recognizedName: string | null,
@@ -178,7 +179,6 @@ export default function AbsensiPage() {
 
   useEffect(() => {
     if (user) {
-      console.log('User logged in, loading data...', user) // Debug log
       loadShiftData()
       loadPegawaiData()
       loadTodayAbsensi()
@@ -190,8 +190,11 @@ export default function AbsensiPage() {
 
   useEffect(() => {
     if (currentStep === 2) {
-      // Only start camera, don't auto-request location
       startCamera()
+      // Auto-check GPS when entering step 2
+      if (!currentLocation) {
+        getCurrentLocation()
+      }
     } else {
       stopCamera()
     }
@@ -285,7 +288,6 @@ export default function AbsensiPage() {
   const loadMediaPipeModels = async () => {
     try {
       setMediapipeLoading(true)
-      console.log('🤖 Loading MediaPipe models for attendance...')
       
       // Try multiple CDN sources for better reliability
       const cdnUrls = [
@@ -299,12 +301,9 @@ export default function AbsensiPage() {
       
       for (const url of cdnUrls) {
         try {
-          console.log(`Trying MediaPipe CDN: ${url}`)
           vision = await FilesetResolver.forVisionTasks(url)
-          console.log(`✅ Successfully loaded from: ${url}`)
           break
         } catch (error) {
-          console.warn(`Failed to load from ${url}:`, error)
           lastError = error
           continue
         }
@@ -328,18 +327,16 @@ export default function AbsensiPage() {
       
       setFaceLandmarker(landmarker)
       setMediapipeLoaded(true)
-      console.log('✅ MediaPipe FaceLandmarker loaded successfully for attendance')
       
       // Auto-start real-time detection if camera is already active
       setTimeout(() => {
         if (cameraStream && videoRef.current && videoRef.current.readyState >= 2) {
-          console.log('🎬 Auto-starting real-time detection...')
           startRealTimeFaceDetection()
         }
       }, 1000) // Give more time for video to be ready
       
     } catch (error) {
-      console.error('Error loading MediaPipe models:', error)
+      
       // Don't show error toast as face recognition is optional for attendance
     } finally {
       setMediapipeLoading(false)
@@ -348,13 +345,7 @@ export default function AbsensiPage() {
 
   const processFaceRecognition = async (imageData: string) => {
     if (!mediapipiLoaded || !faceLandmarker) {
-      console.log('MediaPipe not loaded, skipping face recognition')
-      setFaceValidationResult({
-        isValid: false,
-        recognizedName: null,
-        confidence: 0,
-        message: 'Face recognition tidak tersedia'
-      })
+      setFaceValidationResult(null)
       return
     }
 
@@ -391,10 +382,38 @@ export default function AbsensiPage() {
         const landmarks = faceLandmarkerResult.faceLandmarks[0]
         const faceDescriptor = extractFaceDescriptor(landmarks)
         
-        console.log('✅ Face detected, descriptor extracted:', faceDescriptor.length, 'features')
+        // STEP 1: Verify against CURRENT USER first for higher accuracy
+        const selfTestResponse = await fetch(getApiUrl('api/face-recognition/test'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          },
+          body: JSON.stringify({
+            pegawaiId: user?.id,
+            faceDescriptor: Array.from(faceDescriptor)
+          })
+        })
         
-        // STEP 1: Test against ALL face recognitions to identify who is in the photo
-        console.log('Step 1: Testing against all face recognitions to identify person in photo...')
+        if (selfTestResponse.ok) {
+          const selfResult = await selfTestResponse.json()
+          if (selfResult.success && selfResult.data) {
+            const isValidSelf = selfResult.data.isMatch && selfResult.data.confidence >= 0.75
+            if (isValidSelf) {
+              const recognizedName = user?.fullName || user?.email || 'User'
+              setFaceValidationResult({
+                isValid: true,
+                recognizedName,
+                confidence: selfResult.data.confidence,
+                message: `Wajah terverifikasi sebagai ${recognizedName} (${(selfResult.data.confidence * 100).toFixed(1)}%)`
+              })
+              setRecognizedUser(recognizedName)
+              return
+            }
+          }
+        }
+        
+        // STEP 2: Identify if it strongly matches SOMEONE ELSE (for warning message)
         const allTestResponse = await fetch(getApiUrl('api/face-recognition/test'), {
           method: 'POST',
           headers: {
@@ -402,102 +421,42 @@ export default function AbsensiPage() {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           },
           body: JSON.stringify({
-            // No pegawaiId = test against all face recognitions
-            faceDescriptor: Array.from(faceDescriptor) // Convert Float32Array to regular array
+            faceDescriptor: Array.from(faceDescriptor)
           })
         })
         
         if (allTestResponse.ok) {
           const allTestResult = await allTestResponse.json()
-          console.log('All face recognition test result:', allTestResult)
-          
-          if (allTestResult.success && allTestResult.data && allTestResult.data.isMatch) {
+          if (allTestResult.success && allTestResult.data && allTestResult.data.isMatch && allTestResult.data.pegawai) {
             const detectedPerson = allTestResult.data.pegawai
-            const currentUserName = user?.fullName || user?.email || 'Unknown'
             const detectedName = detectedPerson?.namaLengkap || detectedPerson?.fullName || 'Unknown'
-            
-            console.log('Detected person:', detectedName)
-            console.log('Current user:', currentUserName)
-            console.log('Detected pegawai ID:', detectedPerson?.id)
-            console.log('Current user ID:', user?.id)
-            
-            // STEP 2: Check if detected person matches current logged-in user
-            const isCurrentUser = detectedPerson?.id === user?.id || 
-                                  detectedName.toLowerCase().includes(currentUserName.toLowerCase()) ||
-                                  currentUserName.toLowerCase().includes(detectedName.toLowerCase())
-            
-            if (isCurrentUser) {
-              // SUCCESS: Detected person matches current user
-              setFaceValidationResult({
-                isValid: true,
-                recognizedName: detectedName,
-                confidence: allTestResult.data.confidence,
-                message: `Wajah terverifikasi sebagai ${detectedName} (${(allTestResult.data.confidence * 100).toFixed(1)}%)`
-              })
-              setRecognizedUser(detectedName)
-              console.log('✅ Face verification SUCCESS: Detected person matches current user')
-            } else {
-              // WARNING: Detected person is different from current user
+            const currentUserName = user?.fullName || user?.email || 'Unknown'
+            const strongOther = allTestResult.data.confidence >= 0.85 && detectedPerson?.id !== user?.id
+            if (strongOther) {
               setFaceValidationResult({
                 isValid: false,
                 recognizedName: detectedName,
                 confidence: allTestResult.data.confidence,
-                message: `⚠️ PERINGATAN: Terdeteksi wajah ${detectedName}, namun Anda login sebagai ${currentUserName}. Silakan gunakan wajah Anda sendiri untuk absensi.`
+                message: `⚠️ PERINGATAN: Terdeteksi ${detectedName}, Anda login sebagai ${currentUserName}. Gunakan wajah Anda sendiri!`
               })
               setRecognizedUser(detectedName)
-              console.log('⚠️ Face verification WARNING: Detected person does not match current user')
-              console.log(`Detected: ${detectedName}, Current user: ${currentUserName}`)
-            }
-          } else {
-            // No face recognized in system
-            console.log('No face recognized in system, testing against current user specifically...')
-            
-            // STEP 3: Test specifically against current user's face recognition as fallback
-            const userTestResponse = await fetch(getApiUrl('api/face-recognition/test'), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-              },
-              body: JSON.stringify({
-                pegawaiId: user?.id,
-                faceDescriptor: Array.from(faceDescriptor)
-              })
-            })
-            
-            if (userTestResponse.ok) {
-              const userTestResult = await userTestResponse.json()
-              if (userTestResult.success && userTestResult.data) {
-                const isValid = userTestResult.data.isMatch && userTestResult.data.confidence >= 0.7
-                const recognizedName = isValid ? (user?.fullName || user?.email || 'User') : null
-                
-                setFaceValidationResult({
-                  isValid,
-                  recognizedName,
-                  confidence: userTestResult.data.confidence,
-                  message: isValid 
-                    ? `Wajah terverifikasi sebagai ${recognizedName} (${(userTestResult.data.confidence * 100).toFixed(1)}%)`
-                    : `Wajah tidak cocok dengan ${user?.fullName || user?.email}. Confidence: ${(userTestResult.data.confidence * 100).toFixed(1)}%`
-                })
-                setRecognizedUser(isValid ? recognizedName : 'Unknown')
-              } else {
-                setFaceValidationResult({
-                  isValid: false,
-                  recognizedName: null,
-                  confidence: 0,
-                  message: 'Gagal memverifikasi wajah terhadap data Anda'
-                })
-                setRecognizedUser('Unknown')
-              }
             } else {
               setFaceValidationResult({
                 isValid: false,
                 recognizedName: null,
-                confidence: 0,
-                message: 'Gagal terhubung ke server untuk verifikasi'
+                confidence: allTestResult.data.confidence || 0,
+                message: 'Wajah tidak cocok dengan data Anda'
               })
               setRecognizedUser('Unknown')
             }
+          } else {
+            setFaceValidationResult({
+              isValid: false,
+              recognizedName: null,
+              confidence: 0,
+              message: 'Wajah tidak dikenali dalam sistem'
+            })
+            setRecognizedUser('Unknown')
           }
         } else {
           setFaceValidationResult({
@@ -509,7 +468,6 @@ export default function AbsensiPage() {
           setRecognizedUser('Unknown')
         }
       } else {
-        console.log('No face detected in image')
         setFaceValidationResult({
           isValid: false,
           recognizedName: null,
@@ -519,7 +477,6 @@ export default function AbsensiPage() {
         setRecognizedUser(null)
       }
     } catch (error) {
-      console.error('Error processing face recognition:', error)
       setFaceValidationResult({
         isValid: false,
         recognizedName: null,
@@ -718,10 +675,9 @@ export default function AbsensiPage() {
     
     // Set pegawai lokasi (kantor) if available
     if (data.lokasi) {
-      console.log('Pegawai lokasi (kantor) loaded:', data.lokasi) // Debug log
       setPegawaiLokasi(data.lokasi)
     } else {
-      console.log('No lokasi kantor found for pegawai') // Debug log
+      
     }
     
     // Calculate distance to home if pegawai has home coordinates
@@ -733,7 +689,7 @@ export default function AbsensiPage() {
         data.longitude
       )
       setDistanceToHome(distHome)
-      console.log('Distance to home calculated:', distHome) // Debug log
+      
     }
   }
 
@@ -744,7 +700,6 @@ export default function AbsensiPage() {
   const handleRequestLocation = () => {
     // If GPS is already active (currentLocation exists), don't show modal
     if (currentLocation) {
-      console.log('GPS sudah aktif, tidak perlu tampilkan modal')
       return
     }
     
@@ -892,8 +847,6 @@ export default function AbsensiPage() {
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop())
       }
-      
-      console.log('📷 Starting camera for attendance...')
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -911,7 +864,6 @@ export default function AbsensiPage() {
           if (videoRef.current) {
             videoRef.current.onloadedmetadata = () => {
               videoRef.current?.play().then(() => {
-                console.log('✅ Camera started and video playing')
                 resolve(true)
               })
             }
@@ -921,15 +873,13 @@ export default function AbsensiPage() {
         // Start real-time face detection with proper timing
         setTimeout(() => {
           if (mediapipiLoaded && faceLandmarker) {
-            console.log('🎬 Starting real-time detection after camera ready...')
             startRealTimeFaceDetection()
           } else {
-            console.log('⏳ MediaPipe not ready yet, will auto-start when loaded')
+            
           }
         }, 1500) // Give extra time for video to stabilize
       }
     } catch (error) {
-      console.error('Camera error:', error)
       showErrorToast('Gagal mengakses kamera')
     }
   }
@@ -937,7 +887,6 @@ export default function AbsensiPage() {
   // Real-time face detection for attendance preview
   const startRealTimeFaceDetection = () => {
     if (!mediapipiLoaded || !faceLandmarker || !videoRef.current) {
-      console.log('MediaPipe not ready for real-time detection')
       return
     }
 
@@ -945,8 +894,6 @@ export default function AbsensiPage() {
     if (realTimeFaceDetection) {
       clearInterval(realTimeFaceDetection)
     }
-
-    console.log('✅ Starting real-time face detection for attendance...')
 
     const detectionInterval = setInterval(async () => {
       if (!videoRef.current || !mediapipiLoaded || !faceLandmarker) {
@@ -956,7 +903,6 @@ export default function AbsensiPage() {
       try {
         // Ensure video is ready and playing
         if (videoRef.current.readyState < 2) {
-          console.log('Video not ready yet...')
           return
         }
 
@@ -983,27 +929,13 @@ export default function AbsensiPage() {
           
           setFaceDetected(true)
           setOrientationValid(isValidOrientation)
-          
-          // Log detection success (throttled)
-          const now = Date.now()
-          if (!(window as any).lastFaceLogTime || now - (window as any).lastFaceLogTime > 3000) {
-            console.log('✅ Face detected:', orientation, 'Valid:', isValidOrientation)
-            ;(window as any).lastFaceLogTime = now
-          }
         } else {
           setFaceDetected(false)
           setFaceOrientation('')
           setOrientationValid(false)
-          
-          // Log detection failure (throttled)
-          const now = Date.now()
-          if (!(window as any).lastNoFaceLogTime || now - (window as any).lastNoFaceLogTime > 3000) {
-            console.log('❌ No face detected in real-time')
-            ;(window as any).lastNoFaceLogTime = now
-          }
         }
       } catch (error) {
-        console.error('Error in real-time face detection:', error)
+        
         // Don't reset face detection state on error to avoid flickering
       }
     }, 500) // Increased interval to 500ms for better stability
@@ -1073,7 +1005,6 @@ export default function AbsensiPage() {
   // Additional effect to ensure face detection starts when conditions are met
   useEffect(() => {
     if (mediapipiLoaded && cameraStream && videoRef.current && !realTimeFaceDetection) {
-      console.log('🔄 Ensuring real-time detection is running...')
       setTimeout(() => {
         if (videoRef.current && videoRef.current.readyState >= 2) {
           startRealTimeFaceDetection()
@@ -1101,12 +1032,11 @@ export default function AbsensiPage() {
     setFaceDetected(false)
     setFaceOrientation('')
     setOrientationValid(false)
-    
-    console.log('📷 Camera stopped and detection cleared')
   }
 
   const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
+      setIsCapturingPhoto(true)
       const video = videoRef.current
       const canvas = canvasRef.current
       const context = canvas.getContext('2d')
@@ -1118,9 +1048,10 @@ export default function AbsensiPage() {
         context.drawImage(video, 0, 0, canvas.width, canvas.height)
         const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8)
         setCapturedPhoto(photoDataUrl)
-        
-        // Process face recognition
-        await processFaceRecognition(photoDataUrl)
+        // Defer heavy processing to allow UI to update first
+        setTimeout(() => {
+          processFaceRecognition(photoDataUrl)
+        }, 50)
         
         // Stop real-time detection when photo is captured
         if (realTimeFaceDetection) {
@@ -1128,6 +1059,7 @@ export default function AbsensiPage() {
           setRealTimeFaceDetection(null)
         }
       }
+      setIsCapturingPhoto(false)
     }
   }
 
@@ -1187,8 +1119,8 @@ export default function AbsensiPage() {
         showErrorToast('Anda berada di luar jangkauan lokasi yang diizinkan')
         return
       }
-      // Check face recognition validation
-      if (faceValidationResult && !faceValidationResult.isValid) {
+      // Only block when explicit mismatch warning
+      if (faceValidationResult && faceValidationResult.message && faceValidationResult.message.includes('PERINGATAN')) {
         showErrorToast(faceValidationResult.message || 'Wajah tidak terverifikasi. Silakan ambil foto ulang.')
         return
       }

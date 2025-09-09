@@ -65,6 +65,10 @@ This is a full-stack Indonesian alumni election system with Next.js 15 frontend 
 - Frontend: `http://localhost:3000` (Next.js with App Router)
 - Backend: `http://localhost:8080` (Spring Boot with MySQL)
 
+**Running Applications:**
+- Backend: `cd C:\PROJEK\absenlampung\backend; mvn spring-boot:run`
+- Frontend: `cd C:\PROJEK\absenlampung\frontend; pnpm run dev`
+
 ## Core Patterns
 
 **Authentication:**

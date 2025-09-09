@@ -35,12 +35,14 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronUp,
-  Users
+  Users,
+  Trash2
 } from 'lucide-react'
 import { getApiUrl } from "@/lib/config"
 import { useAuth } from "@/contexts/AuthContext"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
+import { toast } from "sonner"
 
 interface AbsensiHistory {
   id: number
@@ -319,6 +321,33 @@ export default function MasterDataHistoriAbsensi() {
 
   const formatTime = (timeString: string) => {
     return timeString.substring(0, 5) // HH:MM format
+  }
+
+  const handleDeleteAbsensi = async (absensiId: number, pegawaiNama: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus data absensi ${pegawaiNama}? Pegawai dapat melakukan absensi ulang setelah data dihapus.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(getApiUrl(`api/absensi/${absensiId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+
+      if (response.ok) {
+        toast.success(`Data absensi ${pegawaiNama} berhasil dihapus`)
+        loadHistoryData()
+        loadStats()
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Gagal menghapus data absensi')
+      }
+    } catch (error) {
+      console.error('Error deleting absensi:', error)
+      toast.error('Terjadi kesalahan saat menghapus data absensi')
+    }
   }
 
   const getJenisBadge = (jenis: string) => {
@@ -695,6 +724,7 @@ export default function MasterDataHistoriAbsensi() {
                         <TableHead>Jarak</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Foto</TableHead>
+                        <TableHead>Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -766,6 +796,17 @@ export default function MasterDataHistoriAbsensi() {
                             ) : (
                               <span className="text-gray-400 text-sm">Tidak ada</span>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteAbsensi(item.id, item.pegawaiNama)}
+                              className="hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 border-red-200 hover:border-red-300"
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Hapus
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -862,6 +903,15 @@ export default function MasterDataHistoriAbsensi() {
                             -
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteAbsensi(item.id, item.pegawaiNama)}
+                          className="flex-1 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 border-red-200 hover:border-red-300"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Hapus
+                        </Button>
                       </div>
                     </div>
                   ))}

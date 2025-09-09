@@ -90,18 +90,14 @@ public class FileUploadController {
     public ResponseEntity<byte[]> getPhoto(@PathVariable String filename) {
         try {
             Path filePath = Paths.get(uploadDir, "photos", filename);
-            log.info("Attempting to serve photo: {} from path: {} (uploadDir: {})", filename, filePath.toString(), uploadDir);
             
             if (!Files.exists(filePath)) {
-                log.warn("Photo file not found: {} (absolute path: {})", filePath.toString(), filePath.toAbsolutePath());
+                log.debug("Photo file not found: {}", filename);
                 return ResponseEntity.notFound().build();
             }
 
             byte[] fileContent = Files.readAllBytes(filePath);
             String contentType = Files.probeContentType(filePath);
-            
-            log.info("Photo served successfully: {} (size: {} bytes, type: {}, absolute path: {})", 
-                    filename, fileContent.length, contentType, filePath.toAbsolutePath());
             
             return ResponseEntity.ok()
                     .header("Content-Type", contentType != null ? contentType : "application/octet-stream")
@@ -110,8 +106,7 @@ public class FileUploadController {
                     .body(fileContent);
 
         } catch (IOException e) {
-            log.error("Error retrieving photo: {} from uploadDir: {} (absolute uploadDir: {})", 
-                     filename, uploadDir, Paths.get(uploadDir).toAbsolutePath(), e);
+            log.error("Error retrieving photo: {}", filename, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
