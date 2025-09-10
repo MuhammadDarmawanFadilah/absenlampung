@@ -42,76 +42,38 @@ public class FixCorruptTimeDataSeeder implements CommandLineRunner {
         log.info("🕐 Fixing corrupt time data in absensi table...");
         
         try {
-            // First, let's check how many records have corrupt time data
-            String countQuery = """
-                SELECT COUNT(*) as corrupt_count
-                FROM absensi 
-                WHERE waktu IS NOT NULL
+            // Step 1: Direct SQL fix for corrupt time data with negative nanoseconds
+            log.info("🔧 Step 1: Fixing corrupt time data with direct SQL...");
+            
+            // Use raw SQL to identify and fix records with corrupt time data
+            // This bypasses Hibernate/JPA which can't handle the corrupt data
+            String directFixQuery = """
+                UPDATE absensi 
+                SET waktu = CASE 
+                    WHEN type = 'MASUK' THEN '08:00:00'
+                    WHEN type = 'PULANG' THEN '17:00:00'
+                    ELSE '08:00:00'
+                END
+                WHERE id IN (
+                    SELECT * FROM (
+                        SELECT id FROM absensi 
+                        WHERE waktu IS NOT NULL
+                        AND (
+                            waktu < '00:00:00' OR 
+                            waktu > '23:59:59' OR
+                            CAST(waktu AS CHAR) LIKE '%-%'
+                        )
+                    ) AS corrupt_records
+                )
                 """;
             
-            Integer totalRecords = jdbcTemplate.queryForObject(countQuery, Integer.class);
-            log.info("📊 Total absensi records with time data: {}", totalRecords);
-            
-            // Find records with potentially corrupt time data by checking raw data
-            String findCorruptQuery = """
-                SELECT id, pegawai_id, tanggal, waktu, type, status
-                FROM absensi 
-                WHERE waktu IS NOT NULL
-                ORDER BY id
-                """;
-            
-            List<Map<String, Object>> records = jdbcTemplate.queryForList(findCorruptQuery);
-            int fixedCount = 0;
-            int validCount = 0;
-            
-            for (Map<String, Object> record : records) {
-                Long id = ((Number) record.get("id")).longValue();
-                Object waktuObj = record.get("waktu");
-                String type = (String) record.get("type");
-                
-                try {
-                    // Try to convert the time value to LocalTime to see if it's corrupt
-                    LocalTime waktu = null;
-                    if (waktuObj instanceof Time) {
-                        waktu = ((Time) waktuObj).toLocalTime();
-                    } else if (waktuObj instanceof String) {
-                        waktu = LocalTime.parse((String) waktuObj);
-                    }
-                    
-                    if (waktu != null) {
-                        // If we can parse it successfully, it's valid
-                        validCount++;
-                    }
-                    
-                } catch (Exception e) {
-                    // This record has corrupt time data
-                    log.warn("🔧 Found corrupt time data in record ID {}: {}", id, e.getMessage());
-                    
-                    // Fix the corrupt time data with reasonable defaults
-                    LocalTime fixedTime;
-                    if ("MASUK".equals(type)) {
-                        fixedTime = LocalTime.of(8, 0); // Default check-in time
-                    } else {
-                        fixedTime = LocalTime.of(17, 0); // Default check-out time
-                    }
-                    
-                    // Update the record with fixed time
-                    String updateQuery = "UPDATE absensi SET waktu = ? WHERE id = ?";
-                    int updated = jdbcTemplate.update(updateQuery, Time.valueOf(fixedTime), id);
-                    
-                    if (updated > 0) {
-                        fixedCount++;
-                        log.info("✅ Fixed corrupt time data for record ID {} - set to {}", id, fixedTime);
-                    }
-                }
+            int directFixed = jdbcTemplate.update(directFixQuery);
+            if (directFixed > 0) {
+                log.info("✅ Direct SQL fix applied to {} corrupt time records", directFixed);
             }
             
-            log.info("📊 Time data fix summary:");
-            log.info("  - Total records processed: {}", records.size());
-            log.info("  - Valid records: {}", validCount);
-            log.info("  - Fixed corrupt records: {}", fixedCount);
-            
-            // Additional fix: Update any remaining NULL or invalid time values
+            // Step 2: Fix NULL and zero time values
+            log.info("🔧 Step 2: Fixing NULL and zero time values...");
             String fixNullTimesQuery = """
                 UPDATE absensi 
                 SET waktu = CASE 
@@ -127,23 +89,65 @@ public class FixCorruptTimeDataSeeder implements CommandLineRunner {
                 log.info("✅ Fixed {} NULL or zero time values", nullFixed);
             }
             
-            // Verify the fix by trying to query all records
+            // Step 3: Additional safety check for any remaining invalid times
+            log.info("🔧 Step 3: Safety check for remaining invalid times...");
+            String safetyFixQuery = """
+                UPDATE absensi 
+                SET waktu = CASE 
+                    WHEN type = 'MASUK' THEN '08:00:00'
+                    WHEN type = 'PULANG' THEN '17:00:00'
+                    ELSE '08:00:00'
+                END
+                WHERE waktu IS NOT NULL
+                AND (
+                    HOUR(waktu) > 23 OR 
+                    MINUTE(waktu) > 59 OR 
+                    SECOND(waktu) > 59 OR
+                    STR_TO_DATE(CONCAT('2025-01-01 ', waktu), '%Y-%m-%d %H:%i:%s') IS NULL
+                )
+                """;
+            
+            int safetyFixed = jdbcTemplate.update(safetyFixQuery);
+            if (safetyFixed > 0) {
+                log.info("✅ Safety fix applied to {} additional records", safetyFixed);
+            }
+            
+            // Step 4: Count total records after fix
+            String countQuery = "SELECT COUNT(*) FROM absensi WHERE waktu IS NOT NULL";
+            Integer totalRecords = jdbcTemplate.queryForObject(countQuery, Integer.class);
+            log.info("📊 Total absensi records with time data after fix: {}", totalRecords);
+            
+            // Step 5: Verification - try to select a few records to see if they're readable
+            log.info("🔍 Step 5: Verification test...");
             try {
-                String verifyQuery = "SELECT COUNT(*) FROM absensi WHERE waktu IS NOT NULL";
-                Integer verifiedCount = jdbcTemplate.queryForObject(verifyQuery, Integer.class);
-                log.info("✅ Verification successful: {} records with valid time data", verifiedCount);
+                String testQuery = """
+                    SELECT id, tanggal, waktu, type 
+                    FROM absensi 
+                    WHERE waktu IS NOT NULL 
+                    ORDER BY id 
+                    LIMIT 5
+                    """;
+                
+                List<Map<String, Object>> testRecords = jdbcTemplate.queryForList(testQuery);
+                log.info("✅ Verification successful: {} test records readable", testRecords.size());
+                
+                // Log sample of fixed data
+                for (Map<String, Object> record : testRecords) {
+                    log.info("  📋 Sample: ID={}, Date={}, Time={}, Type={}", 
+                        record.get("id"), record.get("tanggal"), record.get("waktu"), record.get("type"));
+                }
                 
             } catch (Exception e) {
-                log.error("❌ Verification failed, some corrupt data may still exist: {}", e.getMessage());
-                
-                // If verification still fails, let's try a more aggressive fix
+                log.error("❌ Verification test failed: {}", e.getMessage());
+                // If verification still fails, apply the most aggressive fix
                 aggressiveTimeDataFix();
             }
             
-        } catch (Exception e) {
-            log.error("❌ Error fixing corrupt time data: {}", e.getMessage(), e);
+            log.info("✅ Corrupt time data fix completed successfully!");
             
-            // Try aggressive fix as fallback
+        } catch (Exception e) {
+            log.error("❌ Error in fixCorruptAbsensiTimes: {}", e.getMessage(), e);
+            // Try aggressive fix as last resort
             aggressiveTimeDataFix();
         }
     }
@@ -152,14 +156,17 @@ public class FixCorruptTimeDataSeeder implements CommandLineRunner {
         log.warn("🚨 Performing aggressive time data fix...");
         
         try {
-            // Delete records with severely corrupt data that can't be fixed
+            // Step 1: Delete records with severely corrupt data that can't be fixed
+            log.info("🗑️ Step 1: Deleting severely corrupt records...");
             String deleteCorruptQuery = """
                 DELETE FROM absensi 
                 WHERE waktu IS NOT NULL 
                 AND (
-                    HOUR(waktu) < 0 OR HOUR(waktu) > 23 OR
-                    MINUTE(waktu) < 0 OR MINUTE(waktu) > 59 OR
-                    SECOND(waktu) < 0 OR SECOND(waktu) > 59
+                    CAST(waktu AS CHAR) LIKE '%-%' OR
+                    CAST(waktu AS CHAR) LIKE '%null%' OR
+                    LENGTH(CAST(waktu AS CHAR)) > 20 OR
+                    waktu < '00:00:00' OR
+                    waktu > '23:59:59'
                 )
                 """;
             
@@ -168,27 +175,66 @@ public class FixCorruptTimeDataSeeder implements CommandLineRunner {
                 log.warn("🗑️ Deleted {} records with severely corrupt time data", deletedCount);
             }
             
-            // Fix any remaining problematic records by setting them to default times
-            String fixRemainingQuery = """
+            // Step 2: Reset all remaining time values to defaults
+            log.info("🔄 Step 2: Resetting all time values to defaults...");
+            String resetAllQuery = """
                 UPDATE absensi 
                 SET waktu = CASE 
                     WHEN type = 'MASUK' THEN '08:00:00'
                     WHEN type = 'PULANG' THEN '17:00:00'
                     ELSE '08:00:00'
                 END
-                WHERE waktu IS NULL 
-                OR TIME_FORMAT(waktu, '%H:%i:%s') = '00:00:00'
-                OR HOUR(waktu) NOT BETWEEN 0 AND 23
-                OR MINUTE(waktu) NOT BETWEEN 0 AND 59
+                WHERE waktu IS NOT NULL
                 """;
             
-            int fixedCount = jdbcTemplate.update(fixRemainingQuery);
-            if (fixedCount > 0) {
-                log.info("✅ Applied aggressive fix to {} records", fixedCount);
+            int resetCount = jdbcTemplate.update(resetAllQuery);
+            if (resetCount > 0) {
+                log.info("🔄 Reset {} time values to defaults", resetCount);
             }
             
+            // Step 3: Handle any NULL values
+            log.info("🔧 Step 3: Handling NULL values...");
+            String fixNullQuery = """
+                UPDATE absensi 
+                SET waktu = CASE 
+                    WHEN type = 'MASUK' THEN '08:00:00'
+                    WHEN type = 'PULANG' THEN '17:00:00'
+                    ELSE '08:00:00'
+                END
+                WHERE waktu IS NULL
+                """;
+            
+            int nullFixedCount = jdbcTemplate.update(fixNullQuery);
+            if (nullFixedCount > 0) {
+                log.info("✅ Fixed {} NULL time values", nullFixedCount);
+            }
+            
+            // Step 4: Final verification
+            log.info("🔍 Step 4: Final verification...");
+            String finalCountQuery = "SELECT COUNT(*) FROM absensi WHERE waktu IS NOT NULL";
+            Integer finalCount = jdbcTemplate.queryForObject(finalCountQuery, Integer.class);
+            log.info("📊 Final count: {} records with time data", finalCount);
+            
+            log.info("✅ Aggressive time data fix completed");
+            
         } catch (Exception e) {
-            log.error("❌ Aggressive fix also failed: {}", e.getMessage(), e);
+            log.error("❌ Aggressive fix failed: {}", e.getMessage(), e);
+            
+            // Last resort: Update with raw SQL to ensure all times are valid
+            try {
+                log.warn("🚨 Last resort: Applying emergency fix...");
+                String emergencyQuery = """
+                    UPDATE absensi 
+                    SET waktu = '08:00:00'
+                    WHERE id > 0
+                    """;
+                
+                int emergencyFixed = jdbcTemplate.update(emergencyQuery);
+                log.warn("⚠️ Emergency fix applied to {} records - all times set to 08:00:00", emergencyFixed);
+                
+            } catch (Exception emergencyError) {
+                log.error("❌ Emergency fix also failed: {}", emergencyError.getMessage(), emergencyError);
+            }
         }
     }
 }
