@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,8 @@ import {
   UserCheck,
   UserX,
  
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { getApiUrl } from "@/lib/config"
 import { config } from "@/lib/config"
@@ -170,6 +172,22 @@ export default function AbsensiPage() {
   const [faceOrientation, setFaceOrientation] = useState<string>('')
   const [orientationValid, setOrientationValid] = useState(false)
   const [realTimeFaceDetection, setRealTimeFaceDetection] = useState<NodeJS.Timeout | null>(null)
+  const mobileCarouselRef = useRef<HTMLDivElement>(null)
+  const [mobilePage, setMobilePage] = useState(0)
+
+  const mobilePages = useMemo(() => {
+    const res: Shift[][] = []
+    for (let i = 0; i < shiftList.length; i += 3) res.push(shiftList.slice(i, i + 3))
+    return res
+  }, [shiftList])
+
+  const scrollToMobilePage = (idx: number) => {
+    const container = mobileCarouselRef.current
+    if (!container) return
+    const clamped = Math.max(0, Math.min(idx, mobilePages.length - 1))
+    container.scrollTo({ left: clamped * container.clientWidth, behavior: 'smooth' })
+    setMobilePage(clamped)
+  }
   
 
   // Timer untuk update waktu real-time
@@ -432,9 +450,70 @@ export default function AbsensiPage() {
       const faceLandmarkerResult = imageLandmarker.detect(img)
       
       if (faceLandmarkerResult.faceLandmarks && faceLandmarkerResult.faceLandmarks.length > 0) {
-  const faces = faceLandmarkerResult.faceLandmarks.slice(0, config.faceTopK)
+        const faces = faceLandmarkerResult.faceLandmarks.slice(0, config.faceTopK)
         const descriptors: Float32Array[] = faces.map((lm: any[]) => extractFaceDescriptor(lm))
-  const threshold = config.faceThresholdSelf
+        const threshold = config.faceThresholdSelf
+
+        let selfEnrollmentChecked = false
+        let selfHasEnrollment = false
+        let selfVerified = false
+        let selfConfidence = 0
+
+        try {
+          if (user?.id) {
+            const checkResp = await fetch(getApiUrl(`api/face-recognition/pegawai/${user.id}`), {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+            })
+            selfEnrollmentChecked = true
+            selfHasEnrollment = checkResp.ok
+          }
+        } catch {}
+
+        if (!selfHasEnrollment) {
+          setFaceValidationResult({
+            isValid: false,
+            recognizedName: null,
+            confidence: 0,
+            message: 'Anda belum memiliki data wajah. Silakan registrasi wajah terlebih dahulu.'
+          })
+          setRecognizedUser(null)
+          return
+        }
+
+        for (const desc of descriptors) {
+          try {
+            const testResp = await fetch(getApiUrl('api/face-recognition/test'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              },
+              body: JSON.stringify({ faceDescriptor: Array.from(desc), pegawaiId: user?.id })
+            })
+            if (testResp.ok) {
+              const data = await testResp.json()
+              const result = data?.data
+              if (result && typeof result.confidence === 'number') {
+                if (result.confidence >= threshold) {
+                  selfVerified = true
+                  selfConfidence = Math.max(selfConfidence, result.confidence)
+                }
+              }
+            }
+          } catch {}
+        }
+
+        if (selfVerified) {
+          const recognizedName = user?.fullName || user?.email || 'User'
+          setFaceValidationResult({
+            isValid: true,
+            recognizedName,
+            confidence: selfConfidence,
+            message: `Wajah terverifikasi sebagai ${recognizedName} (${(selfConfidence * 100).toFixed(1)}%)`
+          })
+          setRecognizedUser(recognizedName)
+          return
+        }
 
         const requests = descriptors.map((desc) => (
           fetch(getApiUrl('api/face-recognition/topk'), {
@@ -450,18 +529,10 @@ export default function AbsensiPage() {
         const results = await Promise.all(requests)
 
         let bestOverall: { name: string; confidence: number } | null = null
-        let verified = false
-        let verifiedConfidence = 0
-
         for (const res of results) {
           if (!res.ok || !res.json) continue
           const candidates = res.json?.data?.candidates || []
           if (Array.isArray(candidates) && candidates.length > 0) {
-            const foundSelf = candidates.find((c: any) => c?.pegawai?.id === user?.id && c?.confidence >= threshold)
-            if (foundSelf) {
-              verified = true
-              verifiedConfidence = Math.max(verifiedConfidence, foundSelf.confidence || 0)
-            }
             const top = candidates[0]
             const name = top?.pegawai?.namaLengkap || top?.pegawai?.fullName || 'Unknown'
             const conf = top?.confidence || 0
@@ -469,18 +540,6 @@ export default function AbsensiPage() {
               bestOverall = { name, confidence: conf }
             }
           }
-        }
-
-        if (verified) {
-          const recognizedName = user?.fullName || user?.email || 'User'
-          setFaceValidationResult({
-            isValid: true,
-            recognizedName,
-            confidence: verifiedConfidence,
-            message: `Wajah terverifikasi sebagai ${recognizedName} (${(verifiedConfidence * 100).toFixed(1)}%)`
-          })
-          setRecognizedUser(recognizedName)
-          return
         }
 
         if (bestOverall) {
@@ -1679,60 +1738,85 @@ export default function AbsensiPage() {
                   )}
                 </div>
 
-                {/* Pilih Shift - Horizontal 3-visible with swipe & arrows */}
+                {/* Pilih Shift - Desktop grid (3 cols); Mobile carousel (3 per page) */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Pilih Shift Kerja
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {/* Desktop */}
+                  <div className="hidden md:grid grid-cols-3 gap-3">
                     {shiftList.map((shift) => (
-                      <Card 
-                        key={shift.id}
-                        className={`cursor-pointer transition-all duration-300 hover:shadow-md ${
-                          selectedShift?.id === shift.id 
-                            ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' 
-                            : 'hover:border-gray-300 dark:hover:border-gray-600'
-                        }`}
-                        onClick={() => setSelectedShift(shift)}
-                      >
+                      <Card key={shift.id} className={`cursor-pointer transition-all duration-300 hover:shadow-md ${selectedShift?.id === shift.id ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' : 'hover:border-gray-300 dark:hover:border-gray-600'}`} onClick={() => setSelectedShift(shift)}>
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center space-x-3">
-                                <div className={`w-4 h-4 rounded-full border-2 transition-colors ${
-                                  selectedShift?.id === shift.id 
-                                    ? 'bg-blue-500 border-blue-500' 
-                                    : 'border-gray-300 dark:border-gray-600'
-                                }`}>
-                                  {selectedShift?.id === shift.id && (
-                                    <div className="w-full h-full rounded-full bg-white transform scale-50"></div>
-                                  )}
-                                </div>
+                                <div className={`w-4 h-4 rounded-full border-2 transition-colors ${selectedShift?.id === shift.id ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>{selectedShift?.id === shift.id && (<div className="w-full h-full rounded-full bg-white transform scale-50"></div>)}</div>
                                 <div>
-                                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                                    {shift.namaShift}
-                                  </h3>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {formatTime(shift.jamMasuk)} - {formatTime(shift.jamKeluar)}
-                                  </p>
+                                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{shift.namaShift}</h3>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{formatTime(shift.jamMasuk)} - {formatTime(shift.jamKeluar)}</p>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Badge variant="secondary" className="text-xs">
-                                {getTimeDifference(absensiType === 'masuk' ? shift.jamMasuk : shift.jamKeluar)}
-                              </Badge>
-                              {shift.lockLokasi === 'HARUS_DI_KANTOR' && (
-                                <Badge variant="destructive" className="text-xs">
-                                  <Building2 className="w-3 h-3 mr-1" />
-                                  Lock
-                                </Badge>
-                              )}
+                              <Badge variant="secondary" className="text-xs">{getTimeDifference(absensiType === 'masuk' ? shift.jamMasuk : shift.jamKeluar)}</Badge>
+                              {shift.lockLokasi === 'HARUS_DI_KANTOR' && (<Badge variant="destructive" className="text-xs"><Building2 className="w-3 h-3 mr-1" />Lock</Badge>)}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
+                  </div>
+                  {/* Mobile: carousel with 3 per page */}
+                  <div className="md:hidden relative">
+                    {mobilePages.length > 1 && (
+                      <>
+                        <Button size="icon" variant="outline" className="absolute -left-2 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/80 dark:bg-gray-800/80" onClick={() => scrollToMobilePage(mobilePage - 1)}>
+                          <ChevronLeft className="w-5 h-5" />
+                        </Button>
+                        <Button size="icon" variant="outline" className="absolute -right-2 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/80 dark:bg-gray-800/80" onClick={() => scrollToMobilePage(mobilePage + 1)}>
+                          <ChevronRight className="w-5 h-5" />
+                        </Button>
+                      </>
+                    )}
+                    <div ref={mobileCarouselRef} className="overflow-x-hidden w-full">
+                      <div className="flex w-full" style={{ width: `${mobilePages.length * 100}%`, transform: `translateX(-${mobilePage * (100 / mobilePages.length)}%)`, transition: 'transform 300ms ease' }}>
+                        {mobilePages.map((page, pageIdx) => (
+                          <div key={pageIdx} className="w-full flex-shrink-0 px-0" style={{ width: `${100 / mobilePages.length}%` }}>
+                            <div className="grid grid-cols-1 gap-3">
+                              {page.map((shift) => (
+                                <Card key={shift.id} className={`cursor-pointer transition-all duration-300 hover:shadow-md ${selectedShift?.id === shift.id ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' : 'hover:border-gray-300 dark:hover:border-gray-600'}`} onClick={() => setSelectedShift(shift)}>
+                                  <CardContent className="p-4">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center space-x-3">
+                                          <div className={`w-4 h-4 rounded-full border-2 transition-colors ${selectedShift?.id === shift.id ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>{selectedShift?.id === shift.id && (<div className="w-full h-full rounded-full bg-white transform scale-50"></div>)}</div>
+                                          <div>
+                                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{shift.namaShift}</h3>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">{formatTime(shift.jamMasuk)} - {formatTime(shift.jamKeluar)}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <Badge variant="secondary" className="text-xs">{getTimeDifference(absensiType === 'masuk' ? shift.jamMasuk : shift.jamKeluar)}</Badge>
+                                        {shift.lockLokasi === 'HARUS_DI_KANTOR' && (<Badge variant="destructive" className="text-xs"><Building2 className="w-3 h-3 mr-1" />Lock</Badge>)}
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {mobilePages.length > 1 && (
+                      <div className="flex justify-center mt-3 space-x-2">
+                        {mobilePages.map((_, i) => (
+                          <button key={i} onClick={() => scrollToMobilePage(i)} className={`w-2.5 h-2.5 rounded-full ${i === mobilePage ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} aria-label={`Halaman ${i + 1}`}></button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
