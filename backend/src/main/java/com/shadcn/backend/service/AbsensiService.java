@@ -399,6 +399,11 @@ public class AbsensiService {
             // Build response
             Map<String, Object> absensiData = new HashMap<>();
             
+            // Check current time for 12:01 PM cutoff rule
+            LocalTime currentTime = LocalTime.now();
+            LocalTime cutoffTime = LocalTime.of(12, 1); // 12:01 PM
+            boolean isPastCutoff = currentTime.isAfter(cutoffTime);
+            
             if (masukRecord.isPresent()) {
                 Absensi masuk = masukRecord.get();
                 Map<String, Object> masukData = new HashMap<>();
@@ -418,7 +423,15 @@ public class AbsensiService {
                 result.put("defaultShiftId", masuk.getShift() != null ? masuk.getShift().getId() : null);
                 result.put("hasMasuk", true);
             } else {
-                result.put("nextType", "masuk");
+                // If no masuk record and past cutoff time, force pulang
+                if (isPastCutoff) {
+                    result.put("nextType", "pulang");
+                    result.put("cutoffReached", true);
+                    result.put("cutoffMessage", "Waktu absensi masuk telah berakhir (12:01). Silakan langsung absensi pulang.");
+                } else {
+                    result.put("nextType", "masuk");
+                    result.put("cutoffReached", false);
+                }
                 result.put("defaultShiftId", null);
                 result.put("hasMasuk", false);
             }

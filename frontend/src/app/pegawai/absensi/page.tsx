@@ -76,6 +76,8 @@ interface TodayAbsensi {
   hasMasuk: boolean
   hasPulang: boolean
   isComplete: boolean
+  cutoffReached?: boolean
+  cutoffMessage?: string
   absensi: {
     masuk?: {
       waktu: string
@@ -618,7 +620,12 @@ export default function AbsensiPage() {
             }
           }
         } else if (!data.hasMasuk) {
-          setAbsensiType('masuk')
+          // If cutoff reached, force pulang type
+          if (data.cutoffReached) {
+            setAbsensiType('pulang')
+          } else {
+            setAbsensiType('masuk')
+          }
         }
       }
     } catch (error) {
@@ -1694,9 +1701,9 @@ export default function AbsensiPage() {
                         <Button
                           variant={absensiType === 'masuk' ? 'default' : 'outline'}
                           onClick={() => setAbsensiType('masuk')}
-                          disabled={todayAbsensi?.hasMasuk}
+                          disabled={todayAbsensi?.hasMasuk || todayAbsensi?.cutoffReached}
                           className={`h-14 transition-all duration-300 ${
-                            todayAbsensi?.hasMasuk 
+                            (todayAbsensi?.hasMasuk || todayAbsensi?.cutoffReached)
                               ? 'opacity-50 cursor-not-allowed' 
                               : absensiType === 'masuk' 
                                 ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg' 
@@ -1712,9 +1719,9 @@ export default function AbsensiPage() {
                         <Button
                           variant={absensiType === 'pulang' ? 'default' : 'outline'}
                           onClick={() => setAbsensiType('pulang')}
-                          disabled={!todayAbsensi?.hasMasuk || todayAbsensi?.hasPulang}
+                          disabled={(!todayAbsensi?.hasMasuk && !todayAbsensi?.cutoffReached) || todayAbsensi?.hasPulang}
                           className={`h-14 transition-all duration-300 ${
-                            (!todayAbsensi?.hasMasuk || todayAbsensi?.hasPulang)
+                            ((!todayAbsensi?.hasMasuk && !todayAbsensi?.cutoffReached) || todayAbsensi?.hasPulang)
                               ? 'opacity-50 cursor-not-allowed' 
                               : absensiType === 'pulang' 
                                 ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 shadow-lg' 
@@ -1729,7 +1736,16 @@ export default function AbsensiPage() {
                         </Button>
                       </div>
                       
-                      {!todayAbsensi?.hasMasuk && (
+                      {!todayAbsensi?.hasMasuk && todayAbsensi?.cutoffReached && (
+                        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+                          <Timer className="h-4 w-4 text-orange-600" />
+                          <AlertDescription className="text-orange-800 dark:text-orange-300">
+                            {todayAbsensi.cutoffMessage}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      {!todayAbsensi?.hasMasuk && !todayAbsensi?.cutoffReached && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
                           Mulai dengan absen masuk terlebih dahulu
                         </p>
@@ -1738,114 +1754,149 @@ export default function AbsensiPage() {
                   )}
                 </div>
 
-                {/* Pilih Shift - Desktop grid (3 cols); Mobile carousel (3 per page) */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                {/* Pilih Shift Kerja */}
+                <div className="space-y-3">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-600" />
                     Pilih Shift Kerja
-                  </label>
-                  {/* Desktop */}
-                  <div className="hidden md:grid grid-cols-3 gap-3">
+                  </h3>
+                  {/* Desktop Grid */}
+                  <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {shiftList.map((shift) => (
-                      <Card key={shift.id} className={`cursor-pointer transition-all duration-300 hover:shadow-md ${selectedShift?.id === shift.id ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' : 'hover:border-gray-300 dark:hover:border-gray-600'}`} onClick={() => setSelectedShift(shift)}>
+                      <Card 
+                        key={shift.id} 
+                        className={`cursor-pointer transition-all duration-200 hover:shadow-sm border ${
+                          selectedShift?.id === shift.id 
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/50 shadow-sm' 
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
+                        }`} 
+                        onClick={() => setSelectedShift(shift)}
+                      >
                         <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3">
-                                <div className={`w-4 h-4 rounded-full border-2 transition-colors ${selectedShift?.id === shift.id ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>{selectedShift?.id === shift.id && (<div className="w-full h-full rounded-full bg-white transform scale-50"></div>)}</div>
+                          <div className="flex items-center gap-3">
+                            {/* Radio Button */}
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              selectedShift?.id === shift.id 
+                                ? 'border-blue-500 bg-blue-500' 
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}>
+                              {selectedShift?.id === shift.id && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                              )}
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
                                 <div>
-                                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{shift.namaShift}</h3>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">{formatTime(shift.jamMasuk)} - {formatTime(shift.jamKeluar)}</p>
+                                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                    {shift.namaShift}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {formatTime(shift.jamMasuk)} - {formatTime(shift.jamKeluar)}
+                                  </p>
+                                </div>
+                                
+                                {/* Badges */}
+                                <div className="flex items-center gap-1 ml-2">
+                                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                                    {getTimeDifference(absensiType === 'masuk' ? shift.jamMasuk : shift.jamKeluar)}
+                                  </Badge>
+                                  {shift.lockLokasi === 'HARUS_DI_KANTOR' && (
+                                    <Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+                                      <Building2 className="w-3 h-3" />
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge variant="secondary" className="text-xs">{getTimeDifference(absensiType === 'masuk' ? shift.jamMasuk : shift.jamKeluar)}</Badge>
-                              {shift.lockLokasi === 'HARUS_DI_KANTOR' && (<Badge variant="destructive" className="text-xs"><Building2 className="w-3 h-3 mr-1" />Lock</Badge>)}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
-                  {/* Mobile: carousel with 3 per page */}
-                  <div className="md:hidden relative">
-                    {mobilePages.length > 1 && (
-                      <>
-                        <Button size="icon" variant="outline" className="absolute -left-2 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/80 dark:bg-gray-800/80" onClick={() => scrollToMobilePage(mobilePage - 1)}>
-                          <ChevronLeft className="w-5 h-5" />
-                        </Button>
-                        <Button size="icon" variant="outline" className="absolute -right-2 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/80 dark:bg-gray-800/80" onClick={() => scrollToMobilePage(mobilePage + 1)}>
-                          <ChevronRight className="w-5 h-5" />
-                        </Button>
-                      </>
-                    )}
-                    <div ref={mobileCarouselRef} className="overflow-x-hidden w-full">
-                      <div className="flex w-full" style={{ width: `${mobilePages.length * 100}%`, transform: `translateX(-${mobilePage * (100 / mobilePages.length)}%)`, transition: 'transform 300ms ease' }}>
-                        {mobilePages.map((page, pageIdx) => (
-                          <div key={pageIdx} className="w-full flex-shrink-0 px-0" style={{ width: `${100 / mobilePages.length}%` }}>
-                            <div className="grid grid-cols-1 gap-3">
-                              {page.map((shift) => (
-                                <Card key={shift.id} className={`cursor-pointer transition-all duration-300 hover:shadow-md ${selectedShift?.id === shift.id ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' : 'hover:border-gray-300 dark:hover:border-gray-600'}`} onClick={() => setSelectedShift(shift)}>
-                                  <CardContent className="p-4">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center space-x-3">
-                                          <div className={`w-4 h-4 rounded-full border-2 transition-colors ${selectedShift?.id === shift.id ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>{selectedShift?.id === shift.id && (<div className="w-full h-full rounded-full bg-white transform scale-50"></div>)}</div>
-                                          <div>
-                                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{shift.namaShift}</h3>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400">{formatTime(shift.jamMasuk)} - {formatTime(shift.jamKeluar)}</p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <Badge variant="secondary" className="text-xs">{getTimeDifference(absensiType === 'masuk' ? shift.jamMasuk : shift.jamKeluar)}</Badge>
-                                        {shift.lockLokasi === 'HARUS_DI_KANTOR' && (<Badge variant="destructive" className="text-xs"><Building2 className="w-3 h-3 mr-1" />Lock</Badge>)}
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
+                  {/* Mobile Layout */}
+                  <div className="md:hidden space-y-2">
+                    {shiftList.map((shift) => (
+                      <Card 
+                        key={shift.id} 
+                        className={`cursor-pointer transition-all duration-200 ${
+                          selectedShift?.id === shift.id 
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/50' 
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                        }`} 
+                        onClick={() => setSelectedShift(shift)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-3">
+                            {/* Radio Button */}
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                              selectedShift?.id === shift.id 
+                                ? 'border-blue-500 bg-blue-500' 
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}>
+                              {selectedShift?.id === shift.id && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
+                              )}
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                    {shift.namaShift}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {formatTime(shift.jamMasuk)} - {formatTime(shift.jamKeluar)}
+                                  </p>
+                                </div>
+                                
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                                    {getTimeDifference(absensiType === 'masuk' ? shift.jamMasuk : shift.jamKeluar)}
+                                  </Badge>
+                                  {shift.lockLokasi === 'HARUS_DI_KANTOR' && (
+                                    <Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+                                      <Building2 className="w-3 h-3" />
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                    {mobilePages.length > 1 && (
-                      <div className="flex justify-center mt-3 space-x-2">
-                        {mobilePages.map((_, i) => (
-                          <button key={i} onClick={() => scrollToMobilePage(i)} className={`w-2.5 h-2.5 rounded-full ${i === mobilePage ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} aria-label={`Halaman ${i + 1}`}></button>
-                        ))}
-                      </div>
-                    )}
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 </div>
 
                 {selectedShift && (
-                  <Alert className="border-l-4 border-l-blue-500 bg-blue-50/80 dark:bg-blue-900/20">
-                    <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <AlertDescription>
-                      <div className="space-y-2 text-sm">
-                        <div className="font-semibold text-blue-900 dark:text-blue-100">
-                          {selectedShift.namaShift}
+                  <Alert className="border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/30">
+                    <AlertDescription className="text-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {selectedShift.namaShift}
+                          </span>
+                          <span className="text-gray-600 dark:text-gray-400">•</span>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {formatTime(selectedShift.jamMasuk)} - {formatTime(selectedShift.jamKeluar)}
+                          </span>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700 dark:text-gray-300">
-                          <div>
-                            <strong>Jam Kerja:</strong> {formatTime(selectedShift.jamMasuk)} - {formatTime(selectedShift.jamKeluar)}
-                          </div>
-                          <div>
-                            <strong>Selisih waktu:</strong> {' '}
+                        
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-xs">
                             {getTimeDifference(absensiType === 'masuk' ? selectedShift.jamMasuk : selectedShift.jamKeluar)}
-                          </div>
+                          </Badge>
+                          {selectedShift.lockLokasi === 'HARUS_DI_KANTOR' && (
+                            <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                              <Building2 className="w-3 h-3" />
+                              <span className="text-xs font-medium">Lock</span>
+                            </div>
+                          )}
                         </div>
-                        {selectedShift.lockLokasi === 'HARUS_DI_KANTOR' && (
-                          <div className="text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 p-3 rounded-md">
-                            <strong className="flex items-center">
-                              <Building2 className="w-4 h-4 mr-2" />
-                              Lock Location Aktif
-                            </strong>
-                            <span className="text-sm">Anda harus berada di area kantor untuk absensi</span>
-                          </div>
-                        )}
                       </div>
                     </AlertDescription>
                   </Alert>
