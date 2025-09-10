@@ -135,6 +135,7 @@ export default function CreateMyFaceRecognitionPage() {
   const isCapturingRef = useRef(false)
   const lastLogTime = useRef(0)
   const currentStepIndexRef = useRef(-1)
+  const [isDesktop, setIsDesktop] = useState(false)
 
   // Test Step for Face Recognition
   const [testStep, setTestStep] = useState(false)
@@ -190,6 +191,16 @@ export default function CreateMyFaceRecognitionPage() {
       }, 1500)
     }
   }, [captureSteps])
+
+  // Track viewport to render a single camera view (avoid duplicate refs on desktop)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    setIsDesktop(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   // Load MediaPipe Models - Latest 2024-2025 Technology
   const loadMediaPipeModels = async () => {
@@ -1505,8 +1516,8 @@ export default function CreateMyFaceRecognitionPage() {
       {/* Step 2: Capture Photos - Responsive Layout */}
       {currentStep === 2 && !previewStep && (
         <>
-          {/* Desktop Layout (unchanged) */}
-          <div className="hidden lg:grid lg:grid-cols-3 gap-6">
+          {isDesktop ? (
+          <div className="grid lg:grid-cols-3 gap-6">
             {/* Left: Large Camera Feed (2/3 width) */}
             <div className="lg:col-span-2">
               <Card>
@@ -1735,9 +1746,8 @@ export default function CreateMyFaceRecognitionPage() {
               </Card>
             </div>
           </div>
-
-          {/* Mobile Layout (New optimized design) */}
-          <div className="lg:hidden space-y-4">
+          ) : (
+          <div className="space-y-4">
             {/* Mobile Camera Card */}
             <Card>
               <CardHeader className="pb-3">
@@ -1859,11 +1869,7 @@ export default function CreateMyFaceRecognitionPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-center space-y-3">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto ${
-                      currentCaptureStep.completed 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-primary text-white'
-                    }`}>
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto ${currentCaptureStep.completed ? 'bg-green-500 text-white' : 'bg-primary text-white'}`}>
                       {currentCaptureStep.completed ? '✓' : currentStepIndex + 1}
                     </div>
                     <div>
@@ -1958,6 +1964,7 @@ export default function CreateMyFaceRecognitionPage() {
               </Button>
             </div>
           </div>
+          )}
         </>
       )}      {/* Preview Step: Professional Face Recognition Analysis */}
       {(previewStep || (currentStep === 2 && completedSteps === totalSteps)) && (

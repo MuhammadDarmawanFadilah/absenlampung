@@ -2,7 +2,6 @@ package com.shadcn.backend.repository;
 
 import com.shadcn.backend.model.Biografi;
 import com.shadcn.backend.dto.BiografiSearchDto;
-import com.shadcn.backend.dto.BiografiProfileDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

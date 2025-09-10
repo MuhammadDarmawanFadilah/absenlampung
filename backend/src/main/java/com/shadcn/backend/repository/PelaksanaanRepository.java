@@ -3,7 +3,6 @@ package com.shadcn.backend.repository;
 import com.shadcn.backend.model.Pelaksanaan;
 import com.shadcn.backend.dto.PelaksanaanDetailDto;
 import com.shadcn.backend.dto.PelaksanaanSummaryDto;
-import com.shadcn.backend.dto.PelaksanaanSummaryDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

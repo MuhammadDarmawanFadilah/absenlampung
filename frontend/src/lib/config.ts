@@ -65,7 +65,10 @@ export const config = {
     // Content Type Headers
   contentType: {
     json: process.env.NEXT_PUBLIC_CONTENT_TYPE_JSON || 'application/json'
-  }
+  },
+  // Face Recognition Settings
+  faceThresholdSelf: parseFloat(process.env.NEXT_PUBLIC_FACE_THRESHOLD_SELF || '0.75'),
+  faceTopK: parseInt(process.env.NEXT_PUBLIC_FACE_TOPK || '5')
 };
 
 // Helper functions for common URL patterns

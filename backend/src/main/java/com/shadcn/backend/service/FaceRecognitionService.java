@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,20 @@ public class FaceRecognitionService {
     private final FaceRecognitionRepository faceRecognitionRepository;
     private final PegawaiRepository pegawaiRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // Thresholds configurable via application properties
+    @Value("${app.face.threshold.self:0.75}")
+    private double selfConfidenceThreshold; // similarity in [0..1]
+
+    @Value("${app.face.threshold.global:0.85}")
+    private double globalConfidenceThreshold; // similarity in [0..1]
+
+    @Value("${app.face.threshold.specific:0.75}")
+    private double specificConfidenceThreshold; // similarity in [0..1]
+
+    public double getSelfConfidenceThreshold() { return selfConfidenceThreshold; }
+    public double getGlobalConfidenceThreshold() { return globalConfidenceThreshold; }
+    public double getSpecificConfidenceThreshold() { return specificConfidenceThreshold; }
     
     // Get all face recognitions with pagination and filters
     public Page<FaceRecognitionResponse> getAllFaceRecognitions(int page, int size, String search, FaceRecognitionStatus status) {
@@ -233,18 +248,76 @@ public class FaceRecognitionService {
     
     // Match face descriptor with existing face recognitions
     public Optional<FaceRecognitionResponse> matchFaceDescriptor(FaceMatchRequest request) {
-        // This is a simplified version - in real implementation, you would use
-        // actual face recognition algorithms to compare descriptors
-        List<FaceRecognition> activeFaceRecognitions = faceRecognitionRepository.findAllActiveWithEncoding();
-        
-        // For now, we'll return null to indicate "Unknown"
-        // In a real implementation, you would:
-        // 1. Parse the face descriptor JSON
-        // 2. Compare with all stored face encodings
-        // 3. Return the best match if confidence > threshold
-        
-        log.info("Face matching attempted with {} stored face recognitions", activeFaceRecognitions.size());
-        return Optional.empty(); // Returns "Unknown" for now
+        try {
+            if (request.getFaceDescriptor() == null || request.getFaceDescriptor().trim().isEmpty()) {
+                return Optional.empty();
+            }
+
+            // Parse incoming descriptor JSON to double[]
+            double[] inputDescriptor = objectMapper.readValue(request.getFaceDescriptor(), double[].class);
+
+            // Reuse the all-face recognition logic to find best match
+            List<FaceRecognition> allFaceRecognitions = faceRecognitionRepository.findByStatus(FaceRecognitionStatus.ACTIVE);
+            if (allFaceRecognitions.isEmpty()) {
+                return Optional.empty();
+            }
+
+            double maxSimilarity = 0.0;
+            FaceRecognition bestMatch = null;
+
+            for (FaceRecognition fr : allFaceRecognitions) {
+                if (fr.getFaceDescriptors() == null || fr.getFaceDescriptors().trim().isEmpty()) continue;
+                double similarity = calculateSimilarity(inputDescriptor, fr.getFaceDescriptors());
+                if (similarity > maxSimilarity) {
+                    maxSimilarity = similarity;
+                    bestMatch = fr;
+                }
+            }
+
+            if (bestMatch != null && maxSimilarity >= globalConfidenceThreshold) {
+                return Optional.of(convertToResponse(bestMatch));
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            log.error("Error during matchFaceDescriptor: ", e);
+            return Optional.empty();
+        }
+    }
+
+    public FaceTopKResponse topKMatches(FaceTopKRequest request) {
+        if (request == null || request.getFaceDescriptor() == null || request.getFaceDescriptor().length == 0) {
+            return FaceTopKResponse.builder().candidates(java.util.Collections.emptyList()).build();
+        }
+
+        List<FaceRecognition> allFaceRecognitions = faceRecognitionRepository.findByStatus(FaceRecognitionStatus.ACTIVE);
+        if (allFaceRecognitions.isEmpty()) {
+            return FaceTopKResponse.builder().candidates(java.util.Collections.emptyList()).build();
+        }
+
+        int k = request.getK() != null && request.getK() > 0 ? request.getK() : 5;
+
+        java.util.PriorityQueue<FaceTopKResponse.Candidate> pq = new java.util.PriorityQueue<>(k,
+            java.util.Comparator.comparingDouble(FaceTopKResponse.Candidate::getConfidence));
+
+        for (FaceRecognition fr : allFaceRecognitions) {
+            if (fr.getFaceDescriptors() == null || fr.getFaceDescriptors().trim().isEmpty()) continue;
+            double sim = calculateSimilarity(request.getFaceDescriptor(), fr.getFaceDescriptors());
+            FaceTopKResponse.Candidate cand = FaceTopKResponse.Candidate.builder()
+                .faceRecognitionId(fr.getId())
+                .pegawai(convertToPegawaiResponse(fr.getPegawai()))
+                .confidence(sim)
+                .build();
+            if (pq.size() < k) {
+                pq.offer(cand);
+            } else if (pq.peek().getConfidence() < sim) {
+                pq.poll();
+                pq.offer(cand);
+            }
+        }
+
+        java.util.List<FaceTopKResponse.Candidate> list = new java.util.ArrayList<>(pq);
+        list.sort((a, b) -> Double.compare(b.getConfidence(), a.getConfidence()));
+        return FaceTopKResponse.builder().candidates(list).build();
     }
     
     // Convert entity to response DTO
@@ -446,22 +519,16 @@ public class FaceRecognitionService {
         log.debug("Stored descriptors JSON length: {}", faceRecognition.getFaceDescriptors().length());
         
         // Parse stored descriptors and compare
-        double similarity = calculateSimilarity(request.getFaceDescriptor(), faceRecognition.getFaceDescriptors());
-        
-        // Convert similarity to distance for threshold comparison (same as frontend logic)
-        double distance = 1.0 - similarity;
-        double confidence = similarity;
-        
-        // Use same threshold as frontend (0.65)
-        boolean isMatch = distance <= 0.35; // Lower distance = better match (0.35 = 65% confidence)
+    double similarity = calculateSimilarity(request.getFaceDescriptor(), faceRecognition.getFaceDescriptors());
+    double confidence = similarity; // confidence is similarity in [0..1]
+    boolean isMatch = similarity >= selfConfidenceThreshold;
         
         log.info("=== PEGAWAI FACE RECOGNITION TEST RESULT ===");
         log.info("Pegawai: {}", faceRecognition.getPegawai().getNamaLengkap());
-        log.info("Similarity: {}", similarity);
-        log.info("Distance: {}", distance);
-        log.info("Confidence: {}%", confidence * 100);
-        log.info("Threshold: 0.35");
-        log.info("Is Match: {} (distance {} <= 0.35)", isMatch, distance);
+    log.info("Similarity: {}", similarity);
+    log.info("Confidence: {}%", confidence * 100);
+    log.info("Threshold (self): {}", selfConfidenceThreshold);
+    log.info("Is Match: {} (similarity {} >= {})", isMatch, similarity, selfConfidenceThreshold);
         log.info("==========================================");
         
         String message = isMatch 
@@ -470,7 +537,7 @@ public class FaceRecognitionService {
             : String.format("Wajah tidak sesuai dengan %s. Confidence: %.1f%%", 
                 faceRecognition.getPegawai().getNamaLengkap(), confidence * 100);
         
-        log.info("Pegawai face recognition test result: match={}, confidence={}%, distance={}", isMatch, confidence * 100, distance);
+    log.info("Pegawai face recognition test result: match={}, confidence={}%, similarity={}", isMatch, confidence * 100, similarity);
         
         FaceTestResponse.FaceTestResponseBuilder responseBuilder = FaceTestResponse.builder()
             .isMatch(isMatch)
@@ -513,32 +580,26 @@ public class FaceRecognitionService {
         log.debug("Stored descriptors JSON length: {}", faceRecognition.getFaceDescriptors().length());
         
         // Parse stored descriptors and compare
-        double similarity = calculateSimilarity(request.getFaceDescriptor(), faceRecognition.getFaceDescriptors());
-        
-        // Convert similarity to distance for threshold comparison (same as frontend logic)
-        double distance = 1.0 - similarity;
-        double confidence = similarity * 100;
-        
-        // Use same threshold as frontend (0.65)
-        boolean isMatch = distance <= 0.65; // Lower distance = better match
+    double similarity = calculateSimilarity(request.getFaceDescriptor(), faceRecognition.getFaceDescriptors());
+    double confidence = similarity; // [0..1]
+    boolean isMatch = similarity >= specificConfidenceThreshold;
         
         log.info("=== FACE RECOGNITION TEST RESULT ===");
-        log.info("Similarity: {}", similarity);
-        log.info("Distance: {}", distance);
-        log.info("Confidence: {}%", confidence);
-        log.info("Threshold: 0.65");
-        log.info("Is Match: {} (distance {} <= 0.65)", isMatch, distance);
+    log.info("Similarity: {}", similarity);
+    log.info("Confidence: {}%", confidence * 100);
+    log.info("Threshold (specific): {}", specificConfidenceThreshold);
+    log.info("Is Match: {} (similarity {} >= {})", isMatch, similarity, specificConfidenceThreshold);
         log.info("===================================");
         
         String message = isMatch 
-            ? String.format("Wajah berhasil dikenali dengan confidence %.1f%% (distance: %.3f)", confidence, distance)
-            : String.format("Wajah tidak dikenali. Confidence: %.1f%% (distance: %.3f)", confidence, distance);
+            ? String.format("Wajah berhasil dikenali dengan confidence %.1f%%", confidence * 100)
+            : String.format("Wajah tidak dikenali. Confidence: %.1f%%", confidence * 100);
         
-        log.info("Face recognition test result: match={}, confidence={}%, distance={}", isMatch, confidence, distance);
+    log.info("Face recognition test result: match={}, confidence={}%, similarity={}", isMatch, confidence * 100, similarity);
         
         FaceTestResponse.FaceTestResponseBuilder responseBuilder = FaceTestResponse.builder()
             .isMatch(isMatch)
-            .confidence(confidence / 100.0) // Convert to decimal
+            .confidence(confidence) // already decimal
             .message(message)
             .matchedFaceRecognitionId(faceRecognition.getId());
         
@@ -578,28 +639,24 @@ public class FaceRecognitionService {
         }
         
         // Convert similarity to distance for threshold comparison
-        double distance = 1.0 - maxSimilarity;
-        double confidence = maxSimilarity * 100;
-        
-        // Use same threshold as frontend (0.65 distance threshold)
-        boolean isMatch = distance <= 0.65;
+    double confidence = maxSimilarity; // [0..1]
+    boolean isMatch = maxSimilarity >= globalConfidenceThreshold;
         
         log.info("=== FACE RECOGNITION ALL TEST RESULT ===");
-        log.info("Max Similarity: {}", maxSimilarity);
-        log.info("Distance: {}", distance);
-        log.info("Confidence: {}%", confidence);
-        log.info("Threshold: 0.65");
-        log.info("Is Match: {} (distance {} <= 0.65)", isMatch, distance);
+    log.info("Max Similarity: {}", maxSimilarity);
+    log.info("Confidence: {}%", confidence * 100);
+    log.info("Threshold (global): {}", globalConfidenceThreshold);
+    log.info("Is Match: {} (similarity {} >= {})", isMatch, maxSimilarity, globalConfidenceThreshold);
         log.info("Best Match: {}", bestMatch != null ? bestMatch.getPegawai().getNamaLengkap() : "None");
         log.info("=======================================");
         
         String message = isMatch 
-            ? String.format("Wajah berhasil dikenali dengan confidence %.1f%%", confidence)
-            : String.format("Wajah tidak dikenali. Confidence: %.1f%%", confidence);
+            ? String.format("Wajah berhasil dikenali dengan confidence %.1f%%", confidence * 100)
+            : String.format("Wajah tidak dikenali. Confidence: %.1f%%", confidence * 100);
         
         FaceTestResponse.FaceTestResponseBuilder responseBuilder = FaceTestResponse.builder()
             .isMatch(isMatch)
-            .confidence(confidence / 100.0) // Convert to decimal
+            .confidence(confidence) // decimal [0..1]
             .message(message);
         
         if (isMatch && bestMatch != null) {

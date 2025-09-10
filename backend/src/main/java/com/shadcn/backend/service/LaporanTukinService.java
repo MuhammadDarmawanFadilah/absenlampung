@@ -304,6 +304,17 @@ public class LaporanTukinService {
         Set<LocalDate> hariLiburDates = hariLiburList.stream()
             .map(HariLibur::getTanggalLibur)
             .collect(Collectors.toSet());
+
+        // Get approved cuti dates for the period
+        List<Cuti> cutiListForStats = cutiRepository
+            .findByPegawaiAndTanggalCutiBetweenOrderByCreatedAtDesc(pegawai, startDate, endDate, Pageable.unpaged())
+            .getContent()
+            .stream()
+            .filter(c -> c.getStatusApproval() == Cuti.StatusApproval.DISETUJUI)
+            .collect(Collectors.toList());
+        Set<LocalDate> cutiDates = cutiListForStats.stream()
+            .map(Cuti::getTanggalCuti)
+            .collect(Collectors.toSet());
         
         Map<String, Object> stats = new HashMap<>();
         
@@ -316,6 +327,7 @@ public class LaporanTukinService {
         int totalTerlambat = 0;
         int totalPulangCepat = 0;
         int totalAlpha = 0;
+        int totalCuti = 0;
         int totalTerlambatMenit = 0;
         int totalPulangCepatMenit = 0;
         
@@ -328,6 +340,13 @@ public class LaporanTukinService {
                 // Only count past and present days for statistics, not future days
                 if (!currentDate.isAfter(today)) {
                     totalHariKerja++;
+
+                    // If this date is an approved cuti, count as cuti and skip penalty counting
+                    if (cutiDates.contains(currentDate)) {
+                        totalCuti++;
+                        currentDate = currentDate.plusDays(1);
+                        continue;
+                    }
                     
                     List<Absensi> dayAbsensi = absensiByDate.get(currentDate);
                     if (dayAbsensi == null || dayAbsensi.isEmpty()) {
@@ -375,6 +394,7 @@ public class LaporanTukinService {
         stats.put("totalTerlambat", totalTerlambat);
         stats.put("totalPulangCepat", totalPulangCepat);
         stats.put("totalAlpha", totalAlpha);
+        stats.put("cuti", totalCuti);
         stats.put("totalTerlambatMenit", totalTerlambatMenit);
         stats.put("totalPulangCepatMenit", totalPulangCepatMenit);
         
@@ -570,6 +590,36 @@ public class LaporanTukinService {
             Absensi absenMasuk = null;
             Absensi absenPulang = null;
             
+            // If approved cuti on this date, mark as CUTI regardless of absensi presence
+            if (cutiByDate.containsKey(currentDate)) {
+                Cuti cuti = cutiByDate.get(currentDate);
+                statusMasuk = "CUTI";
+                statusPulang = "CUTI";
+                keterangan = "Cuti: " + (cuti.getJenisCuti() != null ? cuti.getJenisCuti().getNamaCuti() : "Disetujui");
+                // No deductions for cuti
+                LaporanTukinResponse.HistoriAbsensi entry = LaporanTukinResponse.HistoriAbsensi.builder()
+                    .tanggal(currentDate.toString())
+                    .hari(currentDate.getDayOfWeek().name())
+                    .jamMasuk(jamMasuk)
+                    .jamPulang(jamPulang)
+                    .statusMasuk(statusMasuk)
+                    .statusPulang(statusPulang)
+                    .menitTerlambat(0)
+                    .menitPulangCepat(0)
+                    .keterangan(keterangan)
+                    .hasPemotongan(false)
+                    .namaShift(null)
+                    .lockLokasi(null)
+                    .nominalPemotongan(BigDecimal.ZERO)
+                    .persentasePemotongan(BigDecimal.ZERO)
+                    .detailPemotongan("")
+                    .status("CUTI")
+                    .build();
+                historiAbsensi.add(entry);
+                currentDate = currentDate.plusDays(1);
+                continue;
+            }
+
             if (dayAbsensi != null) {
                 // Process MASUK data
                 absenMasuk = dayAbsensi.get(Absensi.AbsensiType.MASUK);
@@ -656,18 +706,9 @@ public class LaporanTukinService {
                         // Already set to MENDATANG in initialization, no deduction
                         keterangan = "Belum terjadi";
                     } else {
-                        // Check if there's approved cuti for this date
-                        Cuti cutiHariIni = cutiByDate.get(currentDate);
-                        if (cutiHariIni != null) {
-                            statusMasuk = "CUTI";
-                            statusPulang = "CUTI";
-                            keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
-                            // No deduction for approved cuti - clear previous deductions
-                            detailPemotongan.clear();
-                        } else {
+                        // Already handled cuti earlier; treat as tidak absen
                             BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
                             detailPemotongan.add("Tidak absen (" + percentage + "%)");
-                        }
                     }
                 }
             } else {
@@ -684,19 +725,10 @@ public class LaporanTukinService {
                         keterangan = "Hari Libur";
                         // No deduction for holidays
                     } else {
-                        // Check if there's approved cuti for this date
-                        Cuti cutiHariIni = cutiByDate.get(currentDate);
-                        if (cutiHariIni != null) {
-                            statusMasuk = "CUTI";
-                            statusPulang = "CUTI";
-                            keterangan = "Cuti: " + cutiHariIni.getJenisCuti().getNamaCuti();
-                            // No deduction for approved cuti
-                        } else {
                             // No attendance record and no cuti and no holiday - Tidak Absen
                             keterangan = "Tidak ada data absensi";
                             BigDecimal percentage = rulePercentages.getOrDefault("TA", BigDecimal.valueOf(5.0));
                             detailPemotongan.add("Tidak absen (" + percentage + "%)");
-                        }
                     }
                 }
             }
@@ -1866,6 +1898,10 @@ public class LaporanTukinService {
             // Analyze deduction details from historiAbsensi for specific deductions
             if (pegawai.getHistoriAbsensi() != null) {
                 for (LaporanTukinResponse.HistoriAbsensi attendance : pegawai.getHistoriAbsensi()) {
+                    // Skip CUTI days from deduction breakdown
+                    if ("CUTI".equals(attendance.getStatusMasuk())) {
+                        continue;
+                    }
                     if (attendance.getHasPemotongan() != null && attendance.getHasPemotongan()) {
                         String detail = attendance.getDetailPemotongan();
                         if (detail != null) {

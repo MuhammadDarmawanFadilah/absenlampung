@@ -2,7 +2,6 @@ package com.shadcn.backend.controller;
 
 import com.shadcn.backend.dto.CommentRequest;
 import com.shadcn.backend.dto.CommentResponse;
-import com.shadcn.backend.model.KomentarBerita;
 import com.shadcn.backend.service.CommentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;

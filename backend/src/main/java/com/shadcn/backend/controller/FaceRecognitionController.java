@@ -252,6 +252,26 @@ public class FaceRecognitionController {
             ));
         }
     }
+
+    // Get top-K matches for a descriptor
+    @PostMapping("/topk")
+    public ResponseEntity<Map<String, Object>> topK(@RequestBody FaceTopKRequest request) {
+        try {
+            FaceTopKResponse resp = faceRecognitionService.topKMatches(request);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Top-K matches retrieved",
+                "data", resp,
+                "threshold", faceRecognitionService.getGlobalConfidenceThreshold()
+            ));
+        } catch (Exception e) {
+            log.error("Error retrieving top-K matches: ", e);
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Internal server error: " + e.getMessage()
+            ));
+        }
+    }
     
     // Test face recognition - for testing purposes
     @PostMapping("/test")

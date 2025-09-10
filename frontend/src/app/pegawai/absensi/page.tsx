@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import type React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,7 +34,8 @@ import {
   Smartphone,
   Scan,
   UserCheck,
-  UserX
+  UserX,
+ 
 } from 'lucide-react'
 import { getApiUrl } from "@/lib/config"
 import { config } from "@/lib/config"
@@ -152,6 +154,7 @@ export default function AbsensiPage() {
   
   // Face Recognition States - MediaPipe 2024-2025
   const [faceLandmarker, setFaceLandmarker] = useState<FaceLandmarker | null>(null)
+  const [faceLandmarkerImage, setFaceLandmarkerImage] = useState<FaceLandmarker | null>(null)
   const [mediapipiLoaded, setMediapipeLoaded] = useState(false)
   const [mediapipiLoading, setMediapipeLoading] = useState(false)
   const [recognizedUser, setRecognizedUser] = useState<string | null>(null)
@@ -167,6 +170,7 @@ export default function AbsensiPage() {
   const [faceOrientation, setFaceOrientation] = useState<string>('')
   const [orientationValid, setOrientationValid] = useState(false)
   const [realTimeFaceDetection, setRealTimeFaceDetection] = useState<NodeJS.Timeout | null>(null)
+  
 
   // Timer untuk update waktu real-time
   useEffect(() => {
@@ -191,9 +195,31 @@ export default function AbsensiPage() {
   useEffect(() => {
     if (currentStep === 2) {
       startCamera()
-      // Auto-check GPS when entering step 2
-      if (!currentLocation) {
-        getCurrentLocation()
+      // Check geolocation permission first; avoid auto-prompting the browser
+      if (!currentLocation && typeof navigator !== 'undefined') {
+        // Use Permissions API when available to guide UX
+        const anyNavigator: any = navigator as any
+        if (anyNavigator.permissions && anyNavigator.permissions.query) {
+          try {
+            anyNavigator.permissions.query({ name: 'geolocation' as PermissionName }).then((status: any) => {
+              if (status.state === 'granted') {
+                getCurrentLocation()
+              } else if (status.state === 'prompt') {
+                setShowLocationPermissionModal(true)
+              } else if (status.state === 'denied') {
+                setShowLocationPermissionModal(true)
+              }
+            }).catch(() => {
+              // If query fails, fall back to showing the modal for explicit user action
+              setShowLocationPermissionModal(true)
+            })
+          } catch {
+            setShowLocationPermissionModal(true)
+          }
+        } else {
+          // If Permissions API not supported, show modal to request explicitly
+          setShowLocationPermissionModal(true)
+        }
       }
     } else {
       stopCamera()
@@ -313,7 +339,7 @@ export default function AbsensiPage() {
         throw lastError || new Error('All CDN sources failed')
       }
       
-      // Create FaceLandmarker with latest model
+      // Create FaceLandmarker VIDEO instance for real-time detection
       const landmarker = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
@@ -326,6 +352,23 @@ export default function AbsensiPage() {
       })
       
       setFaceLandmarker(landmarker)
+
+      // Create IMAGE instance for still photo detection (reused to avoid repeated graph creation)
+      try {
+        const landmarkerImage = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+            delegate: "GPU"
+          },
+          outputFaceBlendshapes: true,
+          outputFacialTransformationMatrixes: true,
+          runningMode: "IMAGE",
+          numFaces: 5
+        })
+        setFaceLandmarkerImage(landmarkerImage)
+      } catch (e) {
+        // If IMAGE instance creation fails, we'll lazy-init on first use
+      }
       setMediapipeLoaded(true)
       
       // Auto-start real-time detection if camera is already active
@@ -344,7 +387,7 @@ export default function AbsensiPage() {
   }
 
   const processFaceRecognition = async (imageData: string) => {
-    if (!mediapipiLoaded || !faceLandmarker) {
+    if (!mediapipiLoaded) {
       setFaceValidationResult(null)
       return
     }
@@ -361,109 +404,99 @@ export default function AbsensiPage() {
         img.src = imageData
       })
       
-      // Create a new FaceLandmarker for IMAGE mode
-      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm")
-      const imageLandmarker = await FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-          delegate: "GPU"
-        },
-        outputFaceBlendshapes: true,
-        outputFacialTransformationMatrixes: true,
-        runningMode: "IMAGE",
-        numFaces: 1
-      })
+      // Ensure IMAGE landmarker is available (lazy init fallback)
+      let imageLandmarker = faceLandmarkerImage
+      if (!imageLandmarker) {
+        try {
+          const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm")
+          imageLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+              delegate: "GPU"
+            },
+            outputFaceBlendshapes: true,
+            outputFacialTransformationMatrixes: true,
+            runningMode: "IMAGE",
+            numFaces: 5
+          })
+          setFaceLandmarkerImage(imageLandmarker)
+        } catch (e) {
+          // If still not available, abort gracefully
+          setFaceValidationResult({ isValid: false, recognizedName: null, confidence: 0, message: 'AI wajah tidak tersedia' })
+          setRecognizedUser(null)
+          return
+        }
+      }
       
       // Detect face using MediaPipe
       const faceLandmarkerResult = imageLandmarker.detect(img)
       
       if (faceLandmarkerResult.faceLandmarks && faceLandmarkerResult.faceLandmarks.length > 0) {
-        // Extract face descriptor using SAME method as admin panel
-        const landmarks = faceLandmarkerResult.faceLandmarks[0]
-        const faceDescriptor = extractFaceDescriptor(landmarks)
-        
-        // STEP 1: Verify against CURRENT USER first for higher accuracy
-        const selfTestResponse = await fetch(getApiUrl('api/face-recognition/test'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify({
-            pegawaiId: user?.id,
-            faceDescriptor: Array.from(faceDescriptor)
-          })
-        })
-        
-        if (selfTestResponse.ok) {
-          const selfResult = await selfTestResponse.json()
-          if (selfResult.success && selfResult.data) {
-            const isValidSelf = selfResult.data.isMatch && selfResult.data.confidence >= 0.75
-            if (isValidSelf) {
-              const recognizedName = user?.fullName || user?.email || 'User'
-              setFaceValidationResult({
-                isValid: true,
-                recognizedName,
-                confidence: selfResult.data.confidence,
-                message: `Wajah terverifikasi sebagai ${recognizedName} (${(selfResult.data.confidence * 100).toFixed(1)}%)`
-              })
-              setRecognizedUser(recognizedName)
-              return
+  const faces = faceLandmarkerResult.faceLandmarks.slice(0, config.faceTopK)
+        const descriptors: Float32Array[] = faces.map((lm: any[]) => extractFaceDescriptor(lm))
+  const threshold = config.faceThresholdSelf
+
+        const requests = descriptors.map((desc) => (
+          fetch(getApiUrl('api/face-recognition/topk'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+            },
+            body: JSON.stringify({ faceDescriptor: Array.from(desc), k: config.faceTopK })
+          }).then(async (r) => ({ ok: r.ok, json: r.ok ? await r.json() : null }))
+        ))
+
+        const results = await Promise.all(requests)
+
+        let bestOverall: { name: string; confidence: number } | null = null
+        let verified = false
+        let verifiedConfidence = 0
+
+        for (const res of results) {
+          if (!res.ok || !res.json) continue
+          const candidates = res.json?.data?.candidates || []
+          if (Array.isArray(candidates) && candidates.length > 0) {
+            const foundSelf = candidates.find((c: any) => c?.pegawai?.id === user?.id && c?.confidence >= threshold)
+            if (foundSelf) {
+              verified = true
+              verifiedConfidence = Math.max(verifiedConfidence, foundSelf.confidence || 0)
+            }
+            const top = candidates[0]
+            const name = top?.pegawai?.namaLengkap || top?.pegawai?.fullName || 'Unknown'
+            const conf = top?.confidence || 0
+            if (!bestOverall || conf > bestOverall.confidence) {
+              bestOverall = { name, confidence: conf }
             }
           }
         }
-        
-        // STEP 2: Identify if it strongly matches SOMEONE ELSE (for warning message)
-        const allTestResponse = await fetch(getApiUrl('api/face-recognition/test'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify({
-            faceDescriptor: Array.from(faceDescriptor)
+
+        if (verified) {
+          const recognizedName = user?.fullName || user?.email || 'User'
+          setFaceValidationResult({
+            isValid: true,
+            recognizedName,
+            confidence: verifiedConfidence,
+            message: `Wajah terverifikasi sebagai ${recognizedName} (${(verifiedConfidence * 100).toFixed(1)}%)`
           })
-        })
-        
-        if (allTestResponse.ok) {
-          const allTestResult = await allTestResponse.json()
-          if (allTestResult.success && allTestResult.data && allTestResult.data.isMatch && allTestResult.data.pegawai) {
-            const detectedPerson = allTestResult.data.pegawai
-            const detectedName = detectedPerson?.namaLengkap || detectedPerson?.fullName || 'Unknown'
-            const currentUserName = user?.fullName || user?.email || 'Unknown'
-            const strongOther = allTestResult.data.confidence >= 0.85 && detectedPerson?.id !== user?.id
-            if (strongOther) {
-              setFaceValidationResult({
-                isValid: false,
-                recognizedName: detectedName,
-                confidence: allTestResult.data.confidence,
-                message: `⚠️ PERINGATAN: Terdeteksi ${detectedName}, Anda login sebagai ${currentUserName}. Gunakan wajah Anda sendiri!`
-              })
-              setRecognizedUser(detectedName)
-            } else {
-              setFaceValidationResult({
-                isValid: false,
-                recognizedName: null,
-                confidence: allTestResult.data.confidence || 0,
-                message: 'Wajah tidak cocok dengan data Anda'
-              })
-              setRecognizedUser('Unknown')
-            }
-          } else {
-            setFaceValidationResult({
-              isValid: false,
-              recognizedName: null,
-              confidence: 0,
-              message: 'Wajah tidak dikenali dalam sistem'
-            })
-            setRecognizedUser('Unknown')
-          }
+          setRecognizedUser(recognizedName)
+          return
+        }
+
+        if (bestOverall) {
+          setFaceValidationResult({
+            isValid: false,
+            recognizedName: bestOverall.name,
+            confidence: bestOverall.confidence,
+            message: `⚠️ PERINGATAN: Terdeteksi ${bestOverall.name}. Gunakan wajah Anda sendiri!`
+          })
+          setRecognizedUser(bestOverall.name)
         } else {
           setFaceValidationResult({
             isValid: false,
             recognizedName: null,
             confidence: 0,
-            message: 'Gagal terhubung ke server'
+            message: 'Wajah tidak dikenali dalam sistem'
           })
           setRecognizedUser('Unknown')
         }
@@ -760,6 +793,7 @@ export default function AbsensiPage() {
             case error.PERMISSION_DENIED:
               errorMessage += 'Izin lokasi ditolak. Silakan aktifkan izin lokasi di browser dan refresh halaman.'
               showErrorToast('⚠️ Izin Lokasi Diperlukan: Klik ikon kunci/gembok di address bar browser, pilih "Izinkan" untuk lokasi, lalu refresh halaman.')
+              setShowLocationPermissionModal(true)
               break
             case error.POSITION_UNAVAILABLE:
               errorMessage += 'Informasi lokasi tidak tersedia. Pastikan GPS aktif.'
@@ -1034,30 +1068,73 @@ export default function AbsensiPage() {
     setOrientationValid(false)
   }
 
+  const blobToDataURL = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Failed to read blob'))
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  const waitForVideoReady = async (video: HTMLVideoElement, retries = 5) => {
+    for (let i = 0; i < retries; i++) {
+      if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) return true
+      await new Promise(res => setTimeout(res, 120))
+    }
+    return video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0
+  }
+
   const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       setIsCapturingPhoto(true)
       const video = videoRef.current
       const canvas = canvasRef.current
       const context = canvas.getContext('2d')
-      
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      
-      if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height)
-        const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8)
-        setCapturedPhoto(photoDataUrl)
-        // Defer heavy processing to allow UI to update first
-        setTimeout(() => {
-          processFaceRecognition(photoDataUrl)
-        }, 50)
-        
-        // Stop real-time detection when photo is captured
-        if (realTimeFaceDetection) {
-          clearInterval(realTimeFaceDetection)
-          setRealTimeFaceDetection(null)
+
+      // Ensure video has dimensions before capturing
+      await waitForVideoReady(video)
+
+      // Try ImageCapture API first for better reliability
+      let photoDataUrl: string | null = null
+      try {
+        const track = cameraStream?.getVideoTracks?.()[0]
+        const ImageCaptureCtor: any = (window as any).ImageCapture
+        if (track && ImageCaptureCtor) {
+          const imageCapture = new ImageCaptureCtor(track)
+          const blob: Blob = await imageCapture.takePhoto().catch(async () => {
+            // Fallback to grabFrame if takePhoto not supported
+            const bitmap = await imageCapture.grabFrame()
+            canvas.width = bitmap.width
+            canvas.height = bitmap.height
+            const ctx = canvas.getContext('2d')
+            ctx?.drawImage(bitmap, 0, 0)
+            return new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b as Blob), 'image/jpeg', 0.9))
+          })
+          photoDataUrl = await blobToDataURL(blob)
         }
+      } catch {
+        // Ignore and fallback to canvas capture
+      }
+
+      if (!photoDataUrl && context) {
+        canvas.width = Math.max(1, video.videoWidth)
+        canvas.height = Math.max(1, video.videoHeight)
+        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+        photoDataUrl = canvas.toDataURL('image/jpeg', 0.9)
+      }
+
+      if (photoDataUrl && photoDataUrl.startsWith('data:image')) {
+        setCapturedPhoto(photoDataUrl)
+        setTimeout(() => { processFaceRecognition(photoDataUrl as string) }, 50)
+      } else {
+        showErrorToast('Gagal mengambil foto. Coba lagi.')
+      }
+
+      // Stop real-time detection when photo is captured
+      if (realTimeFaceDetection) {
+        clearInterval(realTimeFaceDetection)
+        setRealTimeFaceDetection(null)
       }
       setIsCapturingPhoto(false)
     }
@@ -1107,15 +1184,15 @@ export default function AbsensiPage() {
       }
       setCurrentStep(2)
     } else if (currentStep === 2) {
-      if (!currentLocation) {
-        showErrorToast('Lokasi belum terdeteksi')
+      if (selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' && !currentLocation) {
+        showErrorToast('Lokasi kantor diperlukan. Aktifkan GPS dan izinkan lokasi.')
         return
       }
       if (!capturedPhoto) {
         showErrorToast('Ambil foto terlebih dahulu')
         return
       }
-      if (!isLocationAllowed) {
+      if (selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' && !isLocationAllowed) {
         showErrorToast('Anda berada di luar jangkauan lokasi yang diizinkan')
         return
       }
@@ -1602,15 +1679,15 @@ export default function AbsensiPage() {
                   )}
                 </div>
 
-                {/* Pilih Shift - Full Width */}
+                {/* Pilih Shift - Horizontal 3-visible with swipe & arrows */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Pilih Shift Kerja
                   </label>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {shiftList.map((shift) => (
                       <Card 
-                        key={shift.id} 
+                        key={shift.id}
                         className={`cursor-pointer transition-all duration-300 hover:shadow-md ${
                           selectedShift?.id === shift.id 
                             ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' 
@@ -1741,12 +1818,10 @@ export default function AbsensiPage() {
                           </div>
                           
                           <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                            {!currentLocation ? (
-                              <span className="text-orange-600 dark:text-orange-400 font-medium">
-                                GPS belum aktif
-                              </span>
-                            ) : selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' ? (
-                              distance !== null ? (
+                            {selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' ? (
+                              !currentLocation ? (
+                                <span className="text-orange-600 dark:text-orange-400 font-medium">GPS belum aktif</span>
+                              ) : distance !== null ? (
                                 <span>
                                   <span className="font-medium">{Math.round(distance)}m</span> dari kantor
                                   {pegawaiLokasi && (
@@ -1771,15 +1846,19 @@ export default function AbsensiPage() {
                       
                       {/* Action Buttons Section - Mobile: Full width, Desktop: Compact */}
                       <div className="flex items-center justify-between sm:justify-end sm:space-x-2">
-                        <Badge 
-                          variant={isLocationAllowed ? "default" : "destructive"}
-                          className="text-xs"
-                        >
-                          {isLocationAllowed ? '✅ Valid' : '❌ Invalid'}
-                        </Badge>
+                        {selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' ? (
+                          <Badge 
+                            variant={isLocationAllowed ? "default" : "destructive"}
+                            className="text-xs"
+                          >
+                            {isLocationAllowed ? '✅ Valid' : '❌ Invalid'}
+                          </Badge>
+                        ) : (
+                          <Badge variant="default" className="text-xs">Fleksibel</Badge>
+                        )}
                         
                         <div className="flex items-center space-x-2">
-                          {!currentLocation ? (
+                          {selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' && !currentLocation ? (
                             <Button
                               variant="outline"
                               size="sm"
@@ -1790,13 +1869,13 @@ export default function AbsensiPage() {
                               <span className="hidden sm:inline">Aktifkan GPS</span>
                               <span className="sm:hidden">GPS</span>
                             </Button>
-                          ) : (
+                          ) : selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' ? (
                             <Badge variant="default" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                               <Navigation className="w-3 h-3 mr-1" />
                               <span className="hidden sm:inline">GPS Aktif</span>
                               <span className="sm:hidden">Aktif</span>
                             </Badge>
-                          )}
+                          ) : null}
                           
                           {/* Desktop View */}
                           <div className="hidden md:block">
@@ -2186,12 +2265,20 @@ export default function AbsensiPage() {
                     disabled={
                       todayAbsensi?.isComplete ||
                       (currentStep === 1 && !selectedShift) ||
-                      (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed || (faceValidationResult?.isValid === false)))
+                      (currentStep === 2 && (
+                        !capturedPhoto ||
+                        (selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' && (!currentLocation || !isLocationAllowed)) ||
+                        (faceValidationResult?.message?.includes('PERINGATAN') === true)
+                      ))
                     }
                     className={`min-w-[100px] sm:min-w-[120px] h-10 sm:h-12 text-sm sm:text-base transition-all duration-300 ${
                       todayAbsensi?.isComplete ||
                       (currentStep === 1 && !selectedShift) ||
-                      (currentStep === 2 && (!currentLocation || !capturedPhoto || !isLocationAllowed || (faceValidationResult?.isValid === false)))
+                      (currentStep === 2 && (
+                        !capturedPhoto ||
+                        (selectedShift?.lockLokasi === 'HARUS_DI_KANTOR' && (!currentLocation || !isLocationAllowed)) ||
+                        (faceValidationResult?.message?.includes('PERINGATAN') === true)
+                      ))
                         ? 'opacity-50 cursor-not-allowed'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
                     }`}
