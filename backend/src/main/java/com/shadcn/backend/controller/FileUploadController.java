@@ -13,8 +13,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -52,6 +55,18 @@ public class FileUploadController {
             Path uploadPath = Paths.get(uploadDir, "photos");
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
+                
+                // Set directory permissions for web access (755 equivalent)
+                try {
+                    // For Unix/Linux systems, set proper permissions
+                    if (uploadPath.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+                        Set<PosixFilePermission> permissions = PosixFilePermissions.fromString("rwxr-xr-x");
+                        Files.setPosixFilePermissions(uploadPath, permissions);
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not set POSIX permissions for directory: {}", e.getMessage());
+                }
+                
                 log.info("Created upload directory: {} (absolute: {})", uploadPath, uploadPath.toAbsolutePath());
             }
 
@@ -63,6 +78,17 @@ public class FileUploadController {
 
             // Save file
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            
+            // Set file permissions for web access (644 equivalent)
+            try {
+                // For Unix/Linux systems, set proper file permissions
+                if (filePath.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+                    Set<PosixFilePermission> filePermissions = PosixFilePermissions.fromString("rw-r--r--");
+                    Files.setPosixFilePermissions(filePath, filePermissions);
+                }
+            } catch (Exception e) {
+                log.warn("Could not set POSIX permissions for file {}: {}", filename, e.getMessage());
+            }
             
             log.info("Photo uploaded successfully: {} (size: {} bytes, saved to: {})", 
                     filename, file.getSize(), filePath.toAbsolutePath());
@@ -86,8 +112,8 @@ public class FileUploadController {
     }
 
     @GetMapping("/photos/{filename}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or hasRole('USER')")
-    public ResponseEntity<byte[]> getPhoto(@PathVariable String filename) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFICATOR') or hasRole('USER') or hasRole('PEGAWAI')")
+      public ResponseEntity<byte[]> getPhoto(@PathVariable String filename) {
         try {
             Path filePath = Paths.get(uploadDir, "photos", filename);
             
