@@ -1,19 +1,34 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Download, FileText, Printer } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { 
+  ArrowLeft, 
+  Download, 
+  FileText, 
+  Printer, 
+  Search, 
+  Filter, 
+  ChevronDown, 
+  ChevronUp,
+  Users,
+  Calculator,
+  TrendingDown,
+  TrendingUp
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { laporanTukinAPI, type LaporanTukin, type DetailPegawaiTukin } from '@/lib/api';
 
-// Component for detailed per-employee breakdown with tabs
+// Component untuk Rincian Detail Per Pegawai - Versi Profesional dan Scalable
 function RincianDetailPerPegawai({ 
   laporanId,
   formatCurrency, 
@@ -23,15 +38,20 @@ function RincianDetailPerPegawai({
   formatCurrency: (amount: number) => string;
   safeFormatDate: (dateString: string | null | undefined) => string;
 }) {
-  const [activeTab, setActiveTab] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('nama');
+  const [filterBy, setFilterBy] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [detailData, setDetailData] = useState<any[]>([]);
-  const [pegawaiList, setPegawaiList] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({});
   const { toast } = useToast();
+
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchDetailData();
-    fetchPegawaiList();
   }, [laporanId]);
 
   const fetchDetailData = async () => {
@@ -47,6 +67,7 @@ function RincianDetailPerPegawai({
       const result = await response.json();
       if (result.success) {
         setDetailData(result.data || []);
+        calculateStats(result.data || []);
       } else {
         console.error('Failed to fetch detail data:', result.message);
       }
@@ -57,380 +78,354 @@ function RincianDetailPerPegawai({
     }
   };
 
-  const fetchPegawaiList = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/master-data/laporan-tukin/${laporanId}/pegawai`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        setPegawaiList(result.data || []);
-      } else {
-        console.error('Failed to fetch pegawai list:', result.message);
-      }
-    } catch (error) {
-      console.error('Error fetching pegawai list:', error);
-    }
+  const calculateStats = (data: any[]) => {
+    const statistics = {
+      totalEmployees: data.length,
+      employeesWithDeductions: data.filter(emp => {
+        const daysWithDeduction = emp.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
+        return daysWithDeduction > 0;
+      }).length,
+      employeesWithoutDeductions: 0,
+      totalAttendanceDays: 0,
+      totalDeductionDays: 0,
+      totalDeductionAmount: 0,
+      averageDeductionPerEmployee: 0
+    };
+
+    statistics.employeesWithoutDeductions = statistics.totalEmployees - statistics.employeesWithDeductions;
+
+    data.forEach(emp => {
+      const attendanceDays = emp.historiAbsensi?.length || 0;
+      const deductionDays = emp.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
+      const deductionAmount = emp.totalPotongan || 0;
+
+      statistics.totalAttendanceDays += attendanceDays;
+      statistics.totalDeductionDays += deductionDays;
+      statistics.totalDeductionAmount += deductionAmount;
+    });
+
+    statistics.averageDeductionPerEmployee = statistics.totalEmployees > 0 
+      ? statistics.totalDeductionAmount / statistics.totalEmployees 
+      : 0;
+
+    setStats(statistics);
   };
 
-  const fetchIndividualData = async (pegawaiId: number) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/master-data/laporan-tukin/${laporanId}/rincian?pegawaiId=${pegawaiId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+  // Filter dan sort data
+  const filteredAndSortedData = useMemo(() => {
+    let filtered = detailData.filter(emp => {
+      const matchesSearch = emp.namaLengkap?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           emp.nip?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           emp.jabatan?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (filterBy === 'all') return matchesSearch;
       
-      const result = await response.json();
-      if (result.success) {
-        return result.data[0]; // Return the first item since it's filtered by pegawaiId
+      const daysWithDeduction = emp.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
+      
+      if (filterBy === 'with-deductions') return matchesSearch && daysWithDeduction > 0;
+      if (filterBy === 'no-deductions') return matchesSearch && daysWithDeduction === 0;
+      if (filterBy === 'high-deductions') {
+        const totalDeduction = emp.totalPotongan || 0;
+        const baseSalary = emp.tunjanganKinerja || 0;
+        const deductionPercentage = baseSalary > 0 ? (totalDeduction / baseSalary) * 100 : 0;
+        return matchesSearch && deductionPercentage > 30;
       }
-      return null;
-    } catch (error) {
-      console.error('Error fetching individual data:', error);
-      return null;
+      
+      return matchesSearch;
+    });
+
+    // Sort data
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'nama':
+          return (a.namaLengkap || '').localeCompare(b.namaLengkap || '');
+        case 'potongan-desc':
+          return (b.totalPotongan || 0) - (a.totalPotongan || 0);
+        case 'potongan-asc':
+          return (a.totalPotongan || 0) - (b.totalPotongan || 0);
+        case 'jabatan':
+          return (a.jabatan || '').localeCompare(b.jabatan || '');
+        case 'hari-potong':
+          const aDays = a.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
+          const bDays = b.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
+          return bDays - aDays;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [detailData, searchTerm, sortBy, filterBy]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedData = filteredAndSortedData.slice(startIndex, startIndex + itemsPerPage);
+
+  const toggleEmployeeExpansion = (empId: number) => {
+    const newExpanded = new Set(expandedEmployees);
+    if (newExpanded.has(empId)) {
+      newExpanded.delete(empId);
+    } else {
+      newExpanded.add(empId);
     }
+    setExpandedEmployees(newExpanded);
   };
 
-  const allEmployeesStats = detailData.reduce((acc, pegawai) => {
-    const historiWithDeduction = pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0) || [];
-    acc.totalDays += pegawai.historiAbsensi?.length || 0;
-    acc.daysWithDeduction += historiWithDeduction.length;
-    acc.totalDeduction += pegawai.totalPotongan || 0;
-    return acc;
-  }, { totalDays: 0, daysWithDeduction: 0, totalDeduction: 0 });
+  const renderEmployeeDetailCard = (pegawai: any) => {
+    const empId = pegawai.pegawai?.id || pegawai.pegawaiId;
+    const isExpanded = expandedEmployees.has(empId);
+    const daysWithDeduction = pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
+    const totalDays = pegawai.historiAbsensi?.length || 0;
+    const deductionPercentage = pegawai.tunjanganKinerja > 0 
+      ? ((pegawai.totalPotongan || 0) / pegawai.tunjanganKinerja) * 100 
+      : 0;
 
-  const renderEmployeeDetail = (pegawai: any) => (
-    <Card key={pegawai.pegawai?.id || pegawai.pegawaiId} className="border-l-4 border-l-blue-500">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div>
-            <span>{pegawai.pegawai?.nama || pegawai.namaLengkap} ({pegawai.pegawai?.nip || pegawai.nip})</span>
-            <Badge variant="outline" className="ml-2">{pegawai.pegawai?.jabatan?.nama || pegawai.jabatan}</Badge>
-          </div>
-          <div className="text-sm text-gray-500">{pegawai.pegawai?.lokasiKerja || pegawai.lokasi}</div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        
-        {/* Statistics Summary */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-lg font-bold text-blue-600">
-                {formatCurrency(pegawai.totalTukin || pegawai.tunjanganKinerja || 0)}
-              </div>
-              <div className="text-xs text-gray-600">Tunjangan Dasar</div>
-            </div>
-            <div>
-              <div className={`text-lg font-bold text-red-600 ${pegawai.isTotalCapped ? 'font-black border-2 border-red-600 rounded px-2 py-1' : ''}`}>
-                {formatCurrency(pegawai.totalPotongan || pegawai.potonganAbsen || 0)}
-              </div>
-              <div className="text-xs text-gray-600">
-                Total Pemotongan
-                {pegawai.isTotalCapped && (
-                  <span className="text-red-600 font-bold ml-1">(MAX 60%)</span>
-                )}
-              </div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-green-600">
-                {formatCurrency((pegawai.totalTukin || pegawai.tunjanganKinerja || 0) - (pegawai.totalPotongan || 0))}
-              </div>
-              <div className="text-xs text-gray-600">Tunjangan Bersih</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-orange-600">
-                {pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0}
-              </div>
-              <div className="text-xs text-gray-600">Hari Potong</div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Daily Attendance with Deduction Details */}
-        {pegawai.historiAbsensi && pegawai.historiAbsensi.length > 0 && (
-          <div>
-            <h4 className="font-medium mb-3 text-gray-700">
-              Rincian Harian dengan Persentase Pemotongan
-              <span className="text-sm text-gray-500 ml-2">
-                ({pegawai.historiAbsensi.filter((h: any) => h.nominalPemotongan > 0).length} dari {pegawai.historiAbsensi.length} hari ada pemotongan)
-              </span>
-            </h4>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Hari</TableHead>
-                    <TableHead>Jam Masuk</TableHead>
-                    <TableHead>Jam Pulang</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Pemotongan</TableHead>
-                    <TableHead>Keterangan</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pegawai.historiAbsensi.map((absensi: any, index: number) => {
-                    const hasDeduction = absensi.nominalPemotongan > 0;
-                    return (
-                      <TableRow key={index} className={hasDeduction ? 'bg-red-50 border-l-4 border-l-red-400' : ''}>
-                        <TableCell className="font-medium">{safeFormatDate(absensi.tanggal)}</TableCell>
-                        <TableCell>{absensi.hari || '-'}</TableCell>
-                        <TableCell>{absensi.jamMasuk || '-'}</TableCell>
-                        <TableCell>{absensi.jamPulang || '-'}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={absensi.statusMasuk === 'HADIR' ? 'default' : 
-                                    absensi.statusMasuk === 'TERLAMBAT' ? 'destructive' : 
-                                    absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'default' :
-                                    absensi.statusMasuk === 'LIBUR' ? 'outline' :
-                                    absensi.statusMasuk === 'CUTI' ? 'secondary' :
-                                    'secondary'}
-                            className={absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
-                          >
-                            {absensi.status || absensi.statusMasuk || 'HADIR'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {hasDeduction ? (
-                            <div className="text-red-600 text-xs space-y-1">
-                              <div className="font-semibold">
-                                Rp {(absensi.nominalPemotongan || 0).toLocaleString('id-ID')}
-                              </div>
-                              <div className="font-medium">
-                                ({(absensi.persentasePemotongan || 0).toFixed(1)}%)
-                              </div>
-                              {absensi.detailPemotongan && (
-                                <div className="italic text-red-500 text-xs">
-                                  {absensi.detailPemotongan}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-green-600 text-xs font-medium">Tidak Ada</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm text-gray-600">
-                          {absensi.keterangan || '-'}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {/* Total Row */}
-                  <TableRow className="bg-gray-100 font-semibold border-t-2">
-                    <TableCell colSpan={5} className="text-right">Total Pemotongan:</TableCell>
-                    <TableCell>
-                      <div className="text-red-700 font-bold">
-                        {formatCurrency(
-                          pegawai.historiAbsensi
-                            ?.filter((h: any) => h.nominalPemotongan > 0)
-                            ?.reduce((sum: number, h: any) => sum + (h.nominalPemotongan || 0), 0) || 0
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-600">
-                        dari {pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0} hari
-                      </div>
-                    </TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-
-        {/* Total Deduction Summary */}
-        {pegawai.historiAbsensi && pegawai.historiAbsensi.length > 0 && (
-          <div>
-            <h4 className="font-medium mb-3 text-gray-700">Ringkasan Total Pemotongan</h4>
-            <Card className="border-l-4 border-l-red-500">
-              <CardContent className="pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">
-                      {formatCurrency(
-                        pegawai.historiAbsensi
-                          ?.filter((h: any) => h.nominalPemotongan > 0)
-                          ?.reduce((sum: number, h: any) => sum + (h.nominalPemotongan || 0), 0) || 0
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-600">Total Nominal Pemotongan</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {(() => {
-                        const totalPercentage = pegawai.historiAbsensi
-                          ?.filter((h: any) => h.persentasePemotongan > 0)
-                          ?.reduce((sum: number, h: any) => sum + (h.persentasePemotongan || 0), 0) || 0;
-                        return Math.min(totalPercentage, 100).toFixed(1);
-                      })()}%
-                    </div>
-                    <div className="text-sm text-gray-600">Total Persentase (Max 100%)</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0}
-                    </div>
-                    <div className="text-sm text-gray-600">Hari Dipotong</div>
+    return (
+      <Card key={empId} className="border transition-all duration-200 hover:shadow-md">
+        <Collapsible open={isExpanded} onOpenChange={() => toggleEmployeeExpansion(empId)}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <CardTitle className="text-lg">
+                      {pegawai.pegawai?.nama || pegawai.namaLengkap}
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline">{pegawai.pegawai?.nip || pegawai.nip}</Badge>
+                      <Badge variant="secondary">{pegawai.pegawai?.jabatan?.nama || pegawai.jabatan}</Badge>
+                    </CardDescription>
                   </div>
                 </div>
                 
-                {/* Breakdown by deduction codes */}
-                {pegawai.historiAbsensi && pegawai.historiAbsensi.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h5 className="font-medium mb-2 text-gray-700">Rincian per Kode Pemotongan:</h5>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                      {(() => {
-                        // Group by deduction type from historiAbsensi based on detailPemotongan parsing
-                        const deductionsByType: { [key: string]: { 
-                          days: Set<string>,
-                          totalNominal: number, 
-                          totalPercentage: number,
-                          code: string,
-                          name: string
-                        } } = {};
-                        
-                        pegawai.historiAbsensi
-                          ?.filter((h: any) => h.nominalPemotongan > 0)
-                          ?.forEach((h: any) => {
-                            if (h.detailPemotongan) {
-                              const details = h.detailPemotongan.split(', ');
-                              
-                              details.forEach((detail: string) => {
-                                let key = '';
-                                let name = '';
-                                let percentageFromDetail = 0;
-                                
-                                // Extract percentage from detail description
-                                const percentageMatch = detail.match(/\((\d+(?:\.\d+)?)%\)/);
-                                percentageFromDetail = percentageMatch ? parseFloat(percentageMatch[1]) : 0;
-                                
-                                if (detail.includes('Tidak absen')) {
-                                  key = 'TA';
-                                  name = 'Tidak Absen';
-                                } else if (detail.includes('Lupa absen pulang')) {
-                                  key = 'LAP';
-                                  name = 'Lupa Absen Pulang';
-                                } else if (detail.includes('Lupa absen masuk')) {
-                                  key = 'LAM';
-                                  name = 'Lupa Absen Masuk';
-                                } else if (detail.includes('Terlambat')) {
-                                  const match = detail.match(/Terlambat (\d+) menit/);
-                                  const minutes = match ? parseInt(match[1]) : 0;
-                                  if (minutes <= 30) {
-                                    key = 'TL0';
-                                    name = 'Terlambat ≤30 menit';
-                                  } else if (minutes <= 60) {
-                                    key = 'TL1';
-                                    name = 'Terlambat 31-60 menit';
-                                  } else if (minutes <= 90) {
-                                    key = 'TL2';
-                                    name = 'Terlambat 61-90 menit';
-                                  } else {
-                                    key = 'TL3';
-                                    name = 'Terlambat >90 menit';
-                                  }
-                                } else if (detail.includes('Pulang cepat')) {
-                                  const match = detail.match(/Pulang cepat (\d+) menit/);
-                                  const minutes = match ? parseInt(match[1]) : 0;
-                                  if (minutes <= 30) {
-                                    key = 'PSW1';
-                                    name = 'Pulang Cepat ≤30 menit';
-                                  } else if (minutes <= 60) {
-                                    key = 'PSW2';
-                                    name = 'Pulang Cepat 31-60 menit';
-                                  } else {
-                                    key = 'PSW3';
-                                    name = 'Pulang Cepat >60 menit';
-                                  }
-                                }
-                                
-                                if (key && percentageFromDetail > 0) {
-                                  if (!deductionsByType[key]) {
-                                    deductionsByType[key] = {
-                                      days: new Set(),
-                                      totalNominal: 0,
-                                      totalPercentage: 0,
-                                      code: key,
-                                      name: name
-                                    };
-                                  }
-                                  deductionsByType[key].days.add(h.tanggal);
-                                  // Calculate proportional nominal based on percentage
-                                  const proportionalNominal = (h.nominalPemotongan || 0) * (percentageFromDetail / (h.persentasePemotongan || 1));
-                                  deductionsByType[key].totalNominal += proportionalNominal;
-                                  deductionsByType[key].totalPercentage += percentageFromDetail;
-                                }
-                              });
-                            }
-                          });
-                        
-                        return Object.values(deductionsByType).map((deduction, index) => (
-                          <div key={index} className="bg-gray-50 p-2 rounded">
-                            <div className="font-semibold text-red-700" title={deduction.name}>
-                              {deduction.code}
-                            </div>
-                            <div className="text-xs text-gray-700 mb-1 font-medium">
-                              {deduction.name}
-                            </div>
-                            <div className="text-gray-600">{deduction.days.size} kejadian</div>
-                            <div className="text-red-600">{formatCurrency(deduction.totalNominal)}</div>
-                            <div className="text-orange-600">{deduction.totalPercentage.toFixed(1)}%</div>
-                          </div>
-                        ));
-                      })()}
+                <div className="flex items-center space-x-4">
+                  {/* Quick Stats */}
+                  <div className="hidden md:flex items-center space-x-6 text-sm">
+                    <div className="text-center">
+                      <div className="font-semibold text-green-600">
+                        {formatCurrency(pegawai.tunjanganKinerja || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">Tunjangan</div>
                     </div>
                     
-                    {/* Validation info */}
-                    <div className="mt-2 text-xs text-gray-500">
-                      {(() => {
-                        const totalFromDaily = pegawai.historiAbsensi
-                          ?.filter((h: any) => h.persentasePemotongan > 0)
-                          ?.reduce((sum: number, h: any) => sum + (h.persentasePemotongan || 0), 0) || 0;
-                        
-                        // Calculate total from breakdown by parsing detailPemotongan
-                        let totalFromBreakdown = 0;
-                        pegawai.historiAbsensi
-                          ?.filter((h: any) => h.nominalPemotongan > 0)
-                          ?.forEach((h: any) => {
-                            if (h.detailPemotongan) {
-                              const details = h.detailPemotongan.split(', ');
-                              details.forEach((detail: string) => {
-                                const percentageMatch = detail.match(/\((\d+(?:\.\d+)?)%\)/);
-                                if (percentageMatch) {
-                                  totalFromBreakdown += parseFloat(percentageMatch[1]);
-                                }
-                              });
-                            }
-                          });
-                        
-                        const difference = Math.abs(totalFromDaily - totalFromBreakdown);
-                        
-                        return `Total dari rincian harian: ${totalFromDaily.toFixed(1)}%, Total dari breakdown: ${totalFromBreakdown.toFixed(1)}%, Selisih: ${difference.toFixed(1)}%`;
-                      })()}
+                    <div className="text-center">
+                      <div className={`font-semibold ${daysWithDeduction > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {daysWithDeduction}
+                      </div>
+                      <div className="text-xs text-gray-500">Hari Potong</div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className={`font-semibold ${
+                        (() => {
+                          const totalPotongan = pegawai.totalPotongan || 0;
+                          const tunjanganKinerja = pegawai.tunjanganKinerja || 0;
+                          const percentage = tunjanganKinerja > 0 ? (totalPotongan / tunjanganKinerja) * 100 : 0;
+                          
+                          if (percentage === 0) return 'text-green-600';
+                          if (percentage <= 5) return 'text-gray-900 dark:text-gray-100';
+                          if (percentage <= 30) return 'text-orange-600';
+                          return 'text-red-600';
+                        })()
+                      }`}>
+                        {formatCurrency(pegawai.totalPotongan || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">Total Potong</div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className="font-semibold text-blue-600">
+                        {formatCurrency(pegawai.tunjanganBersih || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">Bersih</div>
+                    </div>
+                  </div>
+                  
+                  {/* Status Indicator */}
+                  <div className="flex items-center space-x-2">
+                    {(() => {
+                      const totalPotongan = pegawai.totalPotongan || 0;
+                      const tunjanganKinerja = pegawai.tunjanganKinerja || 0;
+                      const percentage = tunjanganKinerja > 0 ? (totalPotongan / tunjanganKinerja) * 100 : 0;
+                      
+                      if (percentage === 0) {
+                        return (
+                          <Badge className="bg-green-100 text-green-800 border-green-200">
+                            <TrendingUp className="w-3 h-3 mr-1" />
+                            Perfect
+                          </Badge>
+                        );
+                      } else if (percentage > 30) {
+                        return (
+                          <Badge variant="destructive">
+                            <TrendingDown className="w-3 h-3 mr-1" />
+                            High Cut
+                          </Badge>
+                        );
+                      } else {
+                        return (
+                          <Badge variant="outline">
+                            <TrendingDown className="w-3 h-3 mr-1" />
+                            {daysWithDeduction} Days
+                          </Badge>
+                        );
+                      }
+                    })()}
+                    
+                    {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Mobile Quick Stats */}
+              <div className="md:hidden grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                <div className="text-center">
+                  <div className="font-semibold text-green-600">
+                    {formatCurrency(pegawai.tunjanganKinerja || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">Tunjangan</div>
+                </div>
+                <div className="text-center">
+                  <div className={`font-semibold ${daysWithDeduction > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {daysWithDeduction} hari
+                  </div>
+                  <div className="text-xs text-gray-500">Hari Potong</div>
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {/* Detailed Employee Information - KEEP AS IS since user likes it */}
+              <div className="space-y-6">
+                
+                {/* Statistics Summary */}
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {formatCurrency(pegawai.totalTukin || pegawai.tunjanganKinerja || 0)}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Tunjangan Dasar</div>
+                    </div>
+                    <div>
+                      <div className={`text-lg font-bold text-red-600 ${pegawai.isTotalCapped ? 'font-black border-2 border-red-600 rounded px-2 py-1' : ''}`}>
+                        {formatCurrency(pegawai.totalPotongan || pegawai.potonganAbsen || 0)}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        Total Pemotongan
+                        {pegawai.isTotalCapped && (
+                          <span className="text-red-600 font-bold ml-1">(MAX 60%)</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-green-600">
+                        {formatCurrency((pegawai.totalTukin || pegawai.tunjanganKinerja || 0) - (pegawai.totalPotongan || 0))}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Tunjangan Bersih</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-orange-600">
+                        {pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Hari Potong</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Daily Attendance Details */}
+                {pegawai.historiAbsensi && pegawai.historiAbsensi.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3 text-gray-700 dark:text-gray-300">
+                      Rincian Harian dengan Persentase Pemotongan
+                      <span className="text-sm text-gray-500 ml-2">
+                        ({pegawai.historiAbsensi.filter((h: any) => h.nominalPemotongan > 0).length} dari {pegawai.historiAbsensi.length} hari ada pemotongan)
+                      </span>
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Hari</TableHead>
+                            <TableHead>Jam Masuk</TableHead>
+                            <TableHead>Jam Pulang</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Pemotongan</TableHead>
+                            <TableHead>Keterangan</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pegawai.historiAbsensi.map((absensi: any, index: number) => {
+                            const hasDeduction = absensi.nominalPemotongan > 0;
+                            return (
+                              <TableRow key={index} className={hasDeduction ? 'bg-red-50 dark:bg-red-950 border-l-4 border-l-red-400' : ''}>
+                                <TableCell className="font-medium">{safeFormatDate(absensi.tanggal)}</TableCell>
+                                <TableCell>{absensi.hari || '-'}</TableCell>
+                                <TableCell>{absensi.jamMasuk || '-'}</TableCell>
+                                <TableCell>{absensi.jamPulang || '-'}</TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={absensi.statusMasuk === 'HADIR' ? 'default' : 
+                                            absensi.statusMasuk === 'TERLAMBAT' ? 'destructive' : 
+                                            absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'default' :
+                                            absensi.statusMasuk === 'LIBUR' ? 'outline' :
+                                            absensi.statusMasuk === 'CUTI' ? 'secondary' :
+                                            'secondary'}
+                                    className={absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
+                                  >
+                                    {absensi.status || absensi.statusMasuk || 'HADIR'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {hasDeduction ? (
+                                    <div className="text-red-600 text-xs space-y-1">
+                                      <div className="font-semibold">
+                                        Rp {(absensi.nominalPemotongan || 0).toLocaleString('id-ID')}
+                                      </div>
+                                      <div className="font-medium">
+                                        ({(absensi.persentasePemotongan || 0).toFixed(1)}%)
+                                      </div>
+                                      {absensi.detailPemotongan && (
+                                        <div className="italic text-red-500 text-xs">
+                                          {absensi.detailPemotongan}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-green-600 text-xs font-medium">Tidak Ada</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                                  {absensi.keterangan || '-'}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
-
-      </CardContent>
-    </Card>
-  );
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <h3 className="text-lg font-semibold">Rincian Detail Per Pegawai</h3>
+        <div className="flex items-center space-x-2">
+          <Users className="w-5 h-5" />
+          <h3 className="text-lg font-semibold">Rincian Detail Per Pegawai</h3>
+        </div>
         <div className="text-center py-8">
           <div className="text-lg">Loading data detail...</div>
         </div>
@@ -440,182 +435,321 @@ function RincianDetailPerPegawai({
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold">Rincian Detail Per Pegawai</h3>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full flex flex-wrap gap-1 bg-gray-100 p-1 rounded-lg">
-          <TabsTrigger value="all" className="px-4 py-2 text-sm">
-            Semua Pegawai
-          </TabsTrigger>
-          {pegawaiList.map((pegawai: any) => (
-            <TabsTrigger 
-              key={pegawai.id} 
-              value={pegawai.id.toString()}
-              className="px-4 py-2 text-sm whitespace-nowrap"
-            >
-              {pegawai.namaLengkap ? pegawai.namaLengkap.split(' ')[0] : `Pegawai ${pegawai.id}`}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* Header dengan Statistics */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Users className="w-5 h-5" />
+          <h3 className="text-lg font-semibold">Rincian Detail Per Pegawai</h3>
+        </div>
+      </div>
 
-        <TabsContent value="all" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ringkasan Semua Pegawai</CardTitle>
-              <CardDescription>
-                Statistik keseluruhan pemotongan untuk periode ini
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6">
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">{detailData.length}</div>
-                  <div className="text-xs text-gray-600">Total Pegawai</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {detailData.filter((pegawai: any) => {
-                      const daysWithDeduction = pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
-                      return daysWithDeduction === 0;
-                    }).length}
-                  </div>
-                  <div className="text-xs text-gray-600">Pegawai Tanpa Pemotongan</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-red-600">
-                    {detailData.filter((pegawai: any) => {
-                      const daysWithDeduction = pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
-                      return daysWithDeduction > 0;
-                    }).length}
-                  </div>
-                  <div className="text-xs text-gray-600">Pegawai Terkena Potongan</div>
-                </div>
+      {/* Quick Statistics */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{stats.totalEmployees}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Total Pegawai</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{stats.employeesWithoutDeductions}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Tanpa Potongan</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600">{stats.employeesWithDeductions}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Ada Potongan</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">{stats.totalDeductionDays}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Total Hari Potong</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {formatCurrency(stats.averageDeductionPerEmployee || 0)}
               </div>
-              
-              <div className="space-y-4">
-                {detailData.map((pegawai: any) => {
-                  const daysWithDeduction = pegawai.historiAbsensi?.filter((h: any) => h.nominalPemotongan > 0).length || 0;
-                  const totalDays = pegawai.historiAbsensi?.length || 0;
-                  
-                  return (
-                    <div key={pegawai.pegawai?.id || pegawai.pegawaiId} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-medium">{pegawai.pegawai?.nama || pegawai.namaLengkap} ({pegawai.pegawai?.nip || pegawai.nip})</h4>
-                          <p className="text-sm text-gray-600">{pegawai.pegawai?.jabatan?.nama || pegawai.jabatan} - {pegawai.pegawai?.lokasiKerja || pegawai.lokasi}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setActiveTab((pegawai.pegawai?.id || pegawai.pegawaiId).toString())}
-                            className="ml-2"
-                          >
-                            Lihat Detail
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-5 gap-4 text-center text-sm">
-                        <div>
-                          <div className="font-medium text-gray-700">
-                            {pegawai.historiAbsensi?.filter((h: any) => {
-                              const status = h.statusMasuk || h.status || 'HADIR';
-                              return status !== 'ALPHA' && status !== 'TIDAK_HADIR';
-                            }).length || 0}
-                          </div>
-                          <div className="text-xs text-gray-500">Hari Masuk</div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-red-600">{daysWithDeduction}</div>
-                          <div className="text-xs text-gray-500">Hari Potong</div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-green-600">
-                            {totalDays - daysWithDeduction}
-                          </div>
-                          <div className="text-xs text-gray-500">Hari Tidak Terpotong</div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-green-600">
-                            {formatCurrency((pegawai.tunjanganKinerja || 0) - (pegawai.totalPotongan || 0))}
-                          </div>
-                          <div className="text-xs text-gray-500">Tunjangan Bersih</div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-red-600">
-                            {formatCurrency(pegawai.totalPotongan || 0)}
-                          </div>
-                          <div className="text-xs text-gray-500">Total Potong</div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="text-xs text-gray-600 dark:text-gray-400">Rata-rata Potong</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filter Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Filter className="w-4 h-4" />
+            <span>Filter & Pencarian</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Cari nama, NIP, atau jabatan..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            <Select value={filterBy} onValueChange={setFilterBy}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Filter berdasarkan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Pegawai</SelectItem>
+                <SelectItem value="no-deductions">Tanpa Potongan</SelectItem>
+                <SelectItem value="with-deductions">Ada Potongan</SelectItem>
+                <SelectItem value="high-deductions">Potongan Tinggi (&gt;30%)</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Urutkan berdasarkan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nama">Nama (A-Z)</SelectItem>
+                <SelectItem value="jabatan">Jabatan</SelectItem>
+                <SelectItem value="potongan-desc">Potongan (Tinggi-Rendah)</SelectItem>
+                <SelectItem value="potongan-asc">Potongan (Rendah-Tinggi)</SelectItem>
+                <SelectItem value="hari-potong">Hari Potong Terbanyak</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="mt-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Menampilkan {paginatedData.length} dari {filteredAndSortedData.length} pegawai
+              {searchTerm && ` untuk pencarian "${searchTerm}"`}
+              {filterBy !== 'all' && ` dengan filter ${filterBy.replace('-', ' ')}`}
+            </div>
+            
+            {/* Expand/Collapse All Controls */}
+            {paginatedData.length > 0 && (
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const allIds = new Set(paginatedData.map((emp: any) => emp.pegawai?.id || emp.pegawaiId));
+                    setExpandedEmployees(allIds);
+                  }}
+                  disabled={paginatedData.every((emp: any) => expandedEmployees.has(emp.pegawai?.id || emp.pegawaiId))}
+                >
+                  Buka Semua
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExpandedEmployees(new Set())}
+                  disabled={expandedEmployees.size === 0}
+                >
+                  Tutup Semua
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Employee Cards */}
+      <div className="space-y-4">
+        {paginatedData.length > 0 ? (
+          paginatedData.map((pegawai: any) => renderEmployeeDetailCard(pegawai))
+        ) : (
+          <Card>
+            <CardContent className="text-center py-8">
+              <div className="text-lg text-gray-500 dark:text-gray-400">
+                {searchTerm || filterBy !== 'all' 
+                  ? 'Tidak ada pegawai yang sesuai dengan kriteria pencarian/filter'
+                  : 'Tidak ada data pegawai'
+                }
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
+      </div>
 
-        {/* Individual Employee Tabs */}
-        {pegawaiList.map((pegawai: any) => (
-          <TabsContent key={pegawai.id} value={pegawai.id.toString()} className="mt-6">
-            <IndividualEmployeeDetail 
-              pegawaiId={pegawai.id}
-              laporanId={laporanId}
-              fetchIndividualData={fetchIndividualData}
-              renderEmployeeDetail={renderEmployeeDetail}
-            />
-          </TabsContent>
-        ))}
-      </Tabs>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Halaman {currentPage} dari {totalPages} 
+                ({((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredAndSortedData.length)} dari {filteredAndSortedData.length} data)
+              </div>
+              
+              <div className="flex items-center space-x-1">
+                {/* First Page */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8"
+                >
+                  ≪
+                </Button>
+                
+                {/* Previous Page */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8"
+                >
+                  ‹
+                </Button>
+                
+                {/* Page Numbers */}
+                <div className="flex items-center space-x-1">
+                  {(() => {
+                    const pages = [];
+                    const showEllipsis = totalPages > 7;
+                    
+                    if (!showEllipsis) {
+                      // Show all pages if 7 or fewer
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(
+                          <Button
+                            key={i}
+                            variant={currentPage === i ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(i)}
+                            className="w-8 h-8"
+                          >
+                            {i}
+                          </Button>
+                        );
+                      }
+                    } else {
+                      // Always show first page
+                      pages.push(
+                        <Button
+                          key={1}
+                          variant={currentPage === 1 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(1)}
+                          className="w-8 h-8"
+                        >
+                          1
+                        </Button>
+                      );
+                      
+                      // Show ellipsis if current page is far from start
+                      if (currentPage > 4) {
+                        pages.push(
+                          <span key="ellipsis1" className="px-2 text-gray-500">...</span>
+                        );
+                      }
+                      
+                      // Show pages around current page
+                      const start = Math.max(2, currentPage - 1);
+                      const end = Math.min(totalPages - 1, currentPage + 1);
+                      
+                      for (let i = start; i <= end; i++) {
+                        if (i !== 1 && i !== totalPages) {
+                          pages.push(
+                            <Button
+                              key={i}
+                              variant={currentPage === i ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(i)}
+                              className="w-8 h-8"
+                            >
+                              {i}
+                            </Button>
+                          );
+                        }
+                      }
+                      
+                      // Show ellipsis if current page is far from end
+                      if (currentPage < totalPages - 3) {
+                        pages.push(
+                          <span key="ellipsis2" className="px-2 text-gray-500">...</span>
+                        );
+                      }
+                      
+                      // Always show last page
+                      if (totalPages > 1) {
+                        pages.push(
+                          <Button
+                            key={totalPages}
+                            variant={currentPage === totalPages ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(totalPages)}
+                            className="w-8 h-8"
+                          >
+                            {totalPages}
+                          </Button>
+                        );
+                      }
+                    }
+                    
+                    return pages;
+                  })()}
+                </div>
+                
+                {/* Next Page */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8"
+                >
+                  ›
+                </Button>
+                
+                {/* Last Page */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8"
+                >
+                  ≫
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
     </div>
   );
 }
 
-// Component for individual employee detail that loads data on-demand
-function IndividualEmployeeDetail({
-  pegawaiId,
-  laporanId,
-  fetchIndividualData,
-  renderEmployeeDetail
-}: {
-  pegawaiId: number;
-  laporanId: number;
-  fetchIndividualData: (pegawaiId: number) => Promise<any>;
-  renderEmployeeDetail: (pegawai: any) => React.ReactNode;
-}) {
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      const result = await fetchIndividualData(pegawaiId);
-      setData(result);
-      setLoading(false);
-    };
-    loadData();
-  }, [pegawaiId]);
-
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-lg">Loading detail pegawai...</div>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-lg">Data tidak ditemukan</div>
-      </div>
-    );
-  }
-
-  return <>{renderEmployeeDetail(data)}</>;
-}
+// Component tidak diperlukan lagi karena sudah digabung ke RincianDetailPerPegawai
 
 export default function LaporanTukinDetailPage() {
   const params = useParams();
@@ -1265,96 +1399,203 @@ export default function LaporanTukinDetailPage() {
 
   return (
     <div className="container mx-auto py-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 print:hidden">
-        <div className="flex items-center gap-4">
+      {/* Header - Responsive Design */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <Button variant="outline" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Kembali
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{laporan.judul}</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl lg:text-3xl font-bold">{laporan.judul}</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm lg:text-base">
               Periode: {laporan.tanggalMulai ? formatDate(laporan.tanggalMulai) : '-'} - {laporan.tanggalAkhir ? formatDate(laporan.tanggalAkhir) : '-'}
             </p>
           </div>
         </div>
         
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePrint}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handlePrint} size="sm">
             <Printer className="h-4 w-4 mr-2" />
-            Print
+            <span className="hidden sm:inline">Print</span>
           </Button>
-          <Button variant="outline" onClick={handleExportPDF}>
+          <Button variant="outline" onClick={handleExportPDF} size="sm">
             <Download className="h-4 w-4 mr-2" />
-            PDF
+            <span className="hidden sm:inline">PDF</span>
           </Button>
-          <Button variant="outline" onClick={handleExportExcel}>
+          <Button variant="outline" onClick={handleExportExcel} size="sm">
             <FileText className="h-4 w-4 mr-2" />
-            Excel
+            <span className="hidden sm:inline">Excel</span>
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* Summary Cards - Responsive Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Pegawai</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+              <Users className="w-4 h-4 mr-2" />
+              Total Pegawai
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{laporan.totalPegawai}</div>
-            <p className="text-xs text-gray-500">Pegawai aktif</p>
+            <div className="text-xl lg:text-2xl font-bold">{laporan.totalPegawai}</div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Pegawai aktif</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Tunjangan Kinerja</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+              <Calculator className="w-4 h-4 mr-2" />
+              <span className="hidden lg:inline">Total Tunjangan Kinerja</span>
+              <span className="lg:hidden">Tunjangan</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(laporan.totalTunjanganKinerja || 0)}
+            <div className="text-lg lg:text-2xl font-bold text-green-600">
+              <span className="lg:hidden">{formatCurrency(laporan.totalTunjanganKinerja || 0).slice(0, -3)}K</span>
+              <span className="hidden lg:inline">{formatCurrency(laporan.totalTunjanganKinerja || 0)}</span>
             </div>
-            <p className="text-xs text-gray-500">Sebelum potongan</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Sebelum potongan</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Potongan</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+              <TrendingDown className="w-4 h-4 mr-2" />
+              <span className="hidden lg:inline">Total Potongan</span>
+              <span className="lg:hidden">Potongan</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency((laporan.totalPotonganAbsen || 0) + (laporan.totalPemotongan || 0))}
+            <div className="text-lg lg:text-2xl font-bold text-red-600">
+              <span className="lg:hidden">{formatCurrency((laporan.totalPotonganAbsen || 0) + (laporan.totalPemotongan || 0)).slice(0, -3)}K</span>
+              <span className="hidden lg:inline">{formatCurrency((laporan.totalPotonganAbsen || 0) + (laporan.totalPemotongan || 0))}</span>
             </div>
-            <p className="text-xs text-gray-500">Absen + Lainnya</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Absen + Lainnya</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Tunjangan Bersih</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              <span className="hidden lg:inline">Total Tunjangan Bersih</span>
+              <span className="lg:hidden">Bersih</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(laporan.totalTunjanganBersih || 0)}
+            <div className="text-lg lg:text-2xl font-bold text-blue-600">
+              <span className="lg:hidden">{formatCurrency(laporan.totalTunjanganBersih || 0).slice(0, -3)}K</span>
+              <span className="hidden lg:inline">{formatCurrency(laporan.totalTunjanganBersih || 0)}</span>
             </div>
-            <p className="text-xs text-gray-500">Setelah potongan</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Setelah potongan</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Detail Pegawai */}
+      {/* Detail Pegawai - Desktop dan Mobile Responsive */}
       <Card>
         <CardHeader>
-          <CardTitle>Detail Tunjangan Kinerja Per Pegawai</CardTitle>
+          <CardTitle className="flex items-center space-x-2">
+            <Users className="w-5 h-5" />
+            <span>Detail Tunjangan Kinerja Per Pegawai</span>
+          </CardTitle>
           <CardDescription>
             Rincian perhitungan tunjangan kinerja untuk periode {months[laporan.bulan - 1]} {laporan.tahun}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="lg:hidden space-y-4">
+            {laporan.detailPegawai && laporan.detailPegawai.length > 0 ? (
+              laporan.detailPegawai.map((pegawai, index) => (
+                <Card key={pegawai.pegawaiId} className="border-l-4 border-l-blue-500">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{pegawai.namaLengkap}</CardTitle>
+                        <CardDescription className="mt-1 space-y-1">
+                          <Badge variant="outline" className="text-xs">{pegawai.nip || '-'}</Badge>
+                          <Badge variant="secondary" className="text-xs ml-2">{pegawai.jabatan}</Badge>
+                          <div className="text-xs text-gray-500 mt-1">{pegawai.lokasi}</div>
+                        </CardDescription>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">#{index + 1}</div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <div className="text-gray-600 dark:text-gray-400">Tunjangan</div>
+                        <div className="font-semibold text-green-600">
+                          {formatCurrency(pegawai.tunjanganKinerja || 0)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 dark:text-gray-400">Masuk</div>
+                        <div className="font-semibold">
+                          {(() => {
+                            if (pegawai.historiAbsensi && pegawai.historiAbsensi.length > 0) {
+                              const hariMasuk = pegawai.historiAbsensi.filter((h: any) => {
+                                const status = h.statusMasuk || h.status || 'HADIR';
+                                return status !== 'ALPHA' && status !== 'TIDAK_HADIR';
+                              }).length;
+                              return hariMasuk;
+                            }
+                            const statistik = pegawai.statistikAbsen as any;
+                            if (statistik) {
+                              const totalHariKerja = statistik.totalHariKerja || 0;
+                              const totalAlpha = statistik.totalAlpha || 0;
+                              return totalHariKerja - totalAlpha;
+                            }
+                            return '-';
+                          })()}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 dark:text-gray-400">Pot. Absen</div>
+                        <div className={`font-semibold text-red-600 ${pegawai.isAttendanceCapped ? 'bg-red-100 px-1 rounded' : ''}`}>
+                          {formatCurrency(pegawai.potonganAbsen || 0)}
+                          {pegawai.isAttendanceCapped && <div className="text-xs">MAX 60%</div>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 dark:text-gray-400">Pot. Lain</div>
+                        <div className={`font-semibold text-red-600 ${pegawai.isOtherDeductionsCapped ? 'bg-red-100 px-1 rounded' : ''}`}>
+                          {formatCurrency(pegawai.pemotonganLain || 0)}
+                          {pegawai.isOtherDeductionsCapped && <div className="text-xs">MAX 60%</div>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 dark:text-gray-400">Total Pot.</div>
+                        <div className={`font-semibold text-red-600 ${pegawai.isTotalCapped ? 'bg-red-100 px-1 rounded' : ''}`}>
+                          {formatCurrency(pegawai.totalPotongan || 0)}
+                          {pegawai.isTotalCapped && <div className="text-xs">MAX 60%</div>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 dark:text-gray-400">Tunj. Bersih</div>
+                        <div className="font-bold text-blue-600">
+                          {formatCurrency(pegawai.tunjanganBersih || 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                Tidak ada data pegawai
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1386,7 +1627,6 @@ export default function LaporanTukinDetailPage() {
                       <TableCell className="text-center">
                         <div className="text-lg font-semibold">
                           {(() => {
-                            // Try to use historiAbsensi first (same logic as Rincian Detail)
                             if (pegawai.historiAbsensi && pegawai.historiAbsensi.length > 0) {
                               const hariMasuk = pegawai.historiAbsensi.filter((h: any) => {
                                 const status = h.statusMasuk || h.status || 'HADIR';
@@ -1395,12 +1635,10 @@ export default function LaporanTukinDetailPage() {
                               return hariMasuk;
                             }
                             
-                            // Fallback to statistikAbsen Map from backend
                             const statistik = pegawai.statistikAbsen as any;
                             if (statistik) {
                               const totalHariKerja = statistik.totalHariKerja || 0;
                               const totalAlpha = statistik.totalAlpha || 0;
-                              // Total masuk = total hari kerja - alpha
                               return totalHariKerja - totalAlpha;
                             }
                             
@@ -1444,7 +1682,7 @@ export default function LaporanTukinDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Enhanced Detail for Each Employee with Sub Menu */}
+      {/* Enhanced Detail for Each Employee - Versi Scalable */}
       {laporan?.detailPegawai && laporan.detailPegawai.length > 0 && (
         <RincianDetailPerPegawai 
           laporanId={Number(params.id)}
@@ -1453,21 +1691,21 @@ export default function LaporanTukinDetailPage() {
         />
       )}
 
-      {/* Footer Info */}
-      <div className="mt-6 text-sm text-gray-600 print:block">
-        <div className="flex justify-between items-center">
+      {/* Footer Info - Mobile Responsive */}
+      <div className="mt-6 text-sm text-gray-600 dark:text-gray-400 print:block">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
           <div>
             <p>Generated pada: {laporan.tanggalGenerate ? formatDate(laporan.tanggalGenerate) : '-'}</p>
             <p>Generated oleh: {laporan.generatedBy}</p>
           </div>
-          <div className="text-right">
+          <div className="lg:text-right">
             <p className="font-medium">Status: <Badge variant="default">{laporan.status}</Badge></p>
-            <p>Format: <Badge variant="outline">{laporan.formatLaporan}</Badge></p>
+            <p className="mt-1">Format: <Badge variant="outline">{laporan.formatLaporan}</Badge></p>
           </div>
         </div>
       </div>
 
-      {/* Print Styles */}
+      {/* Responsive Print Styles */}
       <style jsx>{`
         @media print {
           .print\\:hidden {
@@ -1489,6 +1727,32 @@ export default function LaporanTukinDetailPage() {
           }
           .text-3xl {
             font-size: 1.5rem !important;
+          }
+          .lg\\:hidden {
+            display: none !important;
+          }
+          .hidden.lg\\:block {
+            display: block !important;
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+          }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+          .bg-gray-50 {
+            background-color: rgb(17 24 39) !important;
+          }
+          .text-gray-600 {
+            color: rgb(156 163 175) !important;
+          }
+          .border-gray-200 {
+            border-color: rgb(55 65 81) !important;
           }
         }
       `}</style>
