@@ -639,7 +639,11 @@ export default function PengajuanCutiPage() {
                                   setTanggalDari(date)
                                   setShowStartDatePicker(false)
                                 }}
-                                disabled={(date) => date < new Date()}
+                                disabled={(date) => {
+                                  const today = new Date()
+                                  today.setHours(0, 0, 0, 0)
+                                  return date < today
+                                }}
                                 initialFocus
                               />
                             </PopoverContent>
@@ -669,7 +673,12 @@ export default function PengajuanCutiPage() {
                                   setTanggalKe(date)
                                   setShowEndDatePicker(false)
                                 }}
-                                disabled={(date) => date < (tanggalDari || new Date())}
+                                disabled={(date) => {
+                                  const today = new Date()
+                                  today.setHours(0, 0, 0, 0)
+                                  const startDate = tanggalDari || today
+                                  return date < startDate
+                                }}
                                 initialFocus
                               />
                             </PopoverContent>
