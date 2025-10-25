@@ -222,8 +222,11 @@ public class LaporanTukinService {
                     if (p.getNominalPemotongan() != null) {
                         return p.getNominalPemotongan();
                     } else if (p.getPersentasePemotongan() != null && baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+                        // Apply rumus baru untuk pemotongan lain dari database
+                        BigDecimal defaultFactor = BigDecimal.valueOf(60).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
                         return baseTunjangan.multiply(p.getPersentasePemotongan())
-                                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                                .multiply(defaultFactor);
                     }
                     return BigDecimal.ZERO;
                 })
@@ -233,41 +236,69 @@ public class LaporanTukinService {
                 .map(p -> p.getAlasanPemotongan() + " (" + p.getPersentasePemotongan() + "%)")
                 .collect(Collectors.joining(", "));
         
-        // Apply new deduction capping rules (60% maximum for each category)
-        BigDecimal maxCap60Percent = baseTunjangan.multiply(BigDecimal.valueOf(60))
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        // ATURAN BARU: Maksimal pemotongan 100% dikali 60% sebagai default factor
+        // Rumus: persentase_potongan * 60% * nilai_tunjangan
+        // Contoh: 85% * 60% * 7.500.000 = 3.825.000
         
-        // Cap 1: Attendance deductions maximum 60%
+        // Calculate maximum possible deduction (100% * 60% of base salary)
+        BigDecimal defaultFactor = BigDecimal.valueOf(60).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // 0.6
+        BigDecimal maxPossibleDeduction = baseTunjangan.multiply(defaultFactor); // 60% dari tunjangan dasar
+        
+        // Hitung persentase aktual dari potongan absen (sebelum dikali 60%)
+        BigDecimal attendancePercentage = BigDecimal.ZERO;
+        if (baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+            // Persentase raw dari potongan absen (bisa lebih dari 100%)
+            attendancePercentage = potonganAbsen.multiply(BigDecimal.valueOf(100))
+                    .divide(baseTunjangan, 2, RoundingMode.HALF_UP);
+        }
+        
+        // Apply aturan baru: maksimal 100% dikali 60% factor
         boolean attendanceCapped = false;
-        if (potonganAbsen.compareTo(maxCap60Percent) > 0) {
-            potonganAbsen = maxCap60Percent;
+        if (attendancePercentage.compareTo(BigDecimal.valueOf(100)) > 0) {
+            // Jika lebih dari 100%, batasi ke 100%
+            attendancePercentage = BigDecimal.valueOf(100);
             attendanceCapped = true;
-            log.info("Applied 60% cap to attendance deductions for pegawai: {} ({})", 
-                    pegawai.getNamaLengkap(), pegawai.getNip());
         }
         
-        // Cap 2: Other deductions maximum 60%
+        // Terapkan rumus baru: persentase * 60% * tunjangan
+        potonganAbsen = baseTunjangan
+                .multiply(attendancePercentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                .multiply(defaultFactor);
+        
+        if (attendanceCapped) {
+            log.info("Applied 100% cap with 60% factor to attendance deductions for pegawai: {} ({}), max deduction: {}", 
+                    pegawai.getNamaLengkap(), pegawai.getNip(), maxPossibleDeduction);
+        }
+        
+        // Hitung persentase aktual dari pemotongan lain (sebelum dikali 60%)
+        BigDecimal otherPercentage = BigDecimal.ZERO;
+        if (baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+            otherPercentage = pemotonganLain.multiply(BigDecimal.valueOf(100))
+                    .divide(baseTunjangan, 2, RoundingMode.HALF_UP);
+        }
+        
+        // Apply aturan baru untuk pemotongan lain
         boolean otherCapped = false;
-        if (pemotonganLain.compareTo(maxCap60Percent) > 0) {
-            pemotonganLain = maxCap60Percent;
+        if (otherPercentage.compareTo(BigDecimal.valueOf(100)) > 0) {
+            otherPercentage = BigDecimal.valueOf(100);
             otherCapped = true;
-            log.info("Applied 60% cap to other deductions for pegawai: {} ({})", 
-                    pegawai.getNamaLengkap(), pegawai.getNip());
         }
         
-        // Cap 3: Total deductions maximum 60%
-        BigDecimal totalPotongan = potonganAbsen.add(pemotonganLain);
-        boolean totalCapped = false;
-        if (totalPotongan.compareTo(maxCap60Percent) > 0) {
-            // Proportionally reduce both types of deductions to fit within 60% total
-            BigDecimal reductionRatio = maxCap60Percent.divide(totalPotongan, 6, RoundingMode.HALF_UP);
-            potonganAbsen = potonganAbsen.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
-            pemotonganLain = pemotonganLain.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
-            totalPotongan = maxCap60Percent;
-            totalCapped = true;
-            log.info("Applied 60% total cap with proportional reduction for pegawai: {} ({})", 
-                    pegawai.getNamaLengkap(), pegawai.getNip());
+        // Terapkan rumus baru: persentase * 60% * tunjangan
+        pemotonganLain = baseTunjangan
+                .multiply(otherPercentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                .multiply(defaultFactor);
+        
+        if (otherCapped) {
+            log.info("Applied 100% cap with 60% factor to other deductions for pegawai: {} ({}), max deduction: {}", 
+                    pegawai.getNamaLengkap(), pegawai.getNip(), maxPossibleDeduction);
         }
+        
+        // Total potongan (sudah menggunakan formula baru)
+        BigDecimal totalPotongan = potonganAbsen.add(pemotonganLain);
+        boolean totalCapped = attendanceCapped || otherCapped;
         
         BigDecimal tunjanganBersih = baseTunjangan.subtract(totalPotongan);
         if (tunjanganBersih.compareTo(BigDecimal.ZERO) < 0) {
@@ -291,6 +322,7 @@ public class LaporanTukinService {
                 .isAttendanceCapped(attendanceCapped)
                 .isOtherDeductionsCapped(otherCapped)
                 .isTotalCapped(totalCapped)
+                .maxPossibleDeduction(maxPossibleDeduction)
                 .historiAbsensi(historiAbsensi)
                 .detailPemotonganAbsenList(detailPemotonganAbsenList)
                 .build();
@@ -417,12 +449,8 @@ public class LaporanTukinService {
                 .map(LaporanTukinResponse.HistoriAbsensi::getNominalPemotongan)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         
-        // Apply maximum 60% deduction limit for attendance deductions
-        BigDecimal maxPemotongan60Percent = baseTunjangan.multiply(BigDecimal.valueOf(60))
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        if (totalPemotongan.compareTo(maxPemotongan60Percent) > 0) {
-            totalPemotongan = maxPemotongan60Percent;
-        }
+        // TIDAK ada capping di sini - biarkan total pemotongan mentah
+        // Capping akan diterapkan di calculateTukinForPegawai dengan formula baru
         
         return totalPemotongan;
     }
@@ -590,13 +618,20 @@ public class LaporanTukinService {
             Absensi absenMasuk = null;
             Absensi absenPulang = null;
             
-            // If approved cuti on this date, mark as CUTI regardless of absensi presence
+            // If approved cuti on this date, mark as CUTI or SAKIT based on tipeCuti
             if (cutiByDate.containsKey(currentDate)) {
                 Cuti cuti = cutiByDate.get(currentDate);
-                statusMasuk = "CUTI";
-                statusPulang = "CUTI";
-                keterangan = "Cuti: " + (cuti.getJenisCuti() != null ? cuti.getJenisCuti().getNamaCuti() : "Disetujui");
-                // No deductions for cuti
+                String tipeCutiText = (cuti.getTipeCuti() != null && cuti.getTipeCuti() == Cuti.TipeCuti.SAKIT) ? "SAKIT" : "CUTI";
+                statusMasuk = tipeCutiText;
+                statusPulang = tipeCutiText;
+                
+                if (cuti.getTipeCuti() != null && cuti.getTipeCuti() == Cuti.TipeCuti.SAKIT) {
+                    keterangan = "Sakit: " + (cuti.getAlasanCuti() != null ? cuti.getAlasanCuti() : "Disetujui");
+                } else {
+                    keterangan = "Cuti: " + (cuti.getJenisCuti() != null ? cuti.getJenisCuti().getNamaCuti() : "Disetujui");
+                }
+                
+                // No deductions for cuti/sakit
                 LaporanTukinResponse.HistoriAbsensi entry = LaporanTukinResponse.HistoriAbsensi.builder()
                     .tanggal(currentDate.toString())
                     .hari(currentDate.getDayOfWeek().name())
@@ -613,7 +648,7 @@ public class LaporanTukinService {
                     .nominalPemotongan(BigDecimal.ZERO)
                     .persentasePemotongan(BigDecimal.ZERO)
                     .detailPemotongan("")
-                    .status("CUTI")
+                    .status(tipeCutiText)
                     .build();
                 historiAbsensi.add(entry);
                 currentDate = currentDate.plusDays(1);
@@ -1139,8 +1174,11 @@ public class LaporanTukinService {
                     if (p.getNominalPemotongan() != null) {
                         return p.getNominalPemotongan();
                     } else if (p.getPersentasePemotongan() != null && baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+                        // Apply rumus baru untuk pemotongan lain dari database
+                        BigDecimal defaultFactor = BigDecimal.valueOf(60).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
                         return baseTunjangan.multiply(p.getPersentasePemotongan())
-                                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                                .multiply(defaultFactor);
                     }
                     return BigDecimal.ZERO;
                 })
@@ -1150,41 +1188,69 @@ public class LaporanTukinService {
                 .map(p -> p.getAlasanPemotongan() + " (" + p.getPersentasePemotongan() + "%)")
                 .collect(Collectors.joining(", "));
         
-        // Apply new deduction capping rules (60% maximum for each category)
-        BigDecimal maxCap60Percent = baseTunjangan.multiply(BigDecimal.valueOf(60))
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        // ATURAN BARU: Maksimal pemotongan 100% dikali 60% sebagai default factor
+        // Rumus: persentase_potongan * 60% * nilai_tunjangan
+        // Contoh: 85% * 60% * 7.500.000 = 3.825.000
         
-        // Cap 1: Attendance deductions maximum 60%
+        // Calculate maximum possible deduction (100% * 60% of base salary)
+        BigDecimal defaultFactor = BigDecimal.valueOf(60).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP); // 0.6
+        BigDecimal maxPossibleDeduction = baseTunjangan.multiply(defaultFactor); // 60% dari tunjangan dasar
+        
+        // Hitung persentase aktual dari potongan absen (sebelum dikali 60%)
+        BigDecimal attendancePercentage = BigDecimal.ZERO;
+        if (baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+            // Persentase raw dari potongan absen (bisa lebih dari 100%)
+            attendancePercentage = potonganAbsen.multiply(BigDecimal.valueOf(100))
+                    .divide(baseTunjangan, 2, RoundingMode.HALF_UP);
+        }
+        
+        // Apply aturan baru: maksimal 100% dikali 60% factor
         boolean attendanceCapped = false;
-        if (potonganAbsen.compareTo(maxCap60Percent) > 0) {
-            potonganAbsen = maxCap60Percent;
+        if (attendancePercentage.compareTo(BigDecimal.valueOf(100)) > 0) {
+            // Jika lebih dari 100%, batasi ke 100%
+            attendancePercentage = BigDecimal.valueOf(100);
             attendanceCapped = true;
-            log.info("Applied 60% cap to attendance deductions for pegawai: {} ({})", 
-                    pegawai.getNamaLengkap(), pegawai.getNip());
         }
         
-        // Cap 2: Other deductions maximum 60%
+        // Terapkan rumus baru: persentase * 60% * tunjangan
+        potonganAbsen = baseTunjangan
+                .multiply(attendancePercentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                .multiply(defaultFactor);
+        
+        if (attendanceCapped) {
+            log.info("Applied 100% cap with 60% factor to attendance deductions for pegawai: {} ({}), max deduction: {}", 
+                    pegawai.getNamaLengkap(), pegawai.getNip(), maxPossibleDeduction);
+        }
+        
+        // Hitung persentase aktual dari pemotongan lain (sebelum dikali 60%)
+        BigDecimal otherPercentage = BigDecimal.ZERO;
+        if (baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+            otherPercentage = pemotonganLain.multiply(BigDecimal.valueOf(100))
+                    .divide(baseTunjangan, 2, RoundingMode.HALF_UP);
+        }
+        
+        // Apply aturan baru untuk pemotongan lain
         boolean otherCapped = false;
-        if (pemotonganLain.compareTo(maxCap60Percent) > 0) {
-            pemotonganLain = maxCap60Percent;
+        if (otherPercentage.compareTo(BigDecimal.valueOf(100)) > 0) {
+            otherPercentage = BigDecimal.valueOf(100);
             otherCapped = true;
-            log.info("Applied 60% cap to other deductions for pegawai: {} ({})", 
-                    pegawai.getNamaLengkap(), pegawai.getNip());
         }
         
-        // Cap 3: Total deductions maximum 60%
-        BigDecimal totalPotongan = potonganAbsen.add(pemotonganLain);
-        boolean totalCapped = false;
-        if (totalPotongan.compareTo(maxCap60Percent) > 0) {
-            // Proportionally reduce both types of deductions to fit within 60% total
-            BigDecimal reductionRatio = maxCap60Percent.divide(totalPotongan, 6, RoundingMode.HALF_UP);
-            potonganAbsen = potonganAbsen.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
-            pemotonganLain = pemotonganLain.multiply(reductionRatio).setScale(2, RoundingMode.HALF_UP);
-            totalPotongan = maxCap60Percent;
-            totalCapped = true;
-            log.info("Applied 60% total cap with proportional reduction for pegawai: {} ({})", 
-                    pegawai.getNamaLengkap(), pegawai.getNip());
+        // Terapkan rumus baru: persentase * 60% * tunjangan
+        pemotonganLain = baseTunjangan
+                .multiply(otherPercentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                .multiply(defaultFactor);
+        
+        if (otherCapped) {
+            log.info("Applied 100% cap with 60% factor to other deductions for pegawai: {} ({}), max deduction: {}", 
+                    pegawai.getNamaLengkap(), pegawai.getNip(), maxPossibleDeduction);
         }
+        
+        // Total potongan (sudah menggunakan formula baru)
+        BigDecimal totalPotongan = potonganAbsen.add(pemotonganLain);
+        boolean totalCapped = attendanceCapped || otherCapped;
         
         BigDecimal tunjanganBersih = baseTunjangan.subtract(totalPotongan);
         if (tunjanganBersih.compareTo(BigDecimal.ZERO) < 0) {
@@ -1208,6 +1274,7 @@ public class LaporanTukinService {
                 .isAttendanceCapped(attendanceCapped)
                 .isOtherDeductionsCapped(otherCapped)
                 .isTotalCapped(totalCapped)
+                .maxPossibleDeduction(maxPossibleDeduction)
                 .historiAbsensi(historiAbsensi)
                 .detailPemotonganAbsenList(detailPemotonganAbsenList)
                 .build();
@@ -1982,27 +2049,37 @@ public class LaporanTukinService {
             // Alpha/Tidak masuk
             row.createCell(colIndex++).setCellValue(deductionCounts.getOrDefault("ALPHA", 0));
             
-            // Calculate capped percentage based on total deduction and base salary (60% maximum)
+            // ATURAN BARU: Hitung persentase berdasarkan formula baru
+            // Rumus: persentase_potongan * 60% * nilai_tunjangan
+            // Maksimal persentase yang ditampilkan adalah persentase sebelum dikali 60% (bisa sampai 100%)
             BigDecimal baseTunjangan = BigDecimal.valueOf(pegawai.getTunjanganKinerja());
             BigDecimal actualPercentage = BigDecimal.ZERO;
             
-            if (baseTunjangan.compareTo(BigDecimal.ZERO) > 0) {
+            if (baseTunjangan.compareTo(BigDecimal.ZERO) > 0 && pegawai.getMaxPossibleDeduction() != null) {
                 BigDecimal totalDeductionAmount = pegawai.getTotalPotongan() != null ? 
                     pegawai.getTotalPotongan() : BigDecimal.ZERO;
                 
-                actualPercentage = totalDeductionAmount
-                    .multiply(BigDecimal.valueOf(100))
-                    .divide(baseTunjangan, 2, RoundingMode.HALF_UP);
+                // Hitung persentase sebelum dikali 60% factor
+                // totalDeductionAmount = persentase * 60% * baseTunjangan
+                // maka persentase = totalDeductionAmount / (60% * baseTunjangan)
+                BigDecimal defaultFactor = BigDecimal.valueOf(60).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+                BigDecimal divisor = baseTunjangan.multiply(defaultFactor);
                 
-                // Apply 60% maximum cap
-                actualPercentage = actualPercentage.min(BigDecimal.valueOf(60.0));
+                if (divisor.compareTo(BigDecimal.ZERO) > 0) {
+                    actualPercentage = totalDeductionAmount
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(divisor, 2, RoundingMode.HALF_UP);
+                    
+                    // Cap at 100%
+                    actualPercentage = actualPercentage.min(BigDecimal.valueOf(100.0));
+                }
             }
             
             Cell persenCell = row.createCell(colIndex);
             String percentageText = actualPercentage.setScale(1, RoundingMode.HALF_UP) + "%";
             persenCell.setCellValue(percentageText);
             
-            // Apply bold style if capped at 60%
+            // Apply bold style if capped at 100%
             if (pegawai.getIsTotalCapped() != null && pegawai.getIsTotalCapped()) {
                 persenCell.setCellStyle(getCappedCurrencyStyle(workbook));
             } else {
@@ -2044,23 +2121,23 @@ public class LaporanTukinService {
         Cell titleCell = titleRow.createCell(0);
         titleCell.setCellValue("REKAP ABSENSI PEGAWAI PEMERINTAH DENGAN PERJANJIAN KERJA (PPPK)");
         titleCell.setCellStyle(titleStyle);
-        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 6));
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 7));
         
         Row subtitleRow = sheet.createRow(1);
         Cell subtitleCell = subtitleRow.createCell(0);
         subtitleCell.setCellValue("BAWASLU KOTA METRO");
         subtitleCell.setCellStyle(titleStyle);
-        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 6));
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 7));
         
         Row periodRow = sheet.createRow(2);
         Cell periodCell = periodRow.createCell(0);
         periodCell.setCellValue("BULAN " + getMonthName(laporan.getBulan()).toUpperCase() + " TAHUN " + laporan.getTahun());
         periodCell.setCellStyle(titleStyle);
-        sheet.addMergedRegion(new CellRangeAddress(2, 2, 0, 6));
+        sheet.addMergedRegion(new CellRangeAddress(2, 2, 0, 7));
         
         // Create headers
         Row headerRow = sheet.createRow(4);
-        String[] headers = {"No", "Nama", "Hadir", "Cuti", "Dinas Luar", "Alpha", "Jumlah Hari Kerja"};
+        String[] headers = {"No", "Nama", "Hadir", "Cuti", "Sakit", "Dinas Luar", "Alpha", "Jumlah Hari Kerja"};
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
@@ -2076,6 +2153,7 @@ public class LaporanTukinService {
             // Calculate attendance statistics using deduction details for consistent alpha count
             int hadir = 0;
             int cuti = 0;
+            int sakit = 0;
             int dinasLuar = 0;
             int alpha = 0;
             int totalHariKerja = pegawai.getHistoriAbsensi().size();
@@ -2103,6 +2181,8 @@ public class LaporanTukinService {
                     hadir++;
                 } else if ("CUTI".equals(status)) {
                     cuti++;
+                } else if ("SAKIT".equals(status)) {
+                    sakit++;
                 } else if ("DINAS_LUAR".equals(status)) {
                     dinasLuar++;
                 }
@@ -2124,9 +2204,10 @@ public class LaporanTukinService {
             row.createCell(1).setCellValue(pegawai.getNamaLengkap());
             row.createCell(2).setCellValue(hadir);
             row.createCell(3).setCellValue(cuti);
-            row.createCell(4).setCellValue(dinasLuar);
-            row.createCell(5).setCellValue(alpha);
-            row.createCell(6).setCellValue(totalHariKerja);
+            row.createCell(4).setCellValue(sakit);
+            row.createCell(5).setCellValue(dinasLuar);
+            row.createCell(6).setCellValue(alpha);
+            row.createCell(7).setCellValue(totalHariKerja);
         }
         
         // Set custom column widths for better readability
@@ -2134,9 +2215,10 @@ public class LaporanTukinService {
         sheet.setColumnWidth(1, 8000);  // Nama - wider
         sheet.setColumnWidth(2, 2500);  // Hadir
         sheet.setColumnWidth(3, 2500);  // Cuti
-        sheet.setColumnWidth(4, 3000);  // Dinas Luar
-        sheet.setColumnWidth(5, 2500);  // Alpha
-        sheet.setColumnWidth(6, 4000);  // Jumlah Hari Kerja
+        sheet.setColumnWidth(4, 2500);  // Sakit
+        sheet.setColumnWidth(5, 3000);  // Dinas Luar
+        sheet.setColumnWidth(6, 2500);  // Alpha
+        sheet.setColumnWidth(7, 4000);  // Jumlah Hari Kerja
     }
     
     private void createDetailTunjanganSheet(Workbook workbook, LaporanTukinResponse laporanResponse,
@@ -2475,14 +2557,19 @@ public class LaporanTukinService {
                             BigDecimal persentasePotongan = hari.getPersentasePemotongan() != null ? 
                                 hari.getPersentasePemotongan() : BigDecimal.ZERO;
                             
+                            // ATURAN BARU: Apply 60% factor untuk persentase display
                             // If no specific deduction data, calculate based on status
                             if (potonganHari.equals(BigDecimal.ZERO) && persentasePotongan.equals(BigDecimal.ZERO)) {
                                 if ("ALPHA".equals(status) || "TIDAK_HADIR".equals(status)) {
-                                    potonganHari = tunjanganPerHari; // Full day deduction
-                                    persentasePotongan = BigDecimal.valueOf(100);
+                                    // Rumus baru: 100% * 60% * tunjanganPerHari
+                                    BigDecimal defaultFactor = BigDecimal.valueOf(60).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+                                    potonganHari = tunjanganPerHari.multiply(defaultFactor); // 60% dari tunjangan per hari
+                                    persentasePotongan = BigDecimal.valueOf(100); // Display 100% (sebelum dikali 60%)
                                 } else if ("SAKIT".equals(status)) {
-                                    potonganHari = tunjanganPerHari.multiply(BigDecimal.valueOf(0.5)); // 50% deduction
-                                    persentasePotongan = BigDecimal.valueOf(50);
+                                    // Rumus baru: 50% * 60% * tunjanganPerHari
+                                    BigDecimal defaultFactor = BigDecimal.valueOf(60).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+                                    potonganHari = tunjanganPerHari.multiply(BigDecimal.valueOf(0.5)).multiply(defaultFactor); // 50% * 60%
+                                    persentasePotongan = BigDecimal.valueOf(50); // Display 50% (sebelum dikali 60%)
                                 } else if ("CUTI".equals(status)) {
                                     potonganHari = BigDecimal.ZERO; // No deduction for approved leave  
                                     persentasePotongan = BigDecimal.ZERO;

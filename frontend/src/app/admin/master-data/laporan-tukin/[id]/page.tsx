@@ -221,7 +221,8 @@ function RincianDetailPerPegawai({
                         (() => {
                           const totalPotongan = pegawai.totalPotongan || 0;
                           const tunjanganKinerja = pegawai.tunjanganKinerja || 0;
-                          const percentage = tunjanganKinerja > 0 ? (totalPotongan / tunjanganKinerja) * 100 : 0;
+                          const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
+                          const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
                           
                           if (percentage === 0) return 'text-green-600';
                           if (percentage <= 5) return 'text-gray-900 dark:text-gray-100';
@@ -232,6 +233,29 @@ function RincianDetailPerPegawai({
                         {formatCurrency(pegawai.totalPotongan || 0)}
                       </div>
                       <div className="text-xs text-gray-500">Total Potong</div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className={`font-semibold ${
+                        (() => {
+                          const totalPotongan = pegawai.totalPotongan || 0;
+                          const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
+                          const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
+                          
+                          if (percentage === 0) return 'text-green-600';
+                          if (percentage <= 30) return 'text-yellow-600';
+                          if (percentage <= 60) return 'text-orange-600';
+                          return 'text-red-600';
+                        })()
+                      }`}>
+                        {(() => {
+                          const totalPotongan = pegawai.totalPotongan || 0;
+                          const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
+                          const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
+                          return percentage.toFixed(1) + '%';
+                        })()}
+                      </div>
+                      <div className="text-xs text-gray-500">% Potong</div>
                     </div>
                     
                     <div className="text-center">
@@ -246,8 +270,8 @@ function RincianDetailPerPegawai({
                   <div className="flex items-center space-x-2">
                     {(() => {
                       const totalPotongan = pegawai.totalPotongan || 0;
-                      const tunjanganKinerja = pegawai.tunjanganKinerja || 0;
-                      const percentage = tunjanganKinerja > 0 ? (totalPotongan / tunjanganKinerja) * 100 : 0;
+                      const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
+                      const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
                       
                       if (percentage === 0) {
                         return (
@@ -279,7 +303,7 @@ function RincianDetailPerPegawai({
               </div>
               
               {/* Mobile Quick Stats */}
-              <div className="md:hidden grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
+              <div className="md:hidden grid grid-cols-3 gap-4 mt-4 pt-4 border-t">
                 <div className="text-center">
                   <div className="font-semibold text-green-600">
                     {formatCurrency(pegawai.tunjanganKinerja || 0)}
@@ -292,6 +316,28 @@ function RincianDetailPerPegawai({
                   </div>
                   <div className="text-xs text-gray-500">Hari Potong</div>
                 </div>
+                <div className="text-center">
+                  <div className={`font-semibold ${
+                    (() => {
+                      const totalPotongan = pegawai.totalPotongan || 0;
+                      const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
+                      const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
+                      
+                      if (percentage === 0) return 'text-green-600';
+                      if (percentage <= 30) return 'text-yellow-600';
+                      if (percentage <= 60) return 'text-orange-600';
+                      return 'text-red-600';
+                    })()
+                  }`}>
+                    {(() => {
+                      const totalPotongan = pegawai.totalPotongan || 0;
+                      const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
+                      const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
+                      return percentage.toFixed(1) + '%';
+                    })()}
+                  </div>
+                  <div className="text-xs text-gray-500">% Potong</div>
+                </div>
               </div>
             </CardHeader>
           </CollapsibleTrigger>
@@ -303,12 +349,20 @@ function RincianDetailPerPegawai({
                 
                 {/* Statistics Summary */}
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                     <div>
                       <div className="text-lg font-bold text-blue-600">
                         {formatCurrency(pegawai.totalTukin || pegawai.tunjanganKinerja || 0)}
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">Tunjangan Dasar</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-purple-600">
+                        {formatCurrency(pegawai.maxPossibleDeduction || 0)}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        Maksimal Pemotongan (60%)
+                      </div>
                     </div>
                     <div>
                       <div className={`text-lg font-bold text-red-600 ${pegawai.isTotalCapped ? 'font-black border-2 border-red-600 rounded px-2 py-1' : ''}`}>
@@ -317,7 +371,7 @@ function RincianDetailPerPegawai({
                       <div className="text-xs text-gray-600 dark:text-gray-400">
                         Total Pemotongan
                         {pegawai.isTotalCapped && (
-                          <span className="text-red-600 font-bold ml-1">(MAX 60%)</span>
+                          <span className="text-red-600 font-bold ml-1">(MAX 100%)</span>
                         )}
                       </div>
                     </div>
@@ -374,8 +428,10 @@ function RincianDetailPerPegawai({
                                             absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'default' :
                                             absensi.statusMasuk === 'LIBUR' ? 'outline' :
                                             absensi.statusMasuk === 'CUTI' ? 'secondary' :
+                                            absensi.statusMasuk === 'SAKIT' ? 'secondary' :
                                             'secondary'}
-                                    className={absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
+                                    className={absensi.statusMasuk === 'TERLAMBAT (DIKOMPENSASI LEMBUR)' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
+                                              absensi.statusMasuk === 'SAKIT' ? 'bg-red-100 text-red-800 border-red-200' : ''}
                                   >
                                     {absensi.status || absensi.statusMasuk || 'HADIR'}
                                   </Badge>

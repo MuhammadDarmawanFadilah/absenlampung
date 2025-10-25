@@ -16,7 +16,8 @@ public class CutiRequestDto {
     
     private LocalDate tanggalDari;
     private LocalDate tanggalKe;
-    private Long jenisCutiId;
+    private String tipeCuti; // CUTI or SAKIT
+    private Long jenisCutiId; // optional for SAKIT
     private String alasanCuti;
     private String lampiranCuti; // base64 encoded file or file path
     

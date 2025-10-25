@@ -18,6 +18,7 @@ public class CutiResponseDto {
     private Long pegawaiId;
     private String namaPegawai;
     private LocalDate tanggalCuti;
+    private String tipeCuti; // CUTI or SAKIT
     private Long jenisCutiId;
     private String jenisCutiNama;
     private String alasanCuti;

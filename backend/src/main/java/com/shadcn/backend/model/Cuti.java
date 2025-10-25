@@ -29,8 +29,13 @@ public class Cuti {
     private LocalDate tanggalCuti;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "jenis_cuti_id", nullable = false)
+    @JoinColumn(name = "jenis_cuti_id", nullable = true)
     private JenisCuti jenisCuti;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipe_cuti", nullable = false)
+    @Builder.Default
+    private TipeCuti tipeCuti = TipeCuti.CUTI;
     
     @Column(name = "alasan_cuti", columnDefinition = "TEXT")
     private String alasanCuti;
@@ -75,5 +80,10 @@ public class Cuti {
         DIAJUKAN,
         DISETUJUI,
         DITOLAK
+    }
+    
+    public enum TipeCuti {
+        CUTI,
+        SAKIT
     }
 }

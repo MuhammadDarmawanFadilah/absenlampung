@@ -582,10 +582,11 @@ export default function AdminCutiPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>
+                        <TableHead className="w-16">
                           <Checkbox
                             checked={selectedCutiIds.length > 0 && selectedCutiIds.length === cutiData.filter(cuti => cuti.statusApproval === 'PENDING' || cuti.statusApproval === 'DIAJUKAN').length}
                             onCheckedChange={handleSelectAllCuti}
+                            className="h-6 w-6 border-2 border-gray-700"
                           />
                         </TableHead>
                         <TableHead>Pegawai</TableHead>
@@ -600,11 +601,12 @@ export default function AdminCutiPage() {
                     <TableBody>
                       {cutiData.map((cuti) => (
                         <TableRow key={cuti.id}>
-                          <TableCell>
+                          <TableCell className="w-16">
                             <Checkbox
                               checked={selectedCutiIds.includes(cuti.id)}
                               disabled={cuti.statusApproval !== 'PENDING' && cuti.statusApproval !== 'DIAJUKAN'}
                               onCheckedChange={(checked) => handleSelectCuti(cuti.id, !!checked)}
+                              className="h-6 w-6 border-2 border-gray-700"
                             />
                           </TableCell>
                           <TableCell className="font-medium">{cuti.namaPegawai}</TableCell>

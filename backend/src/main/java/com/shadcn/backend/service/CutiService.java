@@ -121,9 +121,22 @@ public class CutiService {
         
         final String finalLampiranPath = lampiranPath;
         
-        // Get jenis cuti entity
-        JenisCuti jenisCuti = jenisCutiService.findById(request.getJenisCutiId());
-        log.debug("Jenis cuti: {}", jenisCuti.getNamaCuti());
+        // Parse tipe cuti
+        Cuti.TipeCuti tipeCuti = Cuti.TipeCuti.CUTI; // default
+        if (request.getTipeCuti() != null && !request.getTipeCuti().isEmpty()) {
+            tipeCuti = Cuti.TipeCuti.valueOf(request.getTipeCuti().toUpperCase());
+        }
+        final Cuti.TipeCuti finalTipeCuti = tipeCuti;
+        
+        // Get jenis cuti entity (optional for SAKIT)
+        JenisCuti jenisCuti = null;
+        if (tipeCuti == Cuti.TipeCuti.CUTI && request.getJenisCutiId() != null) {
+            jenisCuti = jenisCutiService.findById(request.getJenisCutiId());
+            log.debug("Jenis cuti: {}", jenisCuti.getNamaCuti());
+        } else if (tipeCuti == Cuti.TipeCuti.SAKIT) {
+            log.debug("Tipe: SAKIT - tidak memerlukan jenis cuti");
+        }
+        final JenisCuti finalJenisCuti = jenisCuti;
         
         // Create cuti for each date
         List<Cuti> cutiList = tanggalCutiList.stream()
@@ -132,7 +145,8 @@ public class CutiService {
                 return Cuti.builder()
                     .pegawai(pegawai)
                     .tanggalCuti(tanggal)
-                    .jenisCuti(jenisCuti)
+                    .tipeCuti(finalTipeCuti)
+                    .jenisCuti(finalJenisCuti)
                     .alasanCuti(request.getAlasanCuti())
                     .lampiranCuti(finalLampiranPath)
                     .statusApproval(Cuti.StatusApproval.PENDING)
@@ -295,8 +309,9 @@ public class CutiService {
                 .pegawaiId(cuti.getPegawai() != null ? cuti.getPegawai().getId() : null)
                 .namaPegawai(cuti.getPegawai() != null ? cuti.getPegawai().getNamaLengkap() : "Unknown")
                 .tanggalCuti(cuti.getTanggalCuti())
+                .tipeCuti(cuti.getTipeCuti() != null ? cuti.getTipeCuti().name() : "CUTI")
                 .jenisCutiId(cuti.getJenisCuti() != null ? cuti.getJenisCuti().getId() : null)
-                .jenisCutiNama(cuti.getJenisCuti() != null ? cuti.getJenisCuti().getNamaCuti() : "Unknown")
+                .jenisCutiNama(cuti.getJenisCuti() != null ? cuti.getJenisCuti().getNamaCuti() : (cuti.getTipeCuti() == Cuti.TipeCuti.SAKIT ? "Sakit" : "Unknown"))
                 .alasanCuti(cuti.getAlasanCuti())
                 .lampiranCuti(cuti.getLampiranCuti())
                 .statusApproval(cuti.getStatusApproval().name())
@@ -312,6 +327,7 @@ public class CutiService {
             return CutiResponseDto.builder()
                 .id(cuti.getId())
                 .tanggalCuti(cuti.getTanggalCuti())
+                .tipeCuti(cuti.getTipeCuti() != null ? cuti.getTipeCuti().name() : "CUTI")
                 .alasanCuti(cuti.getAlasanCuti())
                 .statusApproval(cuti.getStatusApproval().name())
                 .createdAt(cuti.getCreatedAt())

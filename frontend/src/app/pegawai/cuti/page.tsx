@@ -74,6 +74,7 @@ interface PegawaiCutiQuota {
 
 export default function PengajuanCutiPage() {
   const { user } = useAuth()
+  const [tipeCuti, setTipeCuti] = useState('CUTI')
   const [tanggalDari, setTanggalDari] = useState<Date>()
   const [tanggalKe, setTanggalKe] = useState<Date>()
   const [jenisCuti, setJenisCuti] = useState('')
@@ -288,9 +289,18 @@ export default function PengajuanCutiPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!tanggalDari || !tanggalKe || !jenisCuti || !alasanCuti) {
-      toast.error('Mohon lengkapi semua field yang wajib diisi')
-      return
+    // Validasi berdasarkan tipe cuti
+    if (tipeCuti === 'CUTI') {
+      if (!tanggalDari || !tanggalKe || !jenisCuti || !alasanCuti) {
+        toast.error('Mohon lengkapi semua field yang wajib diisi')
+        return
+      }
+    } else {
+      // Untuk SAKIT, jenisCuti tidak wajib
+      if (!tanggalDari || !tanggalKe || !alasanCuti) {
+        toast.error('Mohon lengkapi semua field yang wajib diisi')
+        return
+      }
     }
 
     if (tanggalDari > tanggalKe) {
@@ -305,7 +315,10 @@ export default function PengajuanCutiPage() {
       formData.append('pegawaiId', user?.id.toString() || '')
       formData.append('tanggalDari', format(tanggalDari, 'yyyy-MM-dd'))
       formData.append('tanggalKe', format(tanggalKe, 'yyyy-MM-dd'))
-      formData.append('jenisCuti', jenisCuti)
+      formData.append('tipeCuti', tipeCuti)
+      if (tipeCuti === 'CUTI' && jenisCuti) {
+        formData.append('jenisCuti', jenisCuti)
+      }
       formData.append('alasanCuti', alasanCuti)
       
       if (lampiranFile) {
@@ -318,9 +331,10 @@ export default function PengajuanCutiPage() {
       })
 
       if (response.ok) {
-        toast.success('Pengajuan cuti berhasil disubmit!')
+        toast.success(`Pengajuan ${tipeCuti === 'SAKIT' ? 'sakit' : 'cuti'} berhasil disubmit!`)
         
         // Reset form
+        setTipeCuti('CUTI')
         setTanggalDari(undefined)
         setTanggalKe(undefined)
         setJenisCuti('')
@@ -336,11 +350,11 @@ export default function PengajuanCutiPage() {
         }
       } else {
         const errorData = await response.text()
-        toast.error(errorData || 'Gagal mengajukan cuti')
+        toast.error(errorData || `Gagal mengajukan ${tipeCuti === 'SAKIT' ? 'sakit' : 'cuti'}`)
       }
     } catch (error) {
       console.error('Error submitting cuti:', error)
-      toast.error('Terjadi kesalahan saat mengajukan cuti')
+      toast.error(`Terjadi kesalahan saat mengajukan ${tipeCuti === 'SAKIT' ? 'sakit' : 'cuti'}`)
     } finally {
       setIsLoading(false)
     }
@@ -606,20 +620,42 @@ export default function PengajuanCutiPage() {
                   <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-t-lg">
                     <CardTitle className="text-xl text-gray-900 dark:text-gray-100 flex items-center gap-2">
                       <CalendarIcon className="w-5 h-5" />
-                      Form Pengajuan Cuti
+                      Form Pengajuan {tipeCuti === 'SAKIT' ? 'Sakit' : 'Cuti'}
                     </CardTitle>
                     <CardDescription>
-                      Isi form di bawah untuk mengajukan permohonan cuti
+                      Isi form di bawah untuk mengajukan permohonan {tipeCuti === 'SAKIT' ? 'sakit' : 'cuti'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     <form onSubmit={handleSubmit} className="space-y-6">
+                      {/* Tipe Cuti/Sakit */}
+                      <div className="space-y-2">
+                        <Label htmlFor="tipeCuti" className="text-sm font-medium flex items-center gap-1">
+                          <FileText className="w-4 h-4" />
+                          Pilih Tipe *
+                        </Label>
+                        <Select value={tipeCuti} onValueChange={(value) => {
+                          setTipeCuti(value)
+                          if (value === 'SAKIT') {
+                            setJenisCuti('') // Reset jenis cuti ketika pilih sakit
+                          }
+                        }}>
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Pilih tipe" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CUTI">Cuti</SelectItem>
+                            <SelectItem value="SAKIT">Sakit</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {/* Tanggal Cuti */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="tanggalDari" className="text-sm font-medium flex items-center gap-1">
                             <CalendarIcon className="w-4 h-4" />
-                            Tanggal Mulai Cuti *
+                            Tanggal Mulai {tipeCuti === 'SAKIT' ? 'Sakit' : 'Cuti'} *
                           </Label>
                           <Popover open={showStartDatePicker} onOpenChange={setShowStartDatePicker}>
                             <PopoverTrigger asChild>
@@ -653,7 +689,7 @@ export default function PengajuanCutiPage() {
                         <div className="space-y-2">
                           <Label htmlFor="tanggalKe" className="text-sm font-medium flex items-center gap-1">
                             <CalendarIcon className="w-4 h-4" />
-                            Tanggal Selesai Cuti *
+                            Tanggal Selesai {tipeCuti === 'SAKIT' ? 'Sakit' : 'Cuti'} *
                           </Label>
                           <Popover open={showEndDatePicker} onOpenChange={setShowEndDatePicker}>
                             <PopoverTrigger asChild>
@@ -686,42 +722,43 @@ export default function PengajuanCutiPage() {
                         </div>
                       </div>
 
-                      {/* Durasi Cuti */}
+                      {/* Durasi */}
                       {tanggalDari && tanggalKe && (
                         <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                              Durasi Cuti: {calculateDays()} hari
+                              Durasi {tipeCuti === 'SAKIT' ? 'Sakit' : 'Cuti'}: {calculateDays()} hari
                             </p>
                           </div>
                         </div>
                       )}
 
-                      {/* Jenis Cuti */}
-                      <div className="space-y-2">
-                        <Label htmlFor="jenisCuti" className="text-sm font-medium flex items-center gap-1">
-                          <FileText className="w-4 h-4" />
-                          Jenis Cuti *
-                        </Label>
-                        <Select value={jenisCuti} onValueChange={setJenisCuti}>
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Pilih jenis cuti" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {jenisCutiOptions.map((jenis) => {
-                              const quota = pegawaiCutiQuota.find(q => q.jenisCutiId === jenis.id)
-                              const isAvailable = quota && quota.sisaCuti > 0
-                              
-                              return (
-                                <SelectItem 
-                                  key={jenis.id} 
-                                  value={jenis.id.toString()}
-                                  disabled={!isAvailable}
-                                >
-                                  <div className="flex items-center justify-between w-full">
-                                    <span>{jenis.namaCuti}</span>
-                                    {quota && (
+                      {/* Jenis Cuti - Only show for CUTI */}
+                      {tipeCuti === 'CUTI' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="jenisCuti" className="text-sm font-medium flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            Jenis Cuti *
+                          </Label>
+                          <Select value={jenisCuti} onValueChange={setJenisCuti}>
+                            <SelectTrigger className="h-11">
+                              <SelectValue placeholder="Pilih jenis cuti" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {jenisCutiOptions.map((jenis) => {
+                                const quota = pegawaiCutiQuota.find(q => q.jenisCutiId === jenis.id)
+                                const isAvailable = quota && quota.sisaCuti > 0
+                                
+                                return (
+                                  <SelectItem 
+                                    key={jenis.id} 
+                                    value={jenis.id.toString()}
+                                    disabled={!isAvailable}
+                                  >
+                                    <div className="flex items-center justify-between w-full">
+                                      <span>{jenis.namaCuti}</span>
+                                      {quota && (
                                       <Badge variant={isAvailable ? "secondary" : "destructive"} className="ml-2">
                                         {quota.sisaCuti} hari
                                       </Badge>
@@ -733,17 +770,18 @@ export default function PengajuanCutiPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                      )}
 
-                      {/* Alasan Cuti */}
+                      {/* Alasan */}
                       <div className="space-y-2">
                         <Label htmlFor="alasanCuti" className="text-sm font-medium">
-                          Alasan Cuti *
+                          Alasan {tipeCuti === 'SAKIT' ? 'Sakit' : 'Cuti'} *
                         </Label>
                         <Textarea
                           id="alasanCuti"
                           value={alasanCuti}
                           onChange={(e) => setAlasanCuti(e.target.value)}
-                          placeholder="Jelaskan alasan pengajuan cuti..."
+                          placeholder={`Jelaskan alasan pengajuan ${tipeCuti === 'SAKIT' ? 'sakit' : 'cuti'}...`}
                           className="min-h-[100px] resize-none"
                         />
                       </div>
@@ -840,12 +878,12 @@ export default function PengajuanCutiPage() {
                         {isLoading ? (
                           <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Mengajukan Cuti...
+                            Mengajukan {tipeCuti === 'SAKIT' ? 'Sakit' : 'Cuti'}...
                           </>
                         ) : (
                           <>
                             <Upload className="w-5 h-5 mr-2" />
-                            Ajukan Cuti
+                            Ajukan {tipeCuti === 'SAKIT' ? 'Sakit' : 'Cuti'}
                           </>
                         )}
                       </Button>

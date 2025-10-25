@@ -35,7 +35,8 @@ public class CutiController {
         @RequestParam Long pegawaiId,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate tanggalDari,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate tanggalKe,
-        @RequestParam String jenisCuti,
+        @RequestParam(required = false) String tipeCuti, // CUTI or SAKIT
+        @RequestParam(required = false) String jenisCuti, // optional for SAKIT
         @RequestParam String alasanCuti,
         @RequestParam(required = false) MultipartFile lampiranCuti
     ) {
@@ -43,6 +44,7 @@ public class CutiController {
         log.debug("- pegawaiId: {}", pegawaiId);
         log.debug("- tanggalDari: {}", tanggalDari);
         log.debug("- tanggalKe: {}", tanggalKe);
+        log.debug("- tipeCuti: {}", tipeCuti);
         log.debug("- jenisCuti: {}", jenisCuti);
         log.debug("- alasanCuti: {}", alasanCuti);
         log.debug("- lampiranCuti: {}", lampiranCuti != null ? lampiranCuti.getOriginalFilename() : "null");
@@ -51,7 +53,8 @@ public class CutiController {
             CutiRequestDto request = CutiRequestDto.builder()
                 .tanggalDari(tanggalDari)
                 .tanggalKe(tanggalKe)
-                .jenisCutiId(Long.parseLong(jenisCuti))
+                .tipeCuti(tipeCuti != null ? tipeCuti : "CUTI")
+                .jenisCutiId(jenisCuti != null && !jenisCuti.isEmpty() ? Long.parseLong(jenisCuti) : null)
                 .alasanCuti(alasanCuti)
                 .build();
             
