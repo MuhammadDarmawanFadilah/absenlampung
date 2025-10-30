@@ -2076,7 +2076,7 @@ public class LaporanTukinService {
             }
             
             Cell persenCell = row.createCell(colIndex);
-            String percentageText = actualPercentage.setScale(1, RoundingMode.HALF_UP) + "%";
+            String percentageText = actualPercentage.setScale(2, RoundingMode.HALF_UP) + "%";
             persenCell.setCellValue(percentageText);
             
             // Apply bold style if capped at 100%
@@ -2587,7 +2587,7 @@ public class LaporanTukinService {
                             dailyTable.addCell(createDataCell(jamPulang, normalFont, Element.ALIGN_CENTER));
                             dailyTable.addCell(createDataCell(durasiKerja, normalFont, Element.ALIGN_CENTER));
                             dailyTable.addCell(createDataCell(formatCurrency(potonganHari), normalFont, Element.ALIGN_RIGHT));
-                            dailyTable.addCell(createDataCell(String.format("%.1f%%", persentasePotongan.doubleValue()), normalFont, Element.ALIGN_RIGHT));
+                            dailyTable.addCell(createDataCell(String.format("%.2f%%", persentasePotongan.doubleValue()), normalFont, Element.ALIGN_RIGHT));
                         }
                     } else {
                         // No attendance data

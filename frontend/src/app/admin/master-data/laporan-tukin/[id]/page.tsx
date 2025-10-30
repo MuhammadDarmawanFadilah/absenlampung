@@ -252,7 +252,7 @@ function RincianDetailPerPegawai({
                           const totalPotongan = pegawai.totalPotongan || 0;
                           const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
                           const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
-                          return percentage.toFixed(1) + '%';
+                          return percentage.toFixed(2) + '%';
                         })()}
                       </div>
                       <div className="text-xs text-gray-500">% Potong</div>
@@ -333,7 +333,7 @@ function RincianDetailPerPegawai({
                       const totalPotongan = pegawai.totalPotongan || 0;
                       const maxPossibleDeduction = pegawai.maxPossibleDeduction || 0;
                       const percentage = maxPossibleDeduction > 0 ? (totalPotongan / maxPossibleDeduction) * 100 : 0;
-                      return percentage.toFixed(1) + '%';
+                      return percentage.toFixed(2) + '%';
                     })()}
                   </div>
                   <div className="text-xs text-gray-500">% Potong</div>
@@ -443,7 +443,7 @@ function RincianDetailPerPegawai({
                                         Rp {(absensi.nominalPemotongan || 0).toLocaleString('id-ID')}
                                       </div>
                                       <div className="font-medium">
-                                        ({(absensi.persentasePemotongan || 0).toFixed(1)}%)
+                                        ({(absensi.persentasePemotongan || 0).toFixed(2)}%)
                                       </div>
                                       {absensi.detailPemotongan && (
                                         <div className="italic text-red-500 text-xs">
@@ -1282,7 +1282,7 @@ export default function LaporanTukinDetailPage() {
                             <td class="center">${jamPulang}</td>
                             <td class="center">${durasiKerja}</td>
                             <td class="number currency">${formatCurrency(potonganHari)}</td>
-                            <td class="center">${persentasePotongan.toFixed(1)}%</td>
+                            <td class="center">${persentasePotongan.toFixed(2)}%</td>
                             <td>${keterangan}</td>
                           </tr>
                         `;
